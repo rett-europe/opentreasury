@@ -159,14 +159,15 @@
 
 ### 2026-04-14: Deploy template spec — architectural decisions
 **By:** Neo (Lead/Architect)
+**Status:** Superseded by the agreed architecture in "Deploy template — DevOps review" and "Deploy template — security review" below.
 **What:**
-1. Deploy template is **2 files only** (workflow + README) — product repo already has all infra/code
-2. **No deploy-infra.yml** — `setup-azure.sh` is sufficient and idempotent for infra provisioning
-3. **No prod.bicepparam in deploy repo** — `using` path creates fragile cross-repo dependencies; setup-azure.sh passes params inline
-4. **7 secrets** (not 12) — Key Vault refs + Managed Identity + derivation from AZURE_CREDENTIALS eliminate 5 secrets from reference draft
+1. Deploy template includes **3 files** (deploy.yml + deploy-infra.yml + README) — product repo has all infra/code
+2. **Standalone `deploy-infra.yml`** for first-time bootstrap and infra-only changes (least-privilege separation)
+3. **No prod.bicepparam in deploy repo** — `using` path creates fragile cross-repo dependencies; params passed inline
+4. **1 secret + 8 variables** (not 12) — OIDC federation, Key Vault refs + Managed Identity eliminate persistent credentials
 5. **Manual workflow_dispatch only** for v1 — adopters control when to pull new product versions
 6. **Zip deploy** (not container) for v1 — matches existing `WEBSITE_RUN_FROM_PACKAGE=1` + `startup.sh` pattern
-**Why:** Simplest version that works. Don't duplicate what the product repo already provides.
+**Why:** Simplest version that works with security-first posture. Don't duplicate what the product repo already provides.
 **Spec:** docs/specs/deploy-template-spec.md
 
 ### 2026-04-14: Deploy template — DevOps review

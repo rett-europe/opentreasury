@@ -44,6 +44,6 @@ jobs:
           template: product/infra/main.bicep
           parameters: >-
             projectName=${{ vars.PROJECT_NAME || 'opentreasury' }}
-            environmentName=prod
+            environmentName=${{ vars.ENVIRONMENT_NAME || 'prod' }}
             azureTenantId=${{ vars.AZURE_TENANT_ID }}
-            azureClientId=${{ vars.MSAL_CLIENT_ID }}
+            azureClientId=${{ vars.ENTRA_API_CLIENT_ID }}

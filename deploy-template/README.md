@@ -192,7 +192,7 @@ The script will:
 1. Ask you to confirm your Azure subscription
 2. Create a resource group with all infrastructure (database, web app, key vault, etc.)
 3. Create identity configurations for login (Entra ID app registrations)
-4. Create a service principal (a machine account) for automated deployments
+4. Create an OIDC federated credential for GitHub Actions (no permanent passwords stored)
 5. Print a table of values you'll need in the next step
 
 > **The script is safe to re-run.** If something goes wrong halfway through, or if you need to change a setting, just run it again. It detects what already exists and skips those steps — it won't create duplicates.
@@ -204,16 +204,24 @@ When the script finishes, it prints a table of GitHub configuration values. **Ke
 The output looks like this:
 
 ```
-▶ GitHub Secrets Summary
+▶ GitHub Configuration Summary
 
-  Set these in: https://github.com/your-org/opentreasury-deploy/settings/secrets/actions
-
+  GitHub Secret (sensitive — Settings → Secrets):
   ╔════════════════════════════════════════╦═══════════════════════╗
-  ║ Name                                   ║ Value                 ║
-  ╠════════════════════════════════════════╬═══════════════════════╣
-  ║ AZURE_CREDENTIALS                      ║ <JSON blob>           ║
+  ║ AZURE_STATIC_WEB_APPS_API_TOKEN        ║ <long token>          ║
+  ╚════════════════════════════════════════╩═══════════════════════╝
+
+  GitHub Variables (non-sensitive — Settings → Variables):
+  ╔════════════════════════════════════════╦═══════════════════════╗
+  ║ AZURE_CLIENT_ID                        ║ xxxxxxxx-xxxx-...     ║
+  ║ AZURE_TENANT_ID                        ║ xxxxxxxx-xxxx-...     ║
   ║ AZURE_SUBSCRIPTION_ID                  ║ xxxxxxxx-xxxx-...     ║
-  ║ ...                                    ║ ...                   ║
+  ║ AZURE_RESOURCE_GROUP                   ║ rg-opentreasury-prod  ║
+  ║ AZURE_WEBAPP_NAME                      ║ app-opentreasury-prod ║
+  ║ ENTRA_API_CLIENT_ID                    ║ xxxxxxxx-xxxx-...     ║
+  ║ MSAL_CLIENT_ID                         ║ xxxxxxxx-xxxx-...     ║
+  ║ MSAL_API_SCOPE                         ║ api://opentreasury-.. ║
+  ║ SWA_HOSTNAME                           ║ blue-coast-abc123...  ║
   ╚════════════════════════════════════════╩═══════════════════════╝
 ```
 
@@ -221,7 +229,7 @@ The output looks like this:
 
 ## Step 5: Set GitHub configuration
 
-The deployment workflows need to know your Azure configuration. You'll set **1 Secret** (sensitive) and **8 Variables** (non-sensitive) in your deploy repo's GitHub settings.
+The deployment workflows need to know your Azure configuration. You'll set **1 Secret** (sensitive) and **11 Variables** (non-sensitive) in your deploy repo's GitHub settings.
 
 ### Navigate to GitHub Settings
 
@@ -250,9 +258,12 @@ Click the **Variables** tab, then click **New repository variable** for each:
 | `AZURE_SUBSCRIPTION_ID` | The Subscription ID from script output | Your Azure subscription |
 | `AZURE_RESOURCE_GROUP` | The resource group name (e.g., `rg-opentreasury-prod`) | Where your Azure resources live |
 | `AZURE_WEBAPP_NAME` | The App Service name (e.g., `app-opentreasury-prod`) | Your backend API host |
+| `ENTRA_API_CLIENT_ID` | The API Client ID from script output | Backend API identity for login validation |
 | `MSAL_CLIENT_ID` | The SPA Client ID from script output | Frontend login configuration |
 | `MSAL_API_SCOPE` | `api://opentreasury-api/access_as_user` (uses your project name) | API permission scope |
 | `SWA_HOSTNAME` | The SWA hostname from script output (e.g., `blue-coast-abc123.azurestaticapps.net`) | Your web app's address |
+| `PROJECT_NAME` | The project name you chose (default: `opentreasury`) | Used in Azure resource naming |
+| `ENVIRONMENT_NAME` | `prod` (or `dev` if you provisioned a dev environment) | Must match how you provisioned resources |
 
 > **Double-check every value.** A typo here will cause deployment failures that are hard to diagnose. Copy-paste from the script output whenever possible.
 
