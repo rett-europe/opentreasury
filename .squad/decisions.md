@@ -224,6 +224,28 @@
 **Key recommendations:** Define adopter persona in README, revise time claim to ~1 hour, add cost breakdown, make PowerShell first-class, default `product_ref` to latest release tag (not `main`), add version badge in app footer, add plain-language changelogs.
 **Assessment:** Spec is technically solid but written by engineers for engineers. Biggest adoption risks are non-technical: the gap between deployment and first use, the versioning story, and no error recovery.
 
+### 2026-04-14: AZURE_CLIENT_ID → ENTRA_API_CLIENT_ID rename (backend)
+**By:** Morpheus (Backend Dev)
+**What:** Renamed `AZURE_CLIENT_ID` to `ENTRA_API_CLIENT_ID` in all backend Python code and .env example files (config.py, auth/dependencies.py, conftest.py, .env.example, .env.cosmos-emulator.example). This is the API app registration client ID used for Entra ID audience validation — distinct from the `AZURE_CLIENT_ID` that `DefaultAzureCredential` auto-discovers for managed identity.
+**Why:** Per deploy-template-spec §4.5 — `DefaultAzureCredential` consumes `AZURE_CLIENT_ID` for managed identity auth. Reusing the same env var for the API audience registration caused a collision. The new name `ENTRA_API_CLIENT_ID` is unambiguous.
+**Scope:** Backend only. Bicep/workflows/scripts are Tank's responsibility.
+
+### 2026-04-14: Deploy template implementation — Bicep hardening + workflows
+**By:** Tank (DevOps)
+**What:**
+1. **Bicep hardening applied:** `disableLocalAuth: true` on Cosmos DB (forces Managed Identity, eliminates COSMOS_KEY attack vector), `enablePurgeProtection: true` on Key Vault (prevents permanent secret deletion).
+2. **AZURE_CLIENT_ID → ENTRA_API_CLIENT_ID rename:** Updated in key-vault.bicep (secret name) and app-service.bicep (app setting + KV reference). Eliminates collision with DefaultAzureCredential's AZURE_CLIENT_ID.
+3. **deploy-infra.yml passes azureClientId from vars.MSAL_CLIENT_ID:** The API app registration client ID is needed as a Bicep @secure() param for the Key Vault secret.
+4. **setup-python action added to deploy.yml:** SHA-pinned actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 (v5.6.0) for Python 3.12 in the API build step.
+5. **main.json regenerated** after all Bicep changes — clean, zero diagnostics.
+**Why:** Per deploy-template-spec.md §4.3, §4.5, §5.1, §5.2. Security hardening endorsed by Switch.
+
+### 2026-04-14: Script output must match README's GitHub config table
+**By:** Niobe (Spec / UX Analyst)
+**What:** The setup scripts (`setup-azure.sh` and `setup-azure.ps1`) still print a legacy GitHub Secrets table that includes `AZURE_CREDENTIALS` and doesn't distinguish Secrets vs Variables. The deploy-template README documents the spec's correct classification: 1 GitHub Secret (`AZURE_STATIC_WEB_APPS_API_TOKEN`) + 8 GitHub Variables. The scripts need updating so their output matches the README 1:1.
+**Why:** Adopter UX — script output is the single source of truth during provisioning. Mismatch causes confusion.
+**Action needed:** Update Step 9 output in both scripts to print two separate tables (Secrets and Variables), matching the exact names documented in the README.
+
 ## Governance
 
 - All meaningful changes require team consensus
