@@ -84,8 +84,8 @@ resource webApp 'Microsoft.Web/sites@2023-12-01' = {
           value: '@Microsoft.KeyVault(VaultName=${keyVaultName};SecretName=azure-tenant-id)'
         }
         {
-          name: 'AZURE_CLIENT_ID'
-          value: '@Microsoft.KeyVault(VaultName=${keyVaultName};SecretName=azure-client-id)'
+          name: 'ENTRA_API_CLIENT_ID'
+          value: '@Microsoft.KeyVault(VaultName=${keyVaultName};SecretName=entra-api-client-id)'
         }
         {
           name: 'APPLICATIONINSIGHTS_CONNECTION_STRING'

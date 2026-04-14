@@ -3,7 +3,7 @@ from pydantic_settings import BaseSettings
 
 class Settings(BaseSettings):
     AZURE_TENANT_ID: str
-    AZURE_CLIENT_ID: str
+    ENTRA_API_CLIENT_ID: str
     COSMOS_ENDPOINT: str
     COSMOS_DATABASE_NAME: str = "opentreasury"
     COSMOS_KEY: str = ""  # Optional: set for local dev. In Azure, Managed Identity is used instead.

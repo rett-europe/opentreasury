@@ -38,6 +38,7 @@ resource keyVault 'Microsoft.KeyVault/vaults@2023-07-01' = {
     enableRbacAuthorization: true
     enableSoftDelete: true
     softDeleteRetentionInDays: 90
+    enablePurgeProtection: true
     enabledForDeployment: false
     enabledForDiskEncryption: false
     enabledForTemplateDeployment: false
@@ -63,7 +64,7 @@ resource tenantIdSecret 'Microsoft.KeyVault/vaults/secrets@2023-07-01' = {
 
 resource clientIdSecret 'Microsoft.KeyVault/vaults/secrets@2023-07-01' = {
   parent: keyVault
-  name: 'azure-client-id'
+  name: 'entra-api-client-id'
   properties: {
     value: azureClientId
   }

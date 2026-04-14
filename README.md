@@ -70,6 +70,24 @@ opentreasury/
 └── .squad/            AI team state (Squad coordination)
 ```
 
+## Deploy to Your Azure
+
+OpenTreasury is built for any organization to run on their own Azure subscription. Your data stays in your account — you own it completely.
+
+**Estimated cost:** €15-25/month for a small organization.
+
+**What you'll need:**
+- An Azure subscription
+- Admin access to your Microsoft Entra ID tenant
+- A private GitHub repository
+
+**Get started:**
+1. Copy the contents of [`deploy-template/`](deploy-template/) to a new private repo
+2. Follow the step-by-step [Deployment Guide](deploy-template/README.md)
+3. Run the setup script, configure GitHub, and trigger the workflow — done!
+
+Most organizations are up and running in about an hour.
+
 ## Prerequisites
 
 - **Node.js** 20+

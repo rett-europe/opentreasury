@@ -69,9 +69,9 @@ async def _validate_token(token: str) -> dict:
     # Try combinations of audience and issuer formats
     # v1 tokens: aud=api://clientid, iss=https://sts.windows.net/{tenant}/
     # v2 tokens: aud=clientid, iss=https://login.microsoftonline.com/{tenant}/v2.0
-    api_uri = f"api://{settings.AZURE_CLIENT_ID}"
+    api_uri = f"api://{settings.ENTRA_API_CLIENT_ID}"
     tid = settings.AZURE_TENANT_ID
-    audiences = [settings.AZURE_CLIENT_ID, api_uri]
+    audiences = [settings.ENTRA_API_CLIENT_ID, api_uri]
     issuers = [
         f"https://login.microsoftonline.com/{tid}/v2.0",
         f"https://sts.windows.net/{tid}/",

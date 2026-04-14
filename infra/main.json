@@ -5,7 +5,7 @@
     "_generator": {
       "name": "bicep",
       "version": "0.42.1.51946",
-      "templateHash": "15681724912837247055"
+      "templateHash": "14297518676603972278"
     }
   },
   "parameters": {
@@ -218,7 +218,7 @@
             "_generator": {
               "name": "bicep",
               "version": "0.42.1.51946",
-              "templateHash": "1205842938365611063"
+              "templateHash": "10833045526191926576"
             }
           },
           "parameters": {
@@ -280,7 +280,7 @@
                     "isZoneRedundant": false
                   }
                 ],
-                "disableLocalAuth": false
+                "disableLocalAuth": true
               }
             },
             {
@@ -644,7 +644,7 @@
             "_generator": {
               "name": "bicep",
               "version": "0.42.1.51946",
-              "templateHash": "3783374967645029730"
+              "templateHash": "4185259980939429718"
             }
           },
           "parameters": {
@@ -707,6 +707,7 @@
                 "enableRbacAuthorization": true,
                 "enableSoftDelete": true,
                 "softDeleteRetentionInDays": 90,
+                "enablePurgeProtection": true,
                 "enabledForDeployment": false,
                 "enabledForDiskEncryption": false,
                 "enabledForTemplateDeployment": false
@@ -737,7 +738,7 @@
             {
               "type": "Microsoft.KeyVault/vaults/secrets",
               "apiVersion": "2023-07-01",
-              "name": "[format('{0}/{1}', parameters('vaultName'), 'azure-client-id')]",
+              "name": "[format('{0}/{1}', parameters('vaultName'), 'entra-api-client-id')]",
               "properties": {
                 "value": "[parameters('azureClientId')]"
               },
@@ -811,7 +812,7 @@
             "_generator": {
               "name": "bicep",
               "version": "0.42.1.51946",
-              "templateHash": "11874377932968490966"
+              "templateHash": "14492156538072883783"
             }
           },
           "parameters": {
@@ -928,8 +929,8 @@
                       "value": "[format('@Microsoft.KeyVault(VaultName={0};SecretName=azure-tenant-id)', parameters('keyVaultName'))]"
                     },
                     {
-                      "name": "AZURE_CLIENT_ID",
-                      "value": "[format('@Microsoft.KeyVault(VaultName={0};SecretName=azure-client-id)', parameters('keyVaultName'))]"
+                      "name": "ENTRA_API_CLIENT_ID",
+                      "value": "[format('@Microsoft.KeyVault(VaultName={0};SecretName=entra-api-client-id)', parameters('keyVaultName'))]"
                     },
                     {
                       "name": "APPLICATIONINSIGHTS_CONNECTION_STRING",

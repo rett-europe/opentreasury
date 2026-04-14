@@ -23,3 +23,24 @@
 - **Entra app registrations are NOT in Bicep** — adopters must run setup-azure.sh before pipeline works. Critical bootstrap step.
 - **Product repo checkout should pin to release tags**, not main HEAD. Prevents upstream breaking changes from hitting production.
 - Full review written to `.squad/decisions/inbox/tank-deploy-template-review.md`.
+
+### 2026-04-14: Deploy template implementation
+- Created `deploy-template/.github/workflows/deploy.yml` — full code deployment pipeline:
+  - OIDC auth (no AZURE_CREDENTIALS), SHA-pinned actions, explicit permissions
+  - workflow_dispatch with product_ref input (default 'main')
+  - sed-before-build token replacement for MSAL config in environment.prod.ts
+  - npm ci + ng build frontend, pip install + zip API
+  - az webapp deploy for API, Azure/static-web-apps-deploy for frontend
+  - Health check with 3 retries × 60s for RBAC propagation
+  - 1 secret (AZURE_STATIC_WEB_APPS_API_TOKEN), 8 vars
+- Created `deploy-template/.github/workflows/deploy-infra.yml` — infra deployment:
+  - Same OIDC auth + SHA-pinned actions
+  - azure/arm-deploy with product/infra/main.bicep, inline params
+  - projectName from vars.PROJECT_NAME (default 'opentreasury'), environmentName=prod
+  - azureTenantId + azureClientId passed as inline params from vars
+- Modified `infra/modules/cosmos-db.bicep`: `disableLocalAuth: true` (Managed Identity only)
+- Modified `infra/modules/key-vault.bicep`: added `enablePurgeProtection: true`, renamed secret 'azure-client-id' → 'entra-api-client-id'
+- Modified `infra/modules/app-service.bicep`: renamed AZURE_CLIENT_ID → ENTRA_API_CLIENT_ID, updated KV SecretName
+- Regenerated `infra/main.json` via `az bicep build`
+- Bicep diagnostics: zero errors across all modules
+- Key SHAs: checkout@11bd7190 (v4.2.2), azure/login@a457da9e (v2.3.0), arm-deploy@a1361c2c (v2.0.0), static-web-apps-deploy@1a947af9 (v1.0.0), setup-python@a26af69b (v5.6.0)

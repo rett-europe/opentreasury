@@ -1,0 +1,107 @@
+# deploy.yml — OpenTreasury Code Deployment
+# Builds and deploys the API (App Service) and Frontend (Static Web App).
+# Triggered manually via workflow_dispatch. Uses OIDC federation — no persistent credentials.
+
+name: Deploy OpenTreasury
+
+on:
+  workflow_dispatch:
+    inputs:
+      product_ref:
+        description: 'Product repo ref (tag, branch, or SHA). Use a release tag like v1.2.0 for production.'
+        default: 'main'
+        type: string
+
+permissions:
+  id-token: write    # Required for OIDC federation
+  contents: read     # Required for actions/checkout
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      # ── Auth ──────────────────────────────────────────────────────
+      - name: Azure Login (OIDC)
+        uses: azure/login@a457da9ea143d694b1b9c7c869eed04575f8b2db  # v2.3.0
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+
+      # ── Checkout ──────────────────────────────────────────────────
+      - name: Checkout product repo
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+        with:
+          repository: rett-europe/opentreasury
+          ref: ${{ inputs.product_ref || 'main' }}
+          path: product
+
+      # ── Build Frontend ────────────────────────────────────────────
+      - name: Replace environment tokens
+        working-directory: product/frontend/src/environments
+        run: |
+          API_BASE_URL="https://${{ vars.AZURE_WEBAPP_NAME }}.azurewebsites.net/api"
+          SWA_URL="https://${{ vars.SWA_HOSTNAME }}"
+
+          sed -i \
+            -e "s|#{API_BASE_URL}#|${API_BASE_URL}|g" \
+            -e "s|#{MSAL_CLIENT_ID}#|${{ vars.MSAL_CLIENT_ID }}|g" \
+            -e "s|#{MSAL_TENANT_ID}#|${{ vars.AZURE_TENANT_ID }}|g" \
+            -e "s|#{MSAL_API_SCOPE}#|${{ vars.MSAL_API_SCOPE }}|g" \
+            -e "s|#{SWA_URL}#|${SWA_URL}|g" \
+            environment.prod.ts
+
+      - name: Build frontend
+        working-directory: product/frontend
+        run: |
+          npm ci
+          npx ng build --configuration=production
+
+      # ── Build API ─────────────────────────────────────────────────
+      - name: Set up Python
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065  # v5.6.0
+        with:
+          python-version: '3.12'
+
+      - name: Build API package
+        working-directory: product/api
+        run: |
+          pip install -r requirements.txt --target .python_packages/lib/site-packages
+          zip -r ${{ github.workspace }}/api-deploy.zip . \
+            -x '.venv/*' 'tests/*' '*.pyc' '__pycache__/*' '.env*'
+
+      # ── Deploy API ────────────────────────────────────────────────
+      - name: Deploy API to App Service
+        run: |
+          az webapp deploy \
+            --resource-group ${{ vars.AZURE_RESOURCE_GROUP }} \
+            --name ${{ vars.AZURE_WEBAPP_NAME }} \
+            --src-path ${{ github.workspace }}/api-deploy.zip \
+            --type zip
+
+      # ── Deploy Frontend ───────────────────────────────────────────
+      - name: Deploy Frontend to SWA
+        uses: Azure/static-web-apps-deploy@1a947af9992250f3bc2e68ad0763e334a11e60d9  # v1.0.0
+        with:
+          azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN }}
+          action: upload
+          app_location: product/frontend/dist/frontend/browser
+          skip_app_build: true
+          skip_api_build: true
+
+      # ── Health Check ──────────────────────────────────────────────
+      - name: Health check (with retry for RBAC propagation)
+        run: |
+          API_URL="https://${{ vars.AZURE_WEBAPP_NAME }}.azurewebsites.net/api/health"
+          for i in 1 2 3; do
+            echo "Health check attempt $i..."
+            STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$API_URL" || true)
+            if [ "$STATUS" = "200" ]; then
+              echo "✅ API healthy"
+              exit 0
+            fi
+            echo "Got HTTP $STATUS, waiting 60s..."
+            sleep 60
+          done
+          echo "❌ API health check failed after 3 attempts"
+          exit 1
