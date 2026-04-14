@@ -250,4 +250,21 @@ export const EN_LABELS: AppLabels = {
   // --- Confirm dialog defaults ---
   confirmDefault: 'Confirm',
   cancelDefault: 'Cancel',
+  // --- Split transaction ---
+  splitTransaction: 'Split',
+  splitTitle: 'Split transaction',
+  splitDialogSubtitle: 'Divide the total amount into multiple lines. The sum must match the original amount.',
+  splitOriginalAmount: 'Original amount',
+  splitAddLine: 'Add line',
+  splitRemoveLine: 'Remove line',
+  splitLineAmount: 'Amount',
+  splitLineDetail: 'Detail',
+  splitRemaining: 'Remaining',
+  splitSave: 'Save split',
+  splitSaved: '✓ Transaction split',
+  splitValidationError: 'Error saving split',
+  splitMinLines: 'At least 2 lines are required to split',
+  splitAmountMismatch: 'Sum of lines must match the original amount',
+  splitIndicatorTooltip: 'Split transaction',
+  splitLinesTitle: 'Split lines',
 };

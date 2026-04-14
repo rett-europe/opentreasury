@@ -21,6 +21,7 @@ import { TypeIconPipe } from '@shared/pipes/type-icon.pipe';
 import { TypeColorPipe } from '@shared/pipes/type-color.pipe';
 import { TransactionFilterBarComponent, TransactionFilters } from './tx-filter-bar.component';
 import { QuickCategorizeDialogComponent } from './quick-categorize-dialog.component';
+import { SplitTransactionDialogComponent } from './split-transaction-dialog.component';
 
 @Component({
   selector: 'app-transaction-list',
@@ -161,6 +162,13 @@ import { QuickCategorizeDialogComponent } from './quick-categorize-dialog.compon
               <ng-container matColumnDef="actions">
                 <th mat-header-cell *matHeaderCellDef></th>
                 <td mat-cell *matCellDef="let tx">
+                  @if (authService.isAdmin()) {
+                    <button mat-icon-button
+                            [matTooltip]="settings.labels().splitTransaction"
+                            (click)="openSplit(tx); $event.stopPropagation()">
+                      <mat-icon [class.split-active]="tx.isSplit">call_split</mat-icon>
+                    </button>
+                  }
                   <button mat-icon-button
                           (click)="router.navigate(['/transactions', tx.id, 'edit'], { queryParams: { year: tx.year, month: tx.month } }); $event.stopPropagation()">
                     <mat-icon>edit</mat-icon>
@@ -264,6 +272,9 @@ import { QuickCategorizeDialogComponent } from './quick-categorize-dialog.compon
       height: var(--font-md);
       color: var(--clr-text-disabled);
     }
+    .split-active {
+      color: var(--clr-primary, #6750a4);
+    }
     .status-badges {
       display: flex;
       flex-direction: column;
@@ -343,6 +354,23 @@ export class TransactionListComponent implements OnInit, OnDestroy {
   openQuickCategorize(tx: Transaction): void {
     const dialogRef = this.dialog.open(QuickCategorizeDialogComponent, {
       width: '400px',
+      data: { transaction: tx },
+    });
+    dialogRef.afterClosed().subscribe((updated: Transaction | undefined) => {
+      if (updated) {
+        const idx = this.allTransactions.findIndex(t => t.id === updated.id);
+        if (idx >= 0) {
+          this.allTransactions[idx] = { ...this.allTransactions[idx], ...updated };
+        }
+        this.applyClientFilters();
+      }
+    });
+  }
+
+  openSplit(tx: Transaction): void {
+    const dialogRef = this.dialog.open(SplitTransactionDialogComponent, {
+      width: '680px',
+      maxWidth: '95vw',
       data: { transaction: tx },
     });
     dialogRef.afterClosed().subscribe((updated: Transaction | undefined) => {

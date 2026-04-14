@@ -97,6 +97,8 @@ class TransactionResponse(CamelModel):
     original_amount: Optional[Decimal] = None
     original_date: Optional[str] = None
     notes: list[dict] = []
+    splits: list[dict] = []
+    is_split: bool = False
     created_by: str
     created_by_name: Optional[str] = None
     created_at: datetime
@@ -156,6 +158,37 @@ class NoteResponse(CamelModel):
     author: str
     author_name: Optional[str] = None
     created_at: datetime
+
+
+class SplitLineCreate(CamelModel):
+    amount: Decimal = Field(gt=0, max_digits=12, decimal_places=2)
+    category_id: Optional[str] = None
+    subcategory_id: Optional[str] = None
+    tag_ids: list[str] = []
+    detail: Optional[str] = Field(default=None, max_length=500)
+
+    @field_validator("amount", mode="before")
+    @classmethod
+    def round_split_amount(cls, v):
+        return _round_decimal(v)
+
+
+class SplitRequest(CamelModel):
+    splits: list[SplitLineCreate] = Field(min_length=2)
+
+
+class SplitLineResponse(CamelModel):
+    id: str
+    amount: Decimal
+    category_id: Optional[str] = None
+    subcategory_id: Optional[str] = None
+    tag_ids: list[str] = []
+    detail: Optional[str] = None
+
+    @field_validator("amount", mode="before")
+    @classmethod
+    def round_split_amount(cls, v):
+        return _round_decimal(v)
 
 
 # --- Categories ---

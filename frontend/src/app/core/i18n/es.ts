@@ -250,4 +250,21 @@ export const ES_LABELS: AppLabels = {
   // --- Confirm dialog defaults ---
   confirmDefault: 'Confirmar',
   cancelDefault: 'Cancelar',
+  // --- Split transaction ---
+  splitTransaction: 'Dividir',
+  splitTitle: 'Dividir movimiento',
+  splitDialogSubtitle: 'Divide el importe total en varias líneas. La suma debe coincidir con el importe original.',
+  splitOriginalAmount: 'Importe original',
+  splitAddLine: 'Añadir línea',
+  splitRemoveLine: 'Eliminar línea',
+  splitLineAmount: 'Importe',
+  splitLineDetail: 'Detalle',
+  splitRemaining: 'Pendiente de asignar',
+  splitSave: 'Guardar división',
+  splitSaved: '✓ Movimiento dividido',
+  splitValidationError: 'Error al guardar la división',
+  splitMinLines: 'Se necesitan al menos 2 líneas para dividir',
+  splitAmountMismatch: 'La suma de las líneas debe coincidir con el importe original',
+  splitIndicatorTooltip: 'Movimiento dividido',
+  splitLinesTitle: 'Líneas de división',
 };

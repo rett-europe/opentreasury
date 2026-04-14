@@ -392,3 +392,123 @@ class TestNotesInResponse:
         assert len(data["notes"]) == 1
         assert data["notes"][0]["text"] == "Test note"
         assert data["notes"][0]["author"] == "test-oid"
+
+
+# ---------------------------------------------------------------------------
+# POST /api/transactions/{transaction_id}/split
+# ---------------------------------------------------------------------------
+
+
+SPLIT_PAYLOAD = {
+    "splits": [
+        {"amount": 100.00, "categoryId": "cat-001", "tagIds": [], "detail": "Part A"},
+        {"amount": 50.50, "categoryId": "cat-001", "tagIds": [], "detail": "Part B"},
+    ]
+}
+
+SPLIT_TX = {
+    **SAMPLE_TX,
+    "amount": -150.50,
+    "transactionType": "expense",
+    "isSplit": True,
+    "splits": [
+        {"id": "split-001", "amount": 100.00, "categoryId": "cat-001", "subcategoryId": None, "tagIds": [], "detail": "Part A"},
+        {"id": "split-002", "amount": 50.50, "categoryId": "cat-001", "subcategoryId": None, "tagIds": [], "detail": "Part B"},
+    ],
+}
+
+
+class TestSplitTransaction:
+    async def test_split_returns_200(self, admin_client, mock_txn_svc):
+        mock_txn_svc.split_transaction.return_value = SPLIT_TX
+        app.dependency_overrides[get_transaction_service] = lambda: mock_txn_svc
+
+        response = await admin_client.post(
+            "/api/transactions/tx-abc12345/split?year=2026&month=4",
+            json=SPLIT_PAYLOAD,
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["isSplit"] is True
+        assert len(data["splits"]) == 2
+
+    async def test_split_not_found_returns_404(self, admin_client, mock_txn_svc):
+        mock_txn_svc.split_transaction.return_value = None
+        app.dependency_overrides[get_transaction_service] = lambda: mock_txn_svc
+
+        response = await admin_client.post(
+            "/api/transactions/tx-missing/split?year=2026&month=4",
+            json=SPLIT_PAYLOAD,
+        )
+
+        assert response.status_code == 404
+
+    async def test_split_amount_mismatch_returns_422(self, admin_client, mock_txn_svc):
+        mock_txn_svc.split_transaction.side_effect = ValueError("Split amounts total (80.00) must equal parent transaction amount (150.50)")
+        app.dependency_overrides[get_transaction_service] = lambda: mock_txn_svc
+
+        bad_payload = {
+            "splits": [
+                {"amount": 50.00, "tagIds": []},
+                {"amount": 30.00, "tagIds": []},
+            ]
+        }
+        response = await admin_client.post(
+            "/api/transactions/tx-abc12345/split?year=2026&month=4",
+            json=bad_payload,
+        )
+
+        assert response.status_code == 422
+
+    async def test_split_requires_at_least_two_lines(self, admin_client, mock_txn_svc):
+        """SplitRequest requires min 2 split lines — schema rejects single item."""
+        app.dependency_overrides[get_transaction_service] = lambda: mock_txn_svc
+
+        response = await admin_client.post(
+            "/api/transactions/tx-abc12345/split?year=2026&month=4",
+            json={"splits": [{"amount": 150.50, "tagIds": []}]},
+        )
+
+        assert response.status_code == 422
+
+    async def test_split_requires_positive_amounts(self, admin_client, mock_txn_svc):
+        """Split line amounts must be > 0."""
+        app.dependency_overrides[get_transaction_service] = lambda: mock_txn_svc
+
+        response = await admin_client.post(
+            "/api/transactions/tx-abc12345/split?year=2026&month=4",
+            json={
+                "splits": [
+                    {"amount": 0.00, "tagIds": []},
+                    {"amount": 150.50, "tagIds": []},
+                ]
+            },
+        )
+
+        assert response.status_code == 422
+
+    async def test_split_viewer_forbidden(self, viewer_client, mock_txn_svc):
+        """Non-admin users cannot split transactions."""
+        app.dependency_overrides[get_transaction_service] = lambda: mock_txn_svc
+
+        response = await viewer_client.post(
+            "/api/transactions/tx-abc12345/split?year=2026&month=4",
+            json=SPLIT_PAYLOAD,
+        )
+
+        assert response.status_code == 403
+
+    async def test_split_response_contains_splits_field(self, admin_client, mock_txn_svc):
+        """Response always contains splits array (empty for unsplit transactions)."""
+        mock_txn_svc.get_transaction.return_value = SAMPLE_TX
+        app.dependency_overrides[get_transaction_service] = lambda: mock_txn_svc
+
+        response = await admin_client.get("/api/transactions/tx-abc12345?year=2026&month=4")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert "splits" in data
+        assert data["splits"] == []
+        assert "isSplit" in data
+        assert data["isSplit"] is False

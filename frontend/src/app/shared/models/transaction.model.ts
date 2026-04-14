@@ -11,6 +11,27 @@ export interface TransactionNote {
   createdAt: string;
 }
 
+export interface SplitLine {
+  id: string;
+  amount: number;
+  categoryId: string | null;
+  subcategoryId: string | null;
+  tagIds: string[];
+  detail: string | null;
+}
+
+export interface SplitLineCreate {
+  amount: number;
+  categoryId?: string | null;
+  subcategoryId?: string | null;
+  tagIds?: string[];
+  detail?: string | null;
+}
+
+export interface SplitRequest {
+  splits: SplitLineCreate[];
+}
+
 // Transaction — matches Cosmos DB transactions container
 export interface Transaction {
   id: string;
@@ -38,6 +59,8 @@ export interface Transaction {
   originalAmount: number | null;
   originalDate: string | null;
   notes: TransactionNote[];
+  splits: SplitLine[];
+  isSplit: boolean;
   year: number;
   month: number;
   createdBy: string;

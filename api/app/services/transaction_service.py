@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING
 from uuid import uuid4
 
 from app.models.domain import AuditAction, CategorizationStatus, ReviewStatus, TransactionType
-from app.models.schemas import TransactionCreate, TransactionUpdate
+from app.models.schemas import SplitLineCreate, TransactionCreate, TransactionUpdate
 
 if TYPE_CHECKING:
     from app.repositories.protocols import CategoryRepository, TransactionRepository
@@ -536,6 +536,66 @@ class TransactionService:
             changed_by=user_id,
             changed_by_name=user_name,
             new_values={"note_added": note["id"]},
+        )
+
+        return replaced
+
+    async def split_transaction(
+        self,
+        transaction_id: str,
+        year: int,
+        month: int,
+        splits: list[SplitLineCreate],
+        user_id: str,
+        user_name: str,
+    ) -> dict | None:
+        existing = await self.get_transaction(transaction_id, year, month)
+        if not existing:
+            return None
+
+        now = datetime.now(timezone.utc).isoformat()
+
+        # Validate: sum of split amounts must equal the absolute value of the parent
+        parent_abs = abs(float(existing.get("amount", 0)))
+        splits_total = float(sum(s.amount for s in splits))
+        if round(abs(splits_total - parent_abs), 2) > 0.00:
+            raise ValueError(
+                f"Split amounts total ({splits_total:.2f}) must equal "
+                f"parent transaction amount ({parent_abs:.2f})"
+            )
+
+        # Validate categories for each split line
+        tx_type = existing.get("transactionType")
+        for split in splits:
+            await self._validate_category(split.category_id, split.subcategory_id, tx_type)
+
+        split_docs = [
+            {
+                "id": str(uuid4()),
+                "amount": float(split.amount),
+                "categoryId": split.category_id,
+                "subcategoryId": split.subcategory_id,
+                "tagIds": split.tag_ids,
+                "detail": split.detail,
+            }
+            for split in splits
+        ]
+
+        existing["splits"] = split_docs
+        existing["isSplit"] = True
+        existing["updatedBy"] = user_id
+        existing["updatedByName"] = user_name
+        existing["updatedAt"] = now
+
+        replaced = await self._repo.replace(transaction_id, existing)
+
+        await self._audit.log(
+            entity_type="Transaction",
+            entity_id=transaction_id,
+            action=AuditAction.UPDATE,
+            changed_by=user_id,
+            changed_by_name=user_name,
+            new_values={"splits_count": len(split_docs)},
         )
 
         return replaced

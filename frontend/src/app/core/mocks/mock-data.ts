@@ -301,6 +301,8 @@ function tx(
     originalAmount: opts?.originalAmount ?? null,
     originalDate: opts?.originalDate ?? null,
     notes: opts?.notes ?? [],
+    splits: opts?.splits ?? [],
+    isSplit: opts?.isSplit ?? false,
     year: d.getFullYear(),
     month: d.getMonth() + 1,
     createdBy: 'mock-oid-pedro',

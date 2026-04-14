@@ -8,6 +8,7 @@ from app.models.schemas import (
     CategorizeRequest,
     NoteCreate,
     ReviewStatusUpdate,
+    SplitRequest,
     TransactionCreate,
     TransactionListResponse,
     TransactionResponse,
@@ -248,6 +249,40 @@ async def add_note(
         user_id=current_user["oid"],
         user_name=current_user["name"],
     )
+    if not result:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Transaction not found",
+        )
+    return TransactionResponse.model_validate(result)
+
+
+@router.post(
+    "/{transaction_id}/split",
+    response_model=TransactionResponse,
+)
+async def split_transaction(
+    transaction_id: str,
+    data: SplitRequest,
+    year: int = Query(..., ge=2020, le=2100),
+    month: int = Query(..., ge=1, le=12),
+    current_user: dict = Depends(get_current_admin),
+    service: TransactionService = Depends(get_transaction_service),
+):
+    try:
+        result = await service.split_transaction(
+            transaction_id=transaction_id,
+            year=year,
+            month=month,
+            splits=data.splits,
+            user_id=current_user["oid"],
+            user_name=current_user["name"],
+        )
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=str(exc),
+        )
     if not result:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,

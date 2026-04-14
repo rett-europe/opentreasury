@@ -7,7 +7,7 @@ from unittest.mock import AsyncMock
 import pytest
 
 from app.models.domain import AuditAction, ReviewStatus, TransactionType
-from app.models.schemas import TransactionCreate, TransactionUpdate
+from app.models.schemas import SplitLineCreate, TransactionCreate, TransactionUpdate
 from app.services.transaction_service import TransactionService
 
 from .conftest import make_transaction
@@ -1124,3 +1124,183 @@ class TestListTransactionFilters:
 
         filters = mock_repo.list_by_partition.call_args.kwargs["filters"]
         assert filters["transactionType"] == "income"
+
+
+# ---------------------------------------------------------------------------
+# split_transaction
+# ---------------------------------------------------------------------------
+
+
+class TestSplitTransaction:
+    """Tests for the split transaction feature."""
+
+    async def test_split_stores_split_lines(self, service, mock_repo, mock_audit, mock_category_repo):
+        """Splitting stores lines in the parent transaction document."""
+        existing = make_transaction(id="tx-001", amount=-150.00, transactionType="expense", isDeleted=False)
+        mock_repo.get_by_id.return_value = existing
+        mock_repo.replace.return_value = existing
+
+        splits = [
+            SplitLineCreate(amount=Decimal("100.00"), category_id="cat-001"),
+            SplitLineCreate(amount=Decimal("50.00"), category_id="cat-001"),
+        ]
+        # Make category validation pass
+        mock_category_repo.get_by_id.return_value = {
+            "id": "cat-001",
+            "categoryType": "expense",
+            "isActive": True,
+            "subcategories": [],
+        }
+
+        result = await service.split_transaction("tx-001", 2026, 4, splits, USER_ID, USER_NAME)
+
+        assert result is not None
+        replace_arg = mock_repo.replace.call_args[0][1]
+        assert replace_arg["isSplit"] is True
+        assert len(replace_arg["splits"]) == 2
+        assert replace_arg["splits"][0]["amount"] == 100.00
+        assert replace_arg["splits"][1]["amount"] == 50.00
+
+    async def test_split_sets_is_split_flag(self, service, mock_repo, mock_audit, mock_category_repo):
+        """Splitting marks isSplit = True on parent."""
+        existing = make_transaction(id="tx-001", amount=200.00, transactionType="income", isDeleted=False)
+        mock_repo.get_by_id.return_value = existing
+        mock_repo.replace.return_value = existing
+        mock_category_repo.get_by_id.return_value = {
+            "id": "cat-001",
+            "categoryType": "income",
+            "isActive": True,
+            "subcategories": [],
+        }
+
+        splits = [
+            SplitLineCreate(amount=Decimal("120.00"), category_id="cat-001"),
+            SplitLineCreate(amount=Decimal("80.00"), category_id="cat-001"),
+        ]
+
+        await service.split_transaction("tx-001", 2026, 4, splits, USER_ID, USER_NAME)
+
+        replace_arg = mock_repo.replace.call_args[0][1]
+        assert replace_arg["isSplit"] is True
+
+    async def test_split_raises_when_totals_mismatch(self, service, mock_repo, mock_audit, mock_category_repo):
+        """ValueError raised when split totals do not match parent amount."""
+        existing = make_transaction(id="tx-001", amount=-150.00, transactionType="expense", isDeleted=False)
+        mock_repo.get_by_id.return_value = existing
+
+        splits = [
+            SplitLineCreate(amount=Decimal("100.00")),
+            SplitLineCreate(amount=Decimal("40.00")),  # total = 140, not 150
+        ]
+
+        with pytest.raises(ValueError, match="must equal"):
+            await service.split_transaction("tx-001", 2026, 4, splits, USER_ID, USER_NAME)
+
+    async def test_split_returns_none_for_missing_transaction(self, service, mock_repo, mock_audit, mock_category_repo):
+        """Returns None when transaction does not exist."""
+        mock_repo.get_by_id.return_value = None
+
+        splits = [
+            SplitLineCreate(amount=Decimal("50.00")),
+            SplitLineCreate(amount=Decimal("50.00")),
+        ]
+
+        result = await service.split_transaction("tx-missing", 2026, 4, splits, USER_ID, USER_NAME)
+
+        assert result is None
+
+    async def test_split_logs_audit_entry(self, service, mock_repo, mock_audit, mock_category_repo):
+        """Splitting creates an audit log entry."""
+        existing = make_transaction(id="tx-001", amount=-100.00, transactionType="expense", isDeleted=False)
+        mock_repo.get_by_id.return_value = existing
+        mock_repo.replace.return_value = existing
+
+        splits = [
+            SplitLineCreate(amount=Decimal("60.00")),
+            SplitLineCreate(amount=Decimal("40.00")),
+        ]
+
+        await service.split_transaction("tx-001", 2026, 4, splits, USER_ID, USER_NAME)
+
+        mock_audit.log.assert_awaited_once()
+        audit_call = mock_audit.log.call_args.kwargs
+        assert audit_call["entity_type"] == "Transaction"
+        assert audit_call["entity_id"] == "tx-001"
+        assert audit_call["action"] == AuditAction.UPDATE
+        assert audit_call["new_values"]["splits_count"] == 2
+
+    async def test_split_each_line_has_id(self, service, mock_repo, mock_audit, mock_category_repo):
+        """Each split line gets a generated UUID id."""
+        existing = make_transaction(id="tx-001", amount=-50.00, transactionType="expense", isDeleted=False)
+        mock_repo.get_by_id.return_value = existing
+        mock_repo.replace.return_value = existing
+
+        splits = [
+            SplitLineCreate(amount=Decimal("30.00")),
+            SplitLineCreate(amount=Decimal("20.00")),
+        ]
+
+        await service.split_transaction("tx-001", 2026, 4, splits, USER_ID, USER_NAME)
+
+        replace_arg = mock_repo.replace.call_args[0][1]
+        lines = replace_arg["splits"]
+        for line in lines:
+            assert "id" in line
+            assert len(line["id"]) > 0
+
+    async def test_split_stores_category_and_tags_per_line(self, service, mock_repo, mock_audit, mock_category_repo):
+        """Each split line preserves its category, subcategory, tags, and detail."""
+        existing = make_transaction(id="tx-001", amount=-100.00, transactionType="expense", isDeleted=False)
+        mock_repo.get_by_id.return_value = existing
+        mock_repo.replace.return_value = existing
+        mock_category_repo.get_by_id.return_value = {
+            "id": "cat-001",
+            "categoryType": "expense",
+            "isActive": True,
+            "subcategories": [{"id": "subcat-001", "name": "Sub 1", "isActive": True}],
+        }
+
+        splits = [
+            SplitLineCreate(
+                amount=Decimal("60.00"),
+                category_id="cat-001",
+                subcategory_id="subcat-001",
+                tag_ids=["tag-001"],
+                detail="Printing",
+            ),
+            SplitLineCreate(
+                amount=Decimal("40.00"),
+                category_id="cat-001",
+                detail="Merchandise",
+            ),
+        ]
+
+        await service.split_transaction("tx-001", 2026, 4, splits, USER_ID, USER_NAME)
+
+        replace_arg = mock_repo.replace.call_args[0][1]
+        lines = replace_arg["splits"]
+        assert lines[0]["categoryId"] == "cat-001"
+        assert lines[0]["subcategoryId"] == "subcat-001"
+        assert lines[0]["tagIds"] == ["tag-001"]
+        assert lines[0]["detail"] == "Printing"
+        assert lines[1]["detail"] == "Merchandise"
+
+    async def test_replace_existing_splits(self, service, mock_repo, mock_audit, mock_category_repo):
+        """Re-splitting replaces previous split lines."""
+        old_split = {"id": "split-old", "amount": 75.00, "categoryId": None, "subcategoryId": None, "tagIds": [], "detail": None}
+        existing = make_transaction(id="tx-001", amount=-150.00, transactionType="expense", isSplit=True, splits=[old_split], isDeleted=False)
+        mock_repo.get_by_id.return_value = existing
+        mock_repo.replace.return_value = existing
+
+        splits = [
+            SplitLineCreate(amount=Decimal("100.00")),
+            SplitLineCreate(amount=Decimal("50.00")),
+        ]
+
+        await service.split_transaction("tx-001", 2026, 4, splits, USER_ID, USER_NAME)
+
+        replace_arg = mock_repo.replace.call_args[0][1]
+        assert len(replace_arg["splits"]) == 2
+        # Old split id should not be present
+        new_ids = [s["id"] for s in replace_arg["splits"]]
+        assert "split-old" not in new_ids
