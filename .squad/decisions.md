@@ -152,6 +152,44 @@
 **What:** Two-repo architecture: `rett-europe/opentreasury` (public product code) + private per-org deployment repos (workflows, parameters, secrets). Product repo has no org-specific config. Deployment repos check out the product repo and overlay org config.
 **Why:** Multi-org support — same product, different deployments per NGO.
 
+### 2026-04-14: Trunk-based development — branching policy
+**By:** Pedro (user directive)
+**What:** All new features and fixes must be on separate branches. Use trunk-based development: commit on feature/fix branches, open pull requests to merge into main. No direct commits to main.
+**Why:** User request — captured for team memory.
+
+### 2026-04-14: Deploy template spec — architectural decisions
+**By:** Neo (Lead/Architect)
+**What:**
+1. Deploy template is **2 files only** (workflow + README) — product repo already has all infra/code
+2. **No deploy-infra.yml** — `setup-azure.sh` is sufficient and idempotent for infra provisioning
+3. **No prod.bicepparam in deploy repo** — `using` path creates fragile cross-repo dependencies; setup-azure.sh passes params inline
+4. **7 secrets** (not 12) — Key Vault refs + Managed Identity + derivation from AZURE_CREDENTIALS eliminate 5 secrets from reference draft
+5. **Manual workflow_dispatch only** for v1 — adopters control when to pull new product versions
+6. **Zip deploy** (not container) for v1 — matches existing `WEBSITE_RUN_FROM_PACKAGE=1` + `startup.sh` pattern
+**Why:** Simplest version that works. Don't duplicate what the product repo already provides.
+**Spec:** docs/specs/deploy-template-spec.md
+
+### 2026-04-14: Deploy template — DevOps review
+**By:** Tank (DevOps)
+**What:**
+1. **3-job workflow** correct: `deploy-infra` → (`deploy-backend` + `deploy-frontend`) in parallel
+2. **Standalone deploy-infra.yml** — yes, keep separate for first-time bootstrap and infra-only changes
+3. **Checkout layout**: deploy repo at root, product repo as subdirectory pinned to release tag
+4. **Secrets reduced to 6 + 3 variables**: eliminated COSMOS_KEY (managed identity) and COSMOS_ENDPOINT (Bicep-wired)
+5. **Key Vault RBAC propagation delay** (5-10 min) — first deploy needs health-check retry step
+6. **Frontend env injection**: `sed` placeholder replacement in `environment.prod.ts` before `ng build`
+**Why:** Practical DevOps validation of the spec.
+
+### 2026-04-14: Deploy template — security review
+**By:** Switch (Security Engineer)
+**What:**
+1. **Only 1 real GitHub Secret** (`AZURE_STATIC_WEB_APPS_API_TOKEN`). All others are Variables or eliminated.
+2. **OIDC federation is mandatory** — replaces `AZURE_CREDENTIALS` persistent SP credential. Short-lived tokens (5-10 min) instead of 1-year client secrets.
+3. **COSMOS_KEY must not be a GitHub Secret** — flagged as C4 in April 12 scan. App uses managed identity at runtime.
+4. **Secret classification**: 1 secret + 8 variables + 3 eliminated (from original 12).
+5. **NGO fork caveat**: OIDC federated credential `subject` claim must match the deploying org's repo name.
+**Why:** Security-first review. Persistent credentials are unacceptable risk for NGO adopters.
+
 ## Governance
 
 - All meaningful changes require team consensus
