@@ -4,7 +4,7 @@
 **Date:** 2026-04-14  
 **Author:** Neo (Lead / Architect), with Morpheus-scope backend analysis  
 **Requested by:** Pedro (perocha)  
-**Status:** Research — awaiting Pedro's decision  
+**Status:** Approved — Pedro resolved open questions (2026-04-14)  
 **Scope:** FR-022 to FR-025 implementation alternatives  
 **Prerequisites:** Phase 1 (core model) must be complete. Phase 2 (import) should be complete.  
 **Branch:** `feature/split-transactions`
@@ -643,25 +643,21 @@ No new protocol methods needed if we use the embedded model (Option A/C). The ex
 
 ---
 
-## 7. Open Questions and Risks
+## 7. Resolved Questions
 
-### Questions for Pedro
+All questions resolved by Pedro (2026-04-14).
 
-1. **Split line limit.** Should we cap the number of split lines per transaction? Recommendation: cap at 20 (generous for any real-world scenario, prevents abuse). Pedro to confirm or adjust.
+### Pedro's Decisions
 
-2. **Unsplit behavior.** When a user unsplits, should the parent's `categoryId` revert to null (uncategorized) or to the most-used category from the split lines? Recommendation: null (uncategorized) — forcing an explicit re-categorization is safer for financial accuracy.
-
-3. **Split in transaction list view.** Should the transaction list return `splitLines` inline, or should the frontend fetch them separately via `GET /transactions/{id}`? Recommendation: inline — they're small and the frontend needs them for category pills. But this means list responses are slightly larger.
-
-4. **Can transfers/refunds be split?** A transfer between accounts is a neutral movement. Does it make sense to split it across categories? Recommendation: allow it — some NGOs might split a transfer's purpose across budget lines. But Pedro should confirm this matches the workflow.
-
-### Questions for Niobe (UX)
-
-5. **Split dialog UX.** How does the user interact with split creation? A modal dialog with line items? Inline expansion in the transaction list? This affects API design (whether we need a "save partial split" concept).
-
-6. **Split indicator in list view.** How should split transactions appear in the list? A badge? Expandable row? Indented sub-rows? This affects what data the list endpoint returns.
-
-7. **Re-categorization of split lines.** After initial split creation, how often do users change individual line categories? If frequently: the hybrid PATCH endpoint (API Option C) is worth building in v1. If rarely: start with batch-only, add PATCH later.
+1. **Split line limit:** Minimum 2, maximum 20. Confirmed.
+2. **Unsplit behavior:** Parent category reverts to uncategorized (null). Confirmed.
+3. **Split in transaction list view:** Show split indicator on the transaction row, details expand/collapse on click. Split lines are NOT separate rows. Fetch full split data inline for the detail view.
+4. **Can transfers/refunds be split?** Allowed — some NGOs split a transfer's purpose across budget lines.
+5. **Parent category after split:** Set to indicate "Split" status — the parent category no longer applies.
+6. **Re-split:** Allowed — existing split can be edited via PUT endpoint.
+7. **Audit:** Log the entire split operation as ONE audit entry when saved.
+8. **Import + split:** Split only AFTER import, never during.
+9. **Export:** Respect hierarchy but defer export changes to a follow-up phase.
 
 ### Risks
 

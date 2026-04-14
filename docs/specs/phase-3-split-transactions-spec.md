@@ -4,7 +4,7 @@
 **Date:** 2026-04-14
 **Author:** Niobe (Spec / UX Analyst)
 **Requested by:** Pedro (perocha)
-**Status:** Draft — awaiting approval
+**Status:** Approved — open questions resolved by Pedro (2026-04-14)
 **Scope:** V2 revamp Phase 3 — Split transactions (FR-022 to FR-025)
 **Prerequisites:** Phase 1 merged (transactionType, nullable categories, categorizationStatus), Phase 2 merged (import modes, batch tracking)
 **Branch:** `feature/split-transactions`
@@ -600,69 +600,47 @@ The audit entries should reference the parent transaction ID so that the audit t
 
 ---
 
-## 10. Open Questions
+## 10. Resolved Questions
 
-These items need input from Neo (Lead), Morpheus (Backend Dev), or Pedro before implementation can begin.
+All questions answered by Pedro (2026-04-14). Decisions are binding for implementation.
 
 ### OQ-001: Maximum split line limit
 
-**Question:** What's the practical maximum number of split lines? Recommended 50 (soft limit) / 100 (hard limit). Is this sufficient for Pedro's use cases?
-
-**Affects:** Backend validation, UI performance (rendering 100+ editable rows in a dialog)
-
-**Suggested resolution:** Pedro confirms based on the largest remesa he's seen.
+**Decision:** Minimum 2 lines (splitting into 1 is just re-categorizing). Maximum 20 lines (soft limit). Pedro confirmed this covers all real-world scenarios including large remesas.
 
 ### OQ-002: Export format for split transactions
 
-**Question:** How should split transactions appear in the Excel export?
-
-- Option A: Parent row only, category shows "Split (N)"
-- Option B: Parent row + expanded split lines as sub-rows (recommended)
-- Option B detail: Should split line rows have the parent's amount or the line's amount? Should there be a "Row Type" column (Regular / Split Parent / Split Line)?
-
-**Affects:** Export service, Excel column layout
-
-**Suggested resolution:** Pedro reviews an example export mockup.
+**Decision:** Respect the parent→child hierarchy in export. But export changes are **out of scope for Phase 3** — defer to a follow-up phase. Current export continues to show the parent transaction as-is.
 
 ### OQ-003: Pre-populate first line with parent's category?
 
-**Question:** When splitting an already-categorized transaction, should the first split line be pre-populated with the parent's category and the full amount? This is a UX convenience — the user would just adjust amounts and add more lines.
-
-**Affects:** Frontend UX only
-
-**Suggested resolution:** Pedro tries both flows (empty vs pre-populated) and picks.
+**Decision:** Yes — when splitting an already-categorized transaction, pre-populate the first line with the parent's category and full amount. Nice UX convenience.
 
 ### OQ-004: Split indicator in filter bar
 
-**Question:** Should the transaction list filter bar include a "Split status" filter (All / Split only / Not split)? This would let Maria quickly find all split transactions for review.
-
-**Affects:** Frontend filter bar, API query parameter
-
-**Suggested resolution:** Low priority — can be added later. Flagging for awareness.
+**Decision:** Not in v1. Add later if needed.
 
 ### OQ-005: Splitting and notes inheritance
 
-**Question:** When a parent has a `detail` field value, should the split editor show it as read-only context, or should each line start with a copy of the parent's detail?
-
-**Affects:** Frontend UX
-
-**Suggested resolution:** The parent detail is shown in the parent summary header (read-only). Split lines have their own independent notes field that starts empty. This keeps the parent's context visible without duplicating it.
+**Decision:** Parent detail is shown in the split editor header as read-only context. Split lines have their own independent notes field that starts empty.
 
 ### OQ-006: Keyboard shortcuts for rapid entry
 
-**Question:** The remesa use case (12 identical lines differing only in notes) would benefit from a "Duplicate last line" shortcut. Should we spec a duplication feature?
-
-**Affects:** Frontend UX
-
-**Suggested resolution:** Nice-to-have. Spec basic split first, add duplication as a follow-up UX improvement.
+**Decision:** Nice-to-have. Build basic split first, add duplication shortcut as a follow-up.
 
 ### OQ-007: "Allocate remainder" convenience button
 
-**Question:** When the user has unallocated amount remaining and adds a new line, should the amount field auto-fill with the unallocated remainder? This speeds up the "last line" entry.
+**Decision:** Yes — auto-fill the remainder into new lines. Easy to adopt, speeds up the workflow.
 
-**Affects:** Frontend UX
+### Additional decisions from Pedro
 
-**Suggested resolution:** Recommended yes — auto-fill the remainder into new lines. Easy to clear if the user wants a different amount.
+| Topic | Decision |
+|-------|----------|
+| **Parent category after split** | Set to indicate "Split" status. The parent's category is no longer meaningful once split lines have their own categories. |
+| **Re-split allowed** | Yes — an already-split transaction can be edited (modify existing split via PUT). |
+| **Transaction list UX** | Show split transactions in the list with a clear visual split indicator. Details expand/collapse on click — split lines are NOT shown as separate rows. |
+| **Audit granularity** | Log the entire split operation as ONE audit entry when saved. Not per-line. |
+| **Import + split timing** | Split only AFTER import. Never during import. |
 
 ---
 
