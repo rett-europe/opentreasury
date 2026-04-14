@@ -3,6 +3,29 @@ export type TransactionType = 'income' | 'expense' | 'transfer' | 'refund';
 export type CategorizationStatus = 'uncategorized' | 'manually_categorized' | 'auto_categorized';
 export type ReviewStatus = 'pending' | 'reviewed' | 'approved' | 'flagged';
 
+// --- Phase 3: Split transactions ---
+export interface SplitLine {
+  id: string;
+  amount: number;
+  categoryId: string | null;
+  subcategoryId: string | null;
+  tagIds: string[];
+  detail: string | null;
+  sortOrder: number;
+}
+
+export interface SplitLineCreate {
+  amount: number;
+  categoryId?: string | null;
+  subcategoryId?: string | null;
+  tagIds?: string[];
+  detail?: string | null;
+}
+
+export interface SplitRequest {
+  lines: SplitLineCreate[];
+}
+
 export interface TransactionNote {
   id: string;
   text: string;
@@ -38,6 +61,12 @@ export interface Transaction {
   originalAmount: number | null;
   originalDate: string | null;
   notes: TransactionNote[];
+  // --- Phase 3: Split ---
+  isSplit: boolean;
+  splitCount: number;
+  splitLines: SplitLine[];
+  splitCategoryIds: string[];
+  // ---
   year: number;
   month: number;
   createdBy: string;

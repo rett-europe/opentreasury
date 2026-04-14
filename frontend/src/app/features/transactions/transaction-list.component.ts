@@ -21,6 +21,7 @@ import { TypeIconPipe } from '@shared/pipes/type-icon.pipe';
 import { TypeColorPipe } from '@shared/pipes/type-color.pipe';
 import { TransactionFilterBarComponent, TransactionFilters } from './tx-filter-bar.component';
 import { QuickCategorizeDialogComponent } from './quick-categorize-dialog.component';
+import { SplitDialogComponent, SplitDialogData } from './split-dialog.component';
 
 @Component({
   selector: 'app-transaction-list',
@@ -68,11 +69,19 @@ import { QuickCategorizeDialogComponent } from './quick-categorize-dialog.compon
               <ng-container matColumnDef="type">
                 <th mat-header-cell *matHeaderCellDef class="col-type">{{ settings.labels().type }}</th>
                 <td mat-cell *matCellDef="let tx" class="col-type">
-                  <mat-icon [class]="tx | typeColor"
-                            [matTooltip]="typeTooltip(tx)"
-                            class="type-icon">
-                    {{ tx | typeIcon }}
-                  </mat-icon>
+                  <div class="type-cell">
+                    <mat-icon [class]="tx | typeColor"
+                              [matTooltip]="typeTooltip(tx)"
+                              class="type-icon">
+                      {{ tx | typeIcon }}
+                    </mat-icon>
+                    @if (tx.isSplit) {
+                      <mat-icon class="split-icon"
+                                [matTooltip]="settings.labels().splitIndicator(tx.splitCount)">
+                        call_split
+                      </mat-icon>
+                    }
+                  </div>
                 </td>
               </ng-container>
 
@@ -98,7 +107,14 @@ import { QuickCategorizeDialogComponent } from './quick-categorize-dialog.compon
               <ng-container matColumnDef="category">
                 <th mat-header-cell *matHeaderCellDef>{{ settings.labels().category }}</th>
                 <td mat-cell *matCellDef="let tx">
-                  @if (tx.categoryId) {
+                  @if (tx.isSplit) {
+                    <span class="split-label" role="button" tabindex="0"
+                          (click)="toggleSplitExpand(tx); $event.stopPropagation()"
+                          (keydown.enter)="toggleSplitExpand(tx); $event.stopPropagation()"
+                          (keydown.space)="toggleSplitExpand(tx); $event.stopPropagation()">
+                      {{ settings.labels().splitIndicator(tx.splitCount) }}
+                    </span>
+                  } @else if (tx.categoryId) {
                     {{ refData.getCategoryName(tx.categoryId) }}
                   } @else {
                     <span class="uncategorized-label">{{ settings.labels().uncategorizedLabel }}</span>
@@ -161,6 +177,13 @@ import { QuickCategorizeDialogComponent } from './quick-categorize-dialog.compon
               <ng-container matColumnDef="actions">
                 <th mat-header-cell *matHeaderCellDef></th>
                 <td mat-cell *matCellDef="let tx">
+                  @if (authService.isAdmin()) {
+                    <button mat-icon-button
+                            [matTooltip]="tx.isSplit ? settings.labels().editSplit : settings.labels().splitTransaction"
+                            (click)="openSplitDialog(tx); $event.stopPropagation()">
+                      <mat-icon>call_split</mat-icon>
+                    </button>
+                  }
                   <button mat-icon-button
                           (click)="router.navigate(['/transactions', tx.id, 'edit'], { queryParams: { year: tx.year, month: tx.month } }); $event.stopPropagation()">
                     <mat-icon>edit</mat-icon>
@@ -173,8 +196,42 @@ import { QuickCategorizeDialogComponent } from './quick-categorize-dialog.compon
               </ng-container>
 
               <tr mat-header-row *matHeaderRowDef="displayedColumns; sticky: true"></tr>
-              <tr mat-row *matRowDef="let row; columns: displayedColumns"></tr>
+              <tr mat-row *matRowDef="let row; columns: displayedColumns"
+                  (click)="onRowClick(row)"></tr>
             </table>
+
+            <!-- Expanded split lines shown below the table for expanded transactions -->
+            @for (tx of transactions(); track tx.id) {
+              @if (tx.isSplit && expandedSplitIds().has(tx.id)) {
+                <div class="split-detail-panel">
+                  <div class="split-detail-header">
+                    {{ tx.bankDescription || tx.detail || '—' }} — {{ settings.labels().splitIndicator(tx.splitCount) }}
+                  </div>
+                  @for (line of tx.splitLines; track line.id) {
+                    <div class="split-detail-line">
+                      <span class="sdl-indicator">├─</span>
+                      <span class="sdl-amount" [class.income-amount]="tx.amount > 0"
+                            [class.expense-amount]="tx.amount < 0">
+                        {{ line.amount | currency: 'EUR':'symbol':'1.2-2' }}
+                      </span>
+                      <span class="sdl-category">
+                        @if (line.categoryId) {
+                          {{ refData.getCategoryName(line.categoryId) }}
+                          @if (line.subcategoryId) {
+                            / {{ refData.getSubcategoryName(line.categoryId, line.subcategoryId) }}
+                          }
+                        } @else {
+                          —
+                        }
+                      </span>
+                      @if (line.detail) {
+                        <span class="sdl-detail">"{{ line.detail }}"</span>
+                      }
+                    </div>
+                  }
+                </div>
+              }
+            }
           </div>
           @if (loadingMore()) {
             <div class="loading-more">Loading more…</div>
@@ -269,6 +326,68 @@ import { QuickCategorizeDialogComponent } from './quick-categorize-dialog.compon
       flex-direction: column;
       gap: var(--spc-2);
     }
+    .type-cell {
+      display: flex;
+      align-items: center;
+      gap: 2px;
+    }
+    .split-icon {
+      font-size: 14px;
+      width: 14px;
+      height: 14px;
+      color: var(--brand-primary);
+    }
+    .split-label {
+      cursor: pointer;
+      color: var(--brand-primary);
+      font-weight: 500;
+      font-size: var(--font-sm);
+    }
+    .split-label:hover {
+      text-decoration: underline;
+    }
+    .split-detail-panel {
+      background: var(--clr-surface-panel);
+      border-left: 3px solid var(--brand-primary-muted);
+      margin: 0 var(--spc-16, 16px) var(--spc-8, 8px) var(--spc-16, 16px);
+      padding: var(--spc-8, 8px) var(--spc-12, 12px);
+      border-radius: var(--rad-md, 8px);
+      font-size: var(--font-sm, 14px);
+    }
+    .split-detail-header {
+      font-weight: 600;
+      color: var(--clr-text-secondary);
+      margin-bottom: var(--spc-4, 4px);
+      font-size: var(--font-xs, 12px);
+    }
+    .split-detail-line {
+      display: flex;
+      gap: var(--spc-8, 8px);
+      align-items: center;
+      padding: var(--spc-2, 2px) 0;
+    }
+    .sdl-indicator {
+      color: var(--clr-text-disabled);
+      font-family: monospace;
+      flex-shrink: 0;
+    }
+    .sdl-amount {
+      font-weight: 500;
+      min-width: 80px;
+      flex-shrink: 0;
+    }
+    .income-amount { color: var(--clr-income); }
+    .expense-amount { color: var(--clr-expense); }
+    .sdl-category {
+      color: var(--clr-text-secondary);
+    }
+    .sdl-detail {
+      color: var(--clr-text-muted);
+      font-style: italic;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
   `,
 })
 export class TransactionListComponent implements OnInit, OnDestroy {
@@ -284,6 +403,7 @@ export class TransactionListComponent implements OnInit, OnDestroy {
 
   readonly loading = signal(true);
   readonly loadingMore = signal(false);
+  readonly expandedSplitIds = signal<Set<string>>(new Set());
   private allTransactions: Transaction[] = [];
   readonly transactions = signal<Transaction[]>([]);
 
@@ -354,6 +474,44 @@ export class TransactionListComponent implements OnInit, OnDestroy {
         this.applyClientFilters();
       }
     });
+  }
+
+  toggleSplitExpand(tx: Transaction): void {
+    const current = new Set(this.expandedSplitIds());
+    if (current.has(tx.id)) {
+      current.delete(tx.id);
+    } else {
+      current.add(tx.id);
+    }
+    this.expandedSplitIds.set(current);
+  }
+
+  openSplitDialog(tx: Transaction): void {
+    const dialogRef = this.dialog.open(SplitDialogComponent, {
+      width: '900px',
+      maxWidth: '95vw',
+      data: { transaction: tx } as SplitDialogData,
+    });
+    dialogRef.afterClosed().subscribe((updated: Transaction | undefined) => {
+      if (updated) {
+        const idx = this.allTransactions.findIndex(t => t.id === updated.id);
+        if (idx >= 0) {
+          this.allTransactions[idx] = { ...this.allTransactions[idx], ...updated };
+        }
+        this.applyClientFilters();
+      }
+    });
+  }
+
+  onRowClick(tx: Transaction): void {
+    if (tx.isSplit) {
+      this.toggleSplitExpand(tx);
+    } else {
+      this.router.navigate(
+        ['/transactions', tx.id, 'edit'],
+        { queryParams: { year: tx.year, month: tx.month } },
+      );
+    }
   }
 
   // TODO: Replace native confirm() with MatDialog confirmation — tech debt
