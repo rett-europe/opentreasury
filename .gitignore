@@ -1,0 +1,82 @@
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Editor / IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Environment variables
+.env
+.env.*
+!.env.example
+!.env.*.example
+
+# Secrets / credentials
+*.pem
+*.key
+*.pfx
+*.p12
+*.jks
+*.keystore
+
+# Data files (prevent accidental PII commits)
+*.xlsx
+*.xls
+*.csv
+*.tsv
+*.pdf
+*.doc
+*.docx
+
+# Archives
+*.zip
+*.tar
+*.tar.gz
+*.gz
+*.rar
+*.7z
+
+# Images (use external hosting or LFS)
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.bmp
+*.tiff
+*.ico
+*.svg
+
+# Python
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+
+# Node
+node_modules/
+dist/
+.angular/
+
+# Build / coverage
+coverage/
+*.lcov
+.nyc_output/
+htmlcov/
+.pytest_cache/
+
+# Logs
+*.log
+npm-debug.log*
+
+# Squad: ignore runtime state (logs, inbox, sessions)
+.squad/orchestration-log/
+.squad/log/
+.squad/decisions/inbox/
+.squad/sessions/
+# Squad: SubSquad activation file (local to this machine)
+.squad-workstream

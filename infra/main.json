@@ -1,0 +1,1088 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "metadata": {
+    "_generator": {
+      "name": "bicep",
+      "version": "0.42.1.51946",
+      "templateHash": "1589303475417401448"
+    }
+  },
+  "parameters": {
+    "environmentName": {
+      "type": "string",
+      "allowedValues": [
+        "dev",
+        "prod"
+      ],
+      "metadata": {
+        "description": "Environment name (dev or prod)"
+      }
+    },
+    "location": {
+      "type": "string",
+      "defaultValue": "[resourceGroup().location]",
+      "metadata": {
+        "description": "Azure region for all resources"
+      }
+    },
+    "projectName": {
+      "type": "string",
+      "defaultValue": "ngo-treasury",
+      "metadata": {
+        "description": "Project name used in resource naming"
+      }
+    },
+    "cosmosDbEnableFreeTier": {
+      "type": "bool",
+      "defaultValue": false,
+      "metadata": {
+        "description": "Enable Cosmos DB free tier (one per subscription)"
+      }
+    },
+    "azureTenantId": {
+      "type": "securestring",
+      "metadata": {
+        "description": "Azure AD Tenant ID for the API app registration"
+      }
+    },
+    "azureClientId": {
+      "type": "securestring",
+      "metadata": {
+        "description": "Azure AD Client ID for the API app registration"
+      }
+    }
+  },
+  "variables": {
+    "env": "[parameters('environmentName')]",
+    "tags": {
+      "project": "[parameters('projectName')]",
+      "environment": "[variables('env')]"
+    },
+    "cosmosAccountName": "[format('cosmos-{0}-{1}', parameters('projectName'), variables('env'))]",
+    "appServicePlanName": "[format('plan-{0}-{1}', parameters('projectName'), variables('env'))]",
+    "appServiceName": "[format('app-{0}-{1}', parameters('projectName'), variables('env'))]",
+    "staticWebAppName": "[format('swa-{0}-{1}', parameters('projectName'), variables('env'))]",
+    "keyVaultName": "[format('kv{0}{1}', replace(parameters('projectName'), '-', ''), variables('env'))]",
+    "appInsightsName": "[format('ai-{0}-{1}', parameters('projectName'), variables('env'))]",
+    "logAnalyticsName": "[format('log-{0}-{1}', parameters('projectName'), variables('env'))]"
+  },
+  "resources": [
+    {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2025-04-01",
+      "name": "deploy-app-insights",
+      "properties": {
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "mode": "Incremental",
+        "parameters": {
+          "location": {
+            "value": "[parameters('location')]"
+          },
+          "logAnalyticsName": {
+            "value": "[variables('logAnalyticsName')]"
+          },
+          "appInsightsName": {
+            "value": "[variables('appInsightsName')]"
+          },
+          "tags": {
+            "value": "[variables('tags')]"
+          }
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "metadata": {
+            "_generator": {
+              "name": "bicep",
+              "version": "0.42.1.51946",
+              "templateHash": "7997300937683955001"
+            }
+          },
+          "parameters": {
+            "location": {
+              "type": "string",
+              "metadata": {
+                "description": "Azure region"
+              }
+            },
+            "logAnalyticsName": {
+              "type": "string",
+              "metadata": {
+                "description": "Name of the Log Analytics workspace"
+              }
+            },
+            "appInsightsName": {
+              "type": "string",
+              "metadata": {
+                "description": "Name of the Application Insights resource"
+              }
+            },
+            "tags": {
+              "type": "object",
+              "metadata": {
+                "description": "Tags to apply to all resources"
+              }
+            }
+          },
+          "resources": [
+            {
+              "type": "Microsoft.OperationalInsights/workspaces",
+              "apiVersion": "2023-09-01",
+              "name": "[parameters('logAnalyticsName')]",
+              "location": "[parameters('location')]",
+              "tags": "[parameters('tags')]",
+              "properties": {
+                "sku": {
+                  "name": "PerGB2018"
+                },
+                "retentionInDays": 30
+              }
+            },
+            {
+              "type": "Microsoft.Insights/components",
+              "apiVersion": "2020-02-02",
+              "name": "[parameters('appInsightsName')]",
+              "location": "[parameters('location')]",
+              "tags": "[parameters('tags')]",
+              "kind": "web",
+              "properties": {
+                "Application_Type": "web",
+                "WorkspaceResourceId": "[resourceId('Microsoft.OperationalInsights/workspaces', parameters('logAnalyticsName'))]",
+                "IngestionMode": "LogAnalytics",
+                "publicNetworkAccessForIngestion": "Enabled",
+                "publicNetworkAccessForQuery": "Enabled"
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.OperationalInsights/workspaces', parameters('logAnalyticsName'))]"
+              ]
+            }
+          ],
+          "outputs": {
+            "appInsightsId": {
+              "type": "string",
+              "value": "[resourceId('Microsoft.Insights/components', parameters('appInsightsName'))]"
+            },
+            "appInsightsName": {
+              "type": "string",
+              "value": "[parameters('appInsightsName')]"
+            },
+            "instrumentationKey": {
+              "type": "string",
+              "value": "[reference(resourceId('Microsoft.Insights/components', parameters('appInsightsName')), '2020-02-02').InstrumentationKey]"
+            },
+            "connectionString": {
+              "type": "string",
+              "value": "[reference(resourceId('Microsoft.Insights/components', parameters('appInsightsName')), '2020-02-02').ConnectionString]"
+            },
+            "logAnalyticsId": {
+              "type": "string",
+              "value": "[resourceId('Microsoft.OperationalInsights/workspaces', parameters('logAnalyticsName'))]"
+            }
+          }
+        }
+      }
+    },
+    {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2025-04-01",
+      "name": "deploy-cosmos-db",
+      "properties": {
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "mode": "Incremental",
+        "parameters": {
+          "location": {
+            "value": "[parameters('location')]"
+          },
+          "accountName": {
+            "value": "[variables('cosmosAccountName')]"
+          },
+          "enableFreeTier": {
+            "value": "[parameters('cosmosDbEnableFreeTier')]"
+          },
+          "tags": {
+            "value": "[variables('tags')]"
+          }
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "metadata": {
+            "_generator": {
+              "name": "bicep",
+              "version": "0.42.1.51946",
+              "templateHash": "1995280011472820711"
+            }
+          },
+          "parameters": {
+            "location": {
+              "type": "string",
+              "metadata": {
+                "description": "Azure region for the Cosmos DB account"
+              }
+            },
+            "accountName": {
+              "type": "string",
+              "metadata": {
+                "description": "Name of the Cosmos DB account"
+              }
+            },
+            "enableFreeTier": {
+              "type": "bool",
+              "defaultValue": false,
+              "metadata": {
+                "description": "Enable free tier (only one per subscription)"
+              }
+            },
+            "tags": {
+              "type": "object",
+              "metadata": {
+                "description": "Tags to apply to all resources"
+              }
+            }
+          },
+          "resources": [
+            {
+              "type": "Microsoft.DocumentDB/databaseAccounts",
+              "apiVersion": "2024-05-15",
+              "name": "[parameters('accountName')]",
+              "location": "[parameters('location')]",
+              "tags": "[parameters('tags')]",
+              "kind": "GlobalDocumentDB",
+              "properties": {
+                "databaseAccountOfferType": "Standard",
+                "enableFreeTier": "[parameters('enableFreeTier')]",
+                "capabilities": [
+                  {
+                    "name": "EnableServerless"
+                  }
+                ],
+                "consistencyPolicy": {
+                  "defaultConsistencyLevel": "Session"
+                },
+                "locations": [
+                  {
+                    "locationName": "[parameters('location')]",
+                    "failoverPriority": 0,
+                    "isZoneRedundant": false
+                  }
+                ],
+                "disableLocalAuth": false
+              }
+            },
+            {
+              "type": "Microsoft.DocumentDB/databaseAccounts/sqlDatabases",
+              "apiVersion": "2024-05-15",
+              "name": "[format('{0}/{1}', parameters('accountName'), 'ngo-treasury')]",
+              "properties": {
+                "resource": {
+                  "id": "ngo-treasury"
+                }
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.DocumentDB/databaseAccounts', parameters('accountName'))]"
+              ]
+            },
+            {
+              "type": "Microsoft.DocumentDB/databaseAccounts/sqlDatabases/containers",
+              "apiVersion": "2024-05-15",
+              "name": "[format('{0}/{1}/{2}', parameters('accountName'), 'ngo-treasury', 'transactions')]",
+              "properties": {
+                "resource": {
+                  "id": "transactions",
+                  "partitionKey": {
+                    "paths": [
+                      "/partitionKey"
+                    ],
+                    "kind": "Hash",
+                    "version": 2
+                  },
+                  "indexingPolicy": {
+                    "indexingMode": "consistent",
+                    "automatic": true,
+                    "includedPaths": [
+                      {
+                        "path": "/date/*"
+                      },
+                      {
+                        "path": "/accountId/*"
+                      },
+                      {
+                        "path": "/categoryId/*"
+                      },
+                      {
+                        "path": "/subcategoryId/*"
+                      },
+                      {
+                        "path": "/tagIds/[]/*"
+                      },
+                      {
+                        "path": "/amount/*"
+                      },
+                      {
+                        "path": "/year/*"
+                      },
+                      {
+                        "path": "/month/*"
+                      },
+                      {
+                        "path": "/isDeleted/*"
+                      }
+                    ],
+                    "excludedPaths": [
+                      {
+                        "path": "/bankDescription/*"
+                      },
+                      {
+                        "path": "/detail/*"
+                      },
+                      {
+                        "path": "/invoiceReference/*"
+                      },
+                      {
+                        "path": "/createdByName/*"
+                      },
+                      {
+                        "path": "/updatedByName/*"
+                      },
+                      {
+                        "path": "/*"
+                      },
+                      {
+                        "path": "/\"_etag\"/?"
+                      }
+                    ],
+                    "compositeIndexes": [
+                      [
+                        {
+                          "path": "/date",
+                          "order": "descending"
+                        },
+                        {
+                          "path": "/accountId",
+                          "order": "ascending"
+                        }
+                      ]
+                    ]
+                  }
+                }
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.DocumentDB/databaseAccounts/sqlDatabases', parameters('accountName'), 'ngo-treasury')]"
+              ]
+            },
+            {
+              "type": "Microsoft.DocumentDB/databaseAccounts/sqlDatabases/containers",
+              "apiVersion": "2024-05-15",
+              "name": "[format('{0}/{1}/{2}', parameters('accountName'), 'ngo-treasury', 'categories')]",
+              "properties": {
+                "resource": {
+                  "id": "categories",
+                  "partitionKey": {
+                    "paths": [
+                      "/id"
+                    ],
+                    "kind": "Hash",
+                    "version": 2
+                  }
+                }
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.DocumentDB/databaseAccounts/sqlDatabases', parameters('accountName'), 'ngo-treasury')]"
+              ]
+            },
+            {
+              "type": "Microsoft.DocumentDB/databaseAccounts/sqlDatabases/containers",
+              "apiVersion": "2024-05-15",
+              "name": "[format('{0}/{1}/{2}', parameters('accountName'), 'ngo-treasury', 'reference_data')]",
+              "properties": {
+                "resource": {
+                  "id": "reference_data",
+                  "partitionKey": {
+                    "paths": [
+                      "/type"
+                    ],
+                    "kind": "Hash",
+                    "version": 2
+                  },
+                  "indexingPolicy": {
+                    "indexingMode": "consistent",
+                    "automatic": true,
+                    "includedPaths": [
+                      {
+                        "path": "/type/*"
+                      },
+                      {
+                        "path": "/isActive/*"
+                      },
+                      {
+                        "path": "/sortOrder/*"
+                      }
+                    ],
+                    "excludedPaths": [
+                      {
+                        "path": "/*"
+                      },
+                      {
+                        "path": "/\"_etag\"/?"
+                      }
+                    ]
+                  }
+                }
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.DocumentDB/databaseAccounts/sqlDatabases', parameters('accountName'), 'ngo-treasury')]"
+              ]
+            },
+            {
+              "type": "Microsoft.DocumentDB/databaseAccounts/sqlDatabases/containers",
+              "apiVersion": "2024-05-15",
+              "name": "[format('{0}/{1}/{2}', parameters('accountName'), 'ngo-treasury', 'audit_log')]",
+              "properties": {
+                "resource": {
+                  "id": "audit_log",
+                  "partitionKey": {
+                    "paths": [
+                      "/entityType"
+                    ],
+                    "kind": "Hash",
+                    "version": 2
+                  },
+                  "defaultTtl": 220752000,
+                  "indexingPolicy": {
+                    "indexingMode": "consistent",
+                    "automatic": true,
+                    "includedPaths": [
+                      {
+                        "path": "/entityType/*"
+                      },
+                      {
+                        "path": "/entityId/*"
+                      },
+                      {
+                        "path": "/changedAt/*"
+                      }
+                    ],
+                    "excludedPaths": [
+                      {
+                        "path": "/*"
+                      },
+                      {
+                        "path": "/\"_etag\"/?"
+                      }
+                    ]
+                  }
+                }
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.DocumentDB/databaseAccounts/sqlDatabases', parameters('accountName'), 'ngo-treasury')]"
+              ]
+            }
+          ],
+          "outputs": {
+            "accountId": {
+              "type": "string",
+              "value": "[resourceId('Microsoft.DocumentDB/databaseAccounts', parameters('accountName'))]"
+            },
+            "accountName": {
+              "type": "string",
+              "value": "[parameters('accountName')]"
+            },
+            "endpoint": {
+              "type": "string",
+              "value": "[reference(resourceId('Microsoft.DocumentDB/databaseAccounts', parameters('accountName')), '2024-05-15').documentEndpoint]"
+            },
+            "principalId": {
+              "type": "string",
+              "value": ""
+            }
+          }
+        }
+      }
+    },
+    {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2025-04-01",
+      "name": "deploy-static-web-app",
+      "properties": {
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "mode": "Incremental",
+        "parameters": {
+          "location": {
+            "value": "[parameters('location')]"
+          },
+          "appName": {
+            "value": "[variables('staticWebAppName')]"
+          },
+          "tags": {
+            "value": "[variables('tags')]"
+          }
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "metadata": {
+            "_generator": {
+              "name": "bicep",
+              "version": "0.42.1.51946",
+              "templateHash": "4320168326033096845"
+            }
+          },
+          "parameters": {
+            "location": {
+              "type": "string",
+              "metadata": {
+                "description": "Azure region"
+              }
+            },
+            "appName": {
+              "type": "string",
+              "metadata": {
+                "description": "Name of the Static Web App"
+              }
+            },
+            "tags": {
+              "type": "object",
+              "metadata": {
+                "description": "Tags to apply to all resources"
+              }
+            }
+          },
+          "resources": [
+            {
+              "type": "Microsoft.Web/staticSites",
+              "apiVersion": "2023-12-01",
+              "name": "[parameters('appName')]",
+              "location": "[parameters('location')]",
+              "tags": "[parameters('tags')]",
+              "sku": {
+                "name": "Free",
+                "tier": "Free"
+              },
+              "properties": {
+                "stagingEnvironmentPolicy": "Enabled",
+                "allowConfigFileUpdates": true,
+                "buildProperties": {
+                  "appLocation": "frontend",
+                  "outputLocation": "dist/frontend/browser"
+                }
+              }
+            }
+          ],
+          "outputs": {
+            "staticWebAppId": {
+              "type": "string",
+              "value": "[resourceId('Microsoft.Web/staticSites', parameters('appName'))]"
+            },
+            "staticWebAppName": {
+              "type": "string",
+              "value": "[parameters('appName')]"
+            },
+            "defaultHostname": {
+              "type": "string",
+              "value": "[reference(resourceId('Microsoft.Web/staticSites', parameters('appName')), '2023-12-01').defaultHostname]"
+            },
+            "siteUrl": {
+              "type": "string",
+              "value": "[format('https://{0}', reference(resourceId('Microsoft.Web/staticSites', parameters('appName')), '2023-12-01').defaultHostname)]"
+            }
+          }
+        }
+      }
+    },
+    {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2025-04-01",
+      "name": "deploy-key-vault",
+      "properties": {
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "mode": "Incremental",
+        "parameters": {
+          "location": {
+            "value": "[parameters('location')]"
+          },
+          "vaultName": {
+            "value": "[variables('keyVaultName')]"
+          },
+          "tenantId": {
+            "value": "[subscription().tenantId]"
+          },
+          "cosmosEndpoint": {
+            "value": "[reference(resourceId('Microsoft.Resources/deployments', 'deploy-cosmos-db'), '2025-04-01').outputs.endpoint.value]"
+          },
+          "azureTenantId": {
+            "value": "[parameters('azureTenantId')]"
+          },
+          "azureClientId": {
+            "value": "[parameters('azureClientId')]"
+          },
+          "tags": {
+            "value": "[variables('tags')]"
+          }
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "metadata": {
+            "_generator": {
+              "name": "bicep",
+              "version": "0.42.1.51946",
+              "templateHash": "3783374967645029730"
+            }
+          },
+          "parameters": {
+            "location": {
+              "type": "string",
+              "metadata": {
+                "description": "Azure region"
+              }
+            },
+            "vaultName": {
+              "type": "string",
+              "metadata": {
+                "description": "Name of the Key Vault"
+              }
+            },
+            "tenantId": {
+              "type": "string",
+              "metadata": {
+                "description": "Tenant ID for the Key Vault"
+              }
+            },
+            "cosmosEndpoint": {
+              "type": "string",
+              "metadata": {
+                "description": "Cosmos DB endpoint to store as secret"
+              }
+            },
+            "azureTenantId": {
+              "type": "securestring",
+              "metadata": {
+                "description": "Azure AD Tenant ID for the API app registration"
+              }
+            },
+            "azureClientId": {
+              "type": "securestring",
+              "metadata": {
+                "description": "Azure AD Client ID for the API app registration"
+              }
+            },
+            "tags": {
+              "type": "object",
+              "metadata": {
+                "description": "Tags to apply to all resources"
+              }
+            }
+          },
+          "resources": [
+            {
+              "type": "Microsoft.KeyVault/vaults",
+              "apiVersion": "2023-07-01",
+              "name": "[parameters('vaultName')]",
+              "location": "[parameters('location')]",
+              "tags": "[parameters('tags')]",
+              "properties": {
+                "sku": {
+                  "family": "A",
+                  "name": "standard"
+                },
+                "tenantId": "[parameters('tenantId')]",
+                "enableRbacAuthorization": true,
+                "enableSoftDelete": true,
+                "softDeleteRetentionInDays": 90,
+                "enabledForDeployment": false,
+                "enabledForDiskEncryption": false,
+                "enabledForTemplateDeployment": false
+              }
+            },
+            {
+              "type": "Microsoft.KeyVault/vaults/secrets",
+              "apiVersion": "2023-07-01",
+              "name": "[format('{0}/{1}', parameters('vaultName'), 'cosmos-endpoint')]",
+              "properties": {
+                "value": "[parameters('cosmosEndpoint')]"
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.KeyVault/vaults', parameters('vaultName'))]"
+              ]
+            },
+            {
+              "type": "Microsoft.KeyVault/vaults/secrets",
+              "apiVersion": "2023-07-01",
+              "name": "[format('{0}/{1}', parameters('vaultName'), 'azure-tenant-id')]",
+              "properties": {
+                "value": "[parameters('azureTenantId')]"
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.KeyVault/vaults', parameters('vaultName'))]"
+              ]
+            },
+            {
+              "type": "Microsoft.KeyVault/vaults/secrets",
+              "apiVersion": "2023-07-01",
+              "name": "[format('{0}/{1}', parameters('vaultName'), 'azure-client-id')]",
+              "properties": {
+                "value": "[parameters('azureClientId')]"
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.KeyVault/vaults', parameters('vaultName'))]"
+              ]
+            }
+          ],
+          "outputs": {
+            "vaultId": {
+              "type": "string",
+              "value": "[resourceId('Microsoft.KeyVault/vaults', parameters('vaultName'))]"
+            },
+            "vaultName": {
+              "type": "string",
+              "value": "[parameters('vaultName')]"
+            },
+            "vaultUri": {
+              "type": "string",
+              "value": "[reference(resourceId('Microsoft.KeyVault/vaults', parameters('vaultName')), '2023-07-01').vaultUri]"
+            }
+          }
+        }
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Resources/deployments', 'deploy-cosmos-db')]"
+      ]
+    },
+    {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2025-04-01",
+      "name": "deploy-app-service",
+      "properties": {
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "mode": "Incremental",
+        "parameters": {
+          "location": {
+            "value": "[parameters('location')]"
+          },
+          "planName": {
+            "value": "[variables('appServicePlanName')]"
+          },
+          "appName": {
+            "value": "[variables('appServiceName')]"
+          },
+          "appInsightsInstrumentationKey": {
+            "value": "[reference(resourceId('Microsoft.Resources/deployments', 'deploy-app-insights'), '2025-04-01').outputs.instrumentationKey.value]"
+          },
+          "appInsightsConnectionString": {
+            "value": "[reference(resourceId('Microsoft.Resources/deployments', 'deploy-app-insights'), '2025-04-01').outputs.connectionString.value]"
+          },
+          "corsOrigin": {
+            "value": "[reference(resourceId('Microsoft.Resources/deployments', 'deploy-static-web-app'), '2025-04-01').outputs.siteUrl.value]"
+          },
+          "keyVaultName": {
+            "value": "[variables('keyVaultName')]"
+          },
+          "tags": {
+            "value": "[variables('tags')]"
+          }
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "metadata": {
+            "_generator": {
+              "name": "bicep",
+              "version": "0.42.1.51946",
+              "templateHash": "7251588475598888367"
+            }
+          },
+          "parameters": {
+            "location": {
+              "type": "string",
+              "metadata": {
+                "description": "Azure region"
+              }
+            },
+            "planName": {
+              "type": "string",
+              "metadata": {
+                "description": "Name of the App Service Plan"
+              }
+            },
+            "appName": {
+              "type": "string",
+              "metadata": {
+                "description": "Name of the Web App"
+              }
+            },
+            "appInsightsInstrumentationKey": {
+              "type": "string",
+              "metadata": {
+                "description": "Application Insights instrumentation key"
+              }
+            },
+            "appInsightsConnectionString": {
+              "type": "string",
+              "metadata": {
+                "description": "Application Insights connection string"
+              }
+            },
+            "corsOrigin": {
+              "type": "string",
+              "metadata": {
+                "description": "Allowed CORS origin (Static Web App URL)"
+              }
+            },
+            "keyVaultName": {
+              "type": "string",
+              "metadata": {
+                "description": "Key Vault name for secret references"
+              }
+            },
+            "tags": {
+              "type": "object",
+              "metadata": {
+                "description": "Tags to apply to all resources"
+              }
+            }
+          },
+          "resources": [
+            {
+              "type": "Microsoft.Web/serverfarms",
+              "apiVersion": "2023-12-01",
+              "name": "[parameters('planName')]",
+              "location": "[parameters('location')]",
+              "tags": "[parameters('tags')]",
+              "kind": "linux",
+              "sku": {
+                "name": "B1",
+                "tier": "Basic"
+              },
+              "properties": {
+                "reserved": true
+              }
+            },
+            {
+              "type": "Microsoft.Web/sites",
+              "apiVersion": "2023-12-01",
+              "name": "[parameters('appName')]",
+              "location": "[parameters('location')]",
+              "tags": "[parameters('tags')]",
+              "kind": "app,linux",
+              "identity": {
+                "type": "SystemAssigned"
+              },
+              "properties": {
+                "serverFarmId": "[resourceId('Microsoft.Web/serverfarms', parameters('planName'))]",
+                "httpsOnly": true,
+                "siteConfig": {
+                  "linuxFxVersion": "PYTHON|3.12",
+                  "alwaysOn": true,
+                  "ftpsState": "Disabled",
+                  "minTlsVersion": "1.2",
+                  "cors": {
+                    "allowedOrigins": [
+                      "[parameters('corsOrigin')]"
+                    ],
+                    "supportCredentials": true
+                  },
+                  "appSettings": [
+                    {
+                      "name": "SCM_DO_BUILD_DURING_DEPLOYMENT",
+                      "value": "true"
+                    },
+                    {
+                      "name": "COSMOS_ENDPOINT",
+                      "value": "[format('@Microsoft.KeyVault(VaultName={0};SecretName=cosmos-endpoint)', parameters('keyVaultName'))]"
+                    },
+                    {
+                      "name": "COSMOS_DATABASE_NAME",
+                      "value": "ngo-treasury"
+                    },
+                    {
+                      "name": "AZURE_TENANT_ID",
+                      "value": "[format('@Microsoft.KeyVault(VaultName={0};SecretName=azure-tenant-id)', parameters('keyVaultName'))]"
+                    },
+                    {
+                      "name": "AZURE_CLIENT_ID",
+                      "value": "[format('@Microsoft.KeyVault(VaultName={0};SecretName=azure-client-id)', parameters('keyVaultName'))]"
+                    },
+                    {
+                      "name": "APPLICATIONINSIGHTS_CONNECTION_STRING",
+                      "value": "[parameters('appInsightsConnectionString')]"
+                    },
+                    {
+                      "name": "APPINSIGHTS_INSTRUMENTATIONKEY",
+                      "value": "[parameters('appInsightsInstrumentationKey')]"
+                    },
+                    {
+                      "name": "WEBSITE_RUN_FROM_PACKAGE",
+                      "value": "1"
+                    }
+                  ]
+                }
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Web/serverfarms', parameters('planName'))]"
+              ]
+            }
+          ],
+          "outputs": {
+            "appServiceId": {
+              "type": "string",
+              "value": "[resourceId('Microsoft.Web/sites', parameters('appName'))]"
+            },
+            "appServiceName": {
+              "type": "string",
+              "value": "[parameters('appName')]"
+            },
+            "defaultHostname": {
+              "type": "string",
+              "value": "[reference(resourceId('Microsoft.Web/sites', parameters('appName')), '2023-12-01').defaultHostName]"
+            },
+            "principalId": {
+              "type": "string",
+              "value": "[reference(resourceId('Microsoft.Web/sites', parameters('appName')), '2023-12-01', 'full').identity.principalId]"
+            },
+            "apiUrl": {
+              "type": "string",
+              "value": "[format('https://{0}', reference(resourceId('Microsoft.Web/sites', parameters('appName')), '2023-12-01').defaultHostName)]"
+            }
+          }
+        }
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Resources/deployments', 'deploy-app-insights')]",
+        "[resourceId('Microsoft.Resources/deployments', 'deploy-static-web-app')]"
+      ]
+    },
+    {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2025-04-01",
+      "name": "deploy-role-assignments",
+      "properties": {
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "mode": "Incremental",
+        "parameters": {
+          "principalId": {
+            "value": "[reference(resourceId('Microsoft.Resources/deployments', 'deploy-app-service'), '2025-04-01').outputs.principalId.value]"
+          },
+          "cosmosAccountId": {
+            "value": "[reference(resourceId('Microsoft.Resources/deployments', 'deploy-cosmos-db'), '2025-04-01').outputs.accountId.value]"
+          },
+          "keyVaultId": {
+            "value": "[reference(resourceId('Microsoft.Resources/deployments', 'deploy-key-vault'), '2025-04-01').outputs.vaultId.value]"
+          }
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "metadata": {
+            "_generator": {
+              "name": "bicep",
+              "version": "0.42.1.51946",
+              "templateHash": "8813198731738221019"
+            }
+          },
+          "parameters": {
+            "principalId": {
+              "type": "string",
+              "metadata": {
+                "description": "Principal ID of the App Service Managed Identity"
+              }
+            },
+            "cosmosAccountId": {
+              "type": "string",
+              "metadata": {
+                "description": "Resource ID of the Cosmos DB account"
+              }
+            },
+            "keyVaultId": {
+              "type": "string",
+              "metadata": {
+                "description": "Resource ID of the Key Vault"
+              }
+            }
+          },
+          "variables": {
+            "keyVaultSecretsUserRoleId": "4633458b-17de-408a-b874-0445c86b69e6",
+            "cosmosDataContributorRoleId": "00000000-0000-0000-0000-000000000002"
+          },
+          "resources": [
+            {
+              "type": "Microsoft.DocumentDB/databaseAccounts/sqlRoleAssignments",
+              "apiVersion": "2024-05-15",
+              "name": "[format('{0}/{1}', last(split(parameters('cosmosAccountId'), '/')), guid(parameters('cosmosAccountId'), parameters('principalId'), variables('cosmosDataContributorRoleId')))]",
+              "properties": {
+                "roleDefinitionId": "[format('{0}/sqlRoleDefinitions/{1}', parameters('cosmosAccountId'), variables('cosmosDataContributorRoleId'))]",
+                "principalId": "[parameters('principalId')]",
+                "scope": "[parameters('cosmosAccountId')]"
+              }
+            },
+            {
+              "type": "Microsoft.Authorization/roleAssignments",
+              "apiVersion": "2022-04-01",
+              "scope": "[resourceId('Microsoft.KeyVault/vaults', last(split(parameters('keyVaultId'), '/')))]",
+              "name": "[guid(parameters('keyVaultId'), parameters('principalId'), variables('keyVaultSecretsUserRoleId'))]",
+              "properties": {
+                "roleDefinitionId": "[subscriptionResourceId('Microsoft.Authorization/roleDefinitions', variables('keyVaultSecretsUserRoleId'))]",
+                "principalId": "[parameters('principalId')]",
+                "principalType": "ServicePrincipal"
+              }
+            }
+          ]
+        }
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Resources/deployments', 'deploy-app-service')]",
+        "[resourceId('Microsoft.Resources/deployments', 'deploy-cosmos-db')]",
+        "[resourceId('Microsoft.Resources/deployments', 'deploy-key-vault')]"
+      ]
+    }
+  ],
+  "outputs": {
+    "staticWebAppUrl": {
+      "type": "string",
+      "metadata": {
+        "description": "URL of the Angular frontend (Static Web App)"
+      },
+      "value": "[reference(resourceId('Microsoft.Resources/deployments', 'deploy-static-web-app'), '2025-04-01').outputs.siteUrl.value]"
+    },
+    "apiUrl": {
+      "type": "string",
+      "metadata": {
+        "description": "URL of the FastAPI backend (App Service)"
+      },
+      "value": "[reference(resourceId('Microsoft.Resources/deployments', 'deploy-app-service'), '2025-04-01').outputs.apiUrl.value]"
+    },
+    "cosmosEndpoint": {
+      "type": "string",
+      "metadata": {
+        "description": "Cosmos DB endpoint"
+      },
+      "value": "[reference(resourceId('Microsoft.Resources/deployments', 'deploy-cosmos-db'), '2025-04-01').outputs.endpoint.value]"
+    },
+    "appInsightsInstrumentationKey": {
+      "type": "string",
+      "metadata": {
+        "description": "Application Insights instrumentation key"
+      },
+      "value": "[reference(resourceId('Microsoft.Resources/deployments', 'deploy-app-insights'), '2025-04-01').outputs.instrumentationKey.value]"
+    },
+    "keyVaultUri": {
+      "type": "string",
+      "metadata": {
+        "description": "Key Vault URI"
+      },
+      "value": "[reference(resourceId('Microsoft.Resources/deployments', 'deploy-key-vault'), '2025-04-01').outputs.vaultUri.value]"
+    }
+  }
+}

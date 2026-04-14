@@ -1,0 +1,29 @@
+@use '@angular/material' as mat;
+
+// Rett Spain theme — purple/violet primary (Rett awareness color)
+// Soft, warm, professional palette for an NGO caring for children with Rett Syndrome
+// Brand anchor: #6d4d8c (Rett violet)
+
+$light-theme: mat.define-theme((
+  color: (
+    theme-type: light,
+    primary: mat.$violet-palette,
+    tertiary: mat.$rose-palette,
+  ),
+));
+
+$dark-theme: mat.define-theme((
+  color: (
+    theme-type: dark,
+    primary: mat.$violet-palette,
+    tertiary: mat.$rose-palette,
+  ),
+));
+
+html {
+  @include mat.all-component-themes($light-theme);
+}
+
+body.theme-dark {
+  @include mat.all-component-colors($dark-theme);
+}

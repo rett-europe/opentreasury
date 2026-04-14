@@ -1,0 +1,298 @@
+// ════════════════════════════════════════════════════════════
+// DESIGN TOKEN SYSTEM — NGO Treasury
+// ════════════════════════════════════════════════════════════
+// All visual values as CSS custom properties.
+// Components MUST reference tokens — never hardcode hex colors,
+// pixel values, or font sizes.
+//
+// Light theme:  :root
+// Dark theme:   body.theme-dark
+//
+// Source of truth: docs/specs/ui-visual-spec.md §1
+// ════════════════════════════════════════════════════════════
+
+// ┌────────────────────────────────────────────────────────┐
+// │  LIGHT THEME (default)                                 │
+// └────────────────────────────────────────────────────────┘
+
+:root {
+  // ── Brand (§1.1) ──────────────────────────────
+  --brand-primary:       #6d4d8c;
+  --brand-primary-light: #9c7cb5;
+  --brand-primary-muted: #b8a5cc;
+  --brand-surface:       #f3edf8;
+  --brand-surface-hover: #ebe3f1;
+  --brand-on-primary:    #ffffff;
+
+  // ── Semantic: Income — green (§1.2) ───────────
+  --clr-income:          #2e7d32;
+  --clr-income-bg:       #e8f5e9;
+  --clr-income-on-bg:    #1b5e20;
+
+  // ── Semantic: Expense — red ───────────────────
+  --clr-expense:         #c62828;
+  --clr-expense-bg:      #ffebee;
+  --clr-expense-on-bg:   #b71c1c;
+
+  // ── Semantic: Transfer — blue ─────────────────
+  --clr-transfer:        #1565c0;
+  --clr-transfer-bg:     #e3f2fd;
+  --clr-transfer-on-bg:  #0d47a1;
+
+  // ── Semantic: Refund — teal ───────────────────
+  --clr-refund:          #00695c;
+  --clr-refund-bg:       #e0f2f1;
+  --clr-refund-on-bg:    #004d40;
+
+  // ── Semantic: Warning — amber ─────────────────
+  --clr-warning:         #e65100;
+  --clr-warning-bg:      #fff3e0;
+  --clr-warning-on-bg:   #bf360c;
+
+  // ── Semantic: Info — blue-gray ────────────────
+  --clr-info:            #37474f;
+  --clr-info-bg:         #eceff1;
+  --clr-info-on-bg:      #263238;
+
+  // ── Semantic: Success — green ─────────────────
+  --clr-success:         #388e3c;
+  --clr-success-bg:      #e8f5e9;
+  --clr-success-on-bg:   #1b5e20;
+
+  // ── Semantic: Error / Danger ──────────────────
+  --clr-error:           #c62828;
+  --clr-error-bg:        #ffebee;
+  --clr-error-on-bg:     #b71c1c;
+
+  // ── Surfaces & backgrounds (§1.3) ─────────────
+  --clr-bg:              #faf8fc;
+  --clr-surface:         #ffffff;
+  --clr-surface-raised:  #ffffff;
+  --clr-surface-panel:   #f8f4fb;
+  --clr-border:          rgba(109, 77, 140, 0.14);
+  --clr-divider:         rgba(109, 77, 140, 0.10);
+  --clr-row-hover:       rgba(109, 77, 140, 0.04);
+  --clr-row-stripe:      rgba(109, 77, 140, 0.02);
+
+  // ── Text (§1.4) — WCAG AA compliant ──────────
+  --clr-text-primary:    #231f27;
+  --clr-text-secondary:  #4a4453;
+  --clr-text-muted:      #6b6178;
+  --clr-text-disabled:   #a59bae;
+  --clr-text-inverse:    #f4eef7;
+  --clr-text-link:       #5e35b1;
+
+  // ── Review status (§1.5) ──────────────────────
+  --status-pending:      #e65100;
+  --status-pending-bg:   #fff3e0;
+  --status-reviewed:     #1565c0;
+  --status-reviewed-bg:  #e3f2fd;
+  --status-approved:     #2e7d32;
+  --status-approved-bg:  #e8f5e9;
+  --status-flagged:      #c62828;
+  --status-flagged-bg:   #ffebee;
+
+  // ── Review status aliases (StatusBadgeComponent uses --clr-review-* naming)
+  --clr-review-pending:      var(--status-pending);
+  --clr-review-pending-bg:   var(--status-pending-bg);
+  --clr-review-reviewed:     var(--status-reviewed);
+  --clr-review-reviewed-bg:  var(--status-reviewed-bg);
+  --clr-review-approved:     var(--status-approved);
+  --clr-review-approved-bg:  var(--status-approved-bg);
+  --clr-review-flagged:      var(--status-flagged);
+  --clr-review-flagged-bg:   var(--status-flagged-bg);
+
+  // ── Uncategorized status ──────────────────────
+  --clr-uncategorized:     #9e9e9e;
+  --clr-uncategorized-bg:  #f5f5f5;
+
+  // ── Elevation / shadows (§1.6) ────────────────
+  --elev-card:       0 1px 3px rgba(109, 77, 140, 0.08),
+                     0 1px 2px rgba(109, 77, 140, 0.06);
+  --elev-card-hover: 0 4px 12px rgba(109, 77, 140, 0.12),
+                     0 2px 4px rgba(109, 77, 140, 0.08);
+  --elev-fab:        0 6px 16px rgba(109, 77, 140, 0.20),
+                     0 2px 6px rgba(109, 77, 140, 0.10);
+  --elev-dropdown:   0 8px 24px rgba(109, 77, 140, 0.16),
+                     0 2px 8px rgba(109, 77, 140, 0.08);
+  --elev-dialog:     0 12px 40px rgba(109, 77, 140, 0.24),
+                     0 4px 12px rgba(109, 77, 140, 0.12);
+
+  // ── Border radius (§1.7) ──────────────────────
+  --rad-xs:    4px;
+  --rad-sm:    6px;
+  --rad-md:    8px;
+  --rad-lg:    12px;
+  --rad-pill:  16px;
+  --rad-round: 50%;
+
+  // ── Spacing — 8px grid (§1.8) ─────────────────
+  --spc-2:     2px;
+  --spc-4:     4px;
+  --spc-6:     6px;
+  --spc-8:     8px;
+  --spc-10:    10px;
+  --spc-12:    12px;
+  --spc-16:    16px;
+  --spc-20:    20px;
+  --spc-24:    24px;
+  --spc-32:    32px;
+  --spc-40:    40px;
+  --spc-48:    48px;
+  --spc-64:    64px;
+
+  // ── Typography: sizes (§1.9) ──────────────────
+  --font-xs:     11px;
+  --font-sm:     12px;
+  --font-body:   14px;
+  --font-md:     16px;
+  --font-lg:     20px;
+  --font-xl:     24px;
+  --font-2xl:    28px;
+  --font-3xl:    34px;
+
+  // ── Typography: weights ───────────────────────
+  --fw-regular:  400;
+  --fw-medium:   500;
+  --fw-semibold: 600;
+  --fw-bold:     700;
+
+  // ── Typography: line heights ──────────────────
+  --lh-tight:    1.2;
+  --lh-normal:   1.5;
+  --lh-relaxed:  1.6;
+
+  // ── Typography: letter spacing ────────────────
+  --ls-section:  0.08em;
+
+  // ── Transitions (§1.10) ───────────────────────
+  --transition-fast:   120ms ease-out;
+  --transition-normal: 200ms ease-out;
+  --transition-slow:   350ms ease-in-out;
+
+  // ── Focus ring (§1.11) ────────────────────────
+  --focus-ring:       0 0 0 3px rgba(109, 77, 140, 0.40);
+  --focus-ring-inset: inset 0 0 0 2px var(--brand-primary);
+
+  // ── Z-index scale (§1.12) ─────────────────────
+  --z-base:       0;
+  --z-dropdown:   100;
+  --z-sticky:     200;
+  --z-fab:        250;
+  --z-toolbar:    300;
+  --z-sidenav:    400;
+  --z-dialog:     500;
+  --z-snackbar:   600;
+  --z-tooltip:    700;
+}
+
+// ┌────────────────────────────────────────────────────────┐
+// │  DARK THEME                                            │
+// └────────────────────────────────────────────────────────┘
+
+body.theme-dark {
+  // ── Brand ─────────────────────────────────────
+  --brand-primary:       #d2bcff;
+  --brand-primary-light: #b094d9;
+  --brand-primary-muted: #3d2e52;
+  --brand-surface:       #251e2e;
+  --brand-surface-hover: #2e2639;
+  --brand-on-primary:    #1b1225;
+
+  // ── Semantic: Income ──────────────────────────
+  --clr-income:          #81c784;
+  --clr-income-bg:       #1b3a1e;
+  --clr-income-on-bg:    #a5d6a7;
+
+  // ── Semantic: Expense ─────────────────────────
+  --clr-expense:         #ef9a9a;
+  --clr-expense-bg:      #3e1a1a;
+  --clr-expense-on-bg:   #ef9a9a;
+
+  // ── Semantic: Transfer ────────────────────────
+  --clr-transfer:        #90caf9;
+  --clr-transfer-bg:     #162a3e;
+  --clr-transfer-on-bg:  #90caf9;
+
+  // ── Semantic: Refund ──────────────────────────
+  --clr-refund:          #80cbc4;
+  --clr-refund-bg:       #13302c;
+  --clr-refund-on-bg:    #80cbc4;
+
+  // ── Semantic: Warning ─────────────────────────
+  --clr-warning:         #ffb74d;
+  --clr-warning-bg:      #3e2a12;
+  --clr-warning-on-bg:   #ffb74d;
+
+  // ── Semantic: Info ────────────────────────────
+  --clr-info:            #b0bec5;
+  --clr-info-bg:         #1f2a30;
+  --clr-info-on-bg:      #b0bec5;
+
+  // ── Semantic: Success ─────────────────────────
+  --clr-success:         #81c784;
+  --clr-success-bg:      #1b3a1e;
+  --clr-success-on-bg:   #a5d6a7;
+
+  // ── Semantic: Error ───────────────────────────
+  --clr-error:           #ef9a9a;
+  --clr-error-bg:        #3e1a1a;
+  --clr-error-on-bg:     #ef9a9a;
+
+  // ── Surfaces ──────────────────────────────────
+  --clr-bg:              #100d14;
+  --clr-surface:         #1d1723;
+  --clr-surface-raised:  #251e2e;
+  --clr-surface-panel:   #1d1723;
+  --clr-border:          rgba(210, 188, 255, 0.12);
+  --clr-divider:         rgba(210, 188, 255, 0.08);
+  --clr-row-hover:       rgba(210, 188, 255, 0.06);
+  --clr-row-stripe:      rgba(210, 188, 255, 0.03);
+
+  // ── Text ──────────────────────────────────────
+  --clr-text-primary:    #f4eef7;
+  --clr-text-secondary:  #c4b8d0;
+  --clr-text-muted:      #9e90ab;
+  --clr-text-disabled:   #6b5f77;
+  --clr-text-inverse:    #231f27;
+  --clr-text-link:       #b39ddb;
+
+  // ── Review status ─────────────────────────────
+  --status-pending:      #ffb74d;
+  --status-pending-bg:   #3e2a12;
+  --status-reviewed:     #90caf9;
+  --status-reviewed-bg:  #162a3e;
+  --status-approved:     #81c784;
+  --status-approved-bg:  #1b3a1e;
+  --status-flagged:      #ef9a9a;
+  --status-flagged-bg:   #3e1a1a;
+
+  // ── Review status aliases (dark) ──────────────
+  --clr-review-pending:      var(--status-pending);
+  --clr-review-pending-bg:   var(--status-pending-bg);
+  --clr-review-reviewed:     var(--status-reviewed);
+  --clr-review-reviewed-bg:  var(--status-reviewed-bg);
+  --clr-review-approved:     var(--status-approved);
+  --clr-review-approved-bg:  var(--status-approved-bg);
+  --clr-review-flagged:      var(--status-flagged);
+  --clr-review-flagged-bg:   var(--status-flagged-bg);
+
+  // ── Uncategorized status (dark) ───────────────
+  --clr-uncategorized:     #757575;
+  --clr-uncategorized-bg:  #2a2a2a;
+
+  // ── Elevation ─────────────────────────────────
+  --elev-card:       0 1px 3px rgba(0, 0, 0, 0.30),
+                     0 1px 2px rgba(0, 0, 0, 0.20);
+  --elev-card-hover: 0 4px 12px rgba(0, 0, 0, 0.40),
+                     0 2px 4px rgba(0, 0, 0, 0.25);
+  --elev-fab:        0 6px 16px rgba(0, 0, 0, 0.50),
+                     0 2px 6px rgba(0, 0, 0, 0.30);
+  --elev-dropdown:   0 8px 24px rgba(0, 0, 0, 0.50),
+                     0 2px 8px rgba(0, 0, 0, 0.30);
+  --elev-dialog:     0 12px 40px rgba(0, 0, 0, 0.60),
+                     0 4px 12px rgba(0, 0, 0, 0.35);
+
+  // ── Focus ring ────────────────────────────────
+  --focus-ring: 0 0 0 3px rgba(210, 188, 255, 0.40);
+}

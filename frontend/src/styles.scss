@@ -1,0 +1,301 @@
+// ─── Token & breakpoint imports ─────────────────────────
+@use 'tokens';
+@use 'breakpoints' as bp;
+
+// ─── Base reset ─────────────────────────────────────────
+html,
+body {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  font-family: Roboto, 'Helvetica Neue', sans-serif;
+  font-size: var(--font-body);
+  line-height: var(--lh-normal);
+  background-color: var(--clr-bg);
+  color: var(--clr-text-primary);
+}
+
+// ─── Layout utilities ───────────────────────────────────
+.page-container {
+  max-width: 1600px;
+  margin: var(--spc-24) auto;
+  padding: 0 var(--spc-24);
+
+  @include bp.mobile {
+    padding: 0 var(--spc-16);
+  }
+}
+
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--spc-24);
+
+  h1 {
+    margin: 0;
+    font-size: var(--font-xl);
+    font-weight: var(--fw-regular);
+    line-height: var(--lh-tight);
+    color: var(--clr-text-primary);
+  }
+}
+
+.card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: var(--spc-16);
+
+  @include bp.mobile {
+    grid-template-columns: 1fr;
+    gap: var(--spc-12);
+  }
+}
+
+.full-width {
+  width: 100%;
+}
+
+.spacer {
+  flex: 1 1 auto;
+}
+
+// ─── Transaction type color classes ─────────────────────
+.text-income,
+.type-income {
+  color: var(--clr-income);
+}
+
+.text-expense,
+.type-expense {
+  color: var(--clr-expense);
+}
+
+.type-transfer {
+  color: var(--clr-transfer);
+}
+
+.type-refund {
+  color: var(--clr-refund);
+}
+
+// ─── Status badge classes ───────────────────────────────
+.status-pending {
+  color: var(--status-pending);
+  background-color: var(--status-pending-bg);
+}
+
+.status-reviewed {
+  color: var(--status-reviewed);
+  background-color: var(--status-reviewed-bg);
+}
+
+.status-approved {
+  color: var(--status-approved);
+  background-color: var(--status-approved-bg);
+}
+
+.status-flagged {
+  color: var(--status-flagged);
+  background-color: var(--status-flagged-bg);
+}
+
+// ─── Loading & empty states ─────────────────────────────
+.loading-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: var(--spc-48) 0;
+}
+
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: var(--spc-48) var(--spc-24);
+  color: var(--clr-text-muted);
+  text-align: center;
+
+  .mat-icon {
+    font-size: var(--font-3xl);
+    width: var(--spc-48);
+    height: var(--spc-48);
+    margin-bottom: var(--spc-16);
+    opacity: 0.5;
+  }
+}
+
+// ─── Angular Material overrides (token-based) ───────────
+.mat-mdc-card {
+  border-radius: var(--rad-lg) !important;
+  box-shadow: var(--elev-card) !important;
+  background-color: var(--clr-surface) !important;
+  border: 1px solid var(--clr-border);
+  transition: box-shadow var(--transition-normal);
+
+  &:hover {
+    box-shadow: var(--elev-card-hover) !important;
+  }
+}
+
+.mat-mdc-table {
+  background-color: var(--clr-surface) !important;
+  border-radius: var(--rad-lg) !important;
+}
+
+.mat-mdc-header-cell {
+  color: var(--clr-text-secondary);
+  font-size: var(--font-sm);
+  font-weight: var(--fw-medium);
+  letter-spacing: var(--ls-section);
+  text-transform: uppercase;
+}
+
+.mat-mdc-cell {
+  color: var(--clr-text-primary);
+  font-size: var(--font-body);
+}
+
+.mat-mdc-row:hover {
+  background-color: var(--clr-row-hover);
+}
+
+.mat-toolbar,
+.app-toolbar {
+  background-color: var(--clr-surface) !important;
+  color: var(--clr-text-primary) !important;
+  border-bottom: 1px solid var(--clr-border);
+}
+
+.mat-mdc-dialog-surface {
+  border-radius: var(--rad-lg) !important;
+  box-shadow: var(--elev-dialog) !important;
+}
+
+.mat-mdc-menu-panel {
+  border-radius: var(--rad-md) !important;
+  box-shadow: var(--elev-dropdown) !important;
+}
+
+.mat-mdc-snack-bar-container {
+  border-radius: var(--rad-md) !important;
+}
+
+.mat-mdc-chip {
+  border-radius: var(--rad-pill) !important;
+}
+
+// ─── Dark theme ─────────────────────────────────────────
+body.theme-dark {
+  background:
+    radial-gradient(circle at top left, rgba(166, 132, 193, 0.18), transparent 28%),
+    linear-gradient(180deg, #18131d 0%, var(--clr-bg) 100%);
+
+  // M3 system tokens for Angular Material dark mode
+  --mat-sys-primary: var(--brand-primary);
+  --mat-sys-on-primary: var(--brand-on-primary);
+  --mat-sys-surface: var(--clr-surface);
+  --mat-sys-surface-container: var(--clr-surface-raised);
+  --mat-sys-surface-container-low: var(--clr-surface-panel);
+  --mat-sys-surface-container-high: #2b2432;
+  --mat-sys-on-surface: var(--clr-text-primary);
+  --mat-sys-outline: var(--clr-text-muted);
+
+  // Component surface overrides
+  .app-toolbar,
+  .mat-drawer,
+  .mat-drawer-container,
+  .mat-mdc-card,
+  .mat-mdc-table,
+  .mat-mdc-dialog-surface,
+  .mat-mdc-menu-panel,
+  .mat-mdc-paginator,
+  .mat-mdc-select-panel {
+    background-color: var(--clr-surface) !important;
+    color: var(--clr-text-primary) !important;
+  }
+
+  .mat-drawer-content,
+  .app-content {
+    background: transparent;
+  }
+
+  // Secondary / muted text in Material components
+  .mat-mdc-card-subtitle,
+  .mat-mdc-list-item .mdc-list-item__secondary-text,
+  .mat-mdc-form-field-hint,
+  .mat-mdc-form-field-error,
+  .mat-mdc-select-min-line,
+  .mat-mdc-option,
+  .mat-mdc-option .mdc-list-item__primary-text,
+  .mat-mdc-form-field .mat-mdc-floating-label,
+  .mat-mdc-form-field .mat-mdc-input-element::placeholder {
+    color: var(--clr-text-muted) !important;
+  }
+
+  // Primary text in Material controls
+  .mat-mdc-input-element,
+  .mat-mdc-select-value,
+  .mat-mdc-select-arrow,
+  .mdc-text-field__input,
+  .mat-mdc-slide-toggle,
+  .mat-button-toggle-label-content,
+  .mat-mdc-tab,
+  .mat-sort-header-content {
+    color: var(--clr-text-primary) !important;
+  }
+
+  // Input / button surfaces
+  .mdc-text-field--filled,
+  .mdc-text-field--outlined,
+  .mat-mdc-text-field-wrapper,
+  .mat-mdc-raised-button:not(:disabled),
+  .mat-mdc-unelevated-button:not(:disabled),
+  .mat-button-toggle-appearance-standard {
+    background-color: var(--clr-surface-raised) !important;
+  }
+
+  // Borders & dividers
+  .mdc-notched-outline__leading,
+  .mdc-notched-outline__notch,
+  .mdc-notched-outline__trailing,
+  .mat-divider,
+  .mat-mdc-paginator {
+    border-color: var(--clr-border) !important;
+  }
+}
+
+// ─── Density: Compact ───────────────────────────────────
+body.density-compact {
+  .page-container {
+    margin: var(--spc-16) auto;
+    padding: 0 var(--spc-12);
+  }
+
+  .page-header {
+    margin-bottom: var(--spc-16);
+  }
+
+  .card-grid {
+    gap: var(--spc-12);
+  }
+}
+
+// ─── Reduced motion ─────────────────────────────────────
+body.reduced-motion *,
+body.reduced-motion *::before,
+body.reduced-motion *::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  scroll-behavior: auto !important;
+  transition-duration: 0.01ms !important;
+}
+
+/* Transaction type color classes — reference design tokens */
+.type-income   { color: var(--clr-income); }
+.type-expense  { color: var(--clr-expense); }
+.type-transfer { color: var(--clr-transfer); }
+.type-refund   { color: var(--clr-refund); }
