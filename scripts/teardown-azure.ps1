@@ -1,5 +1,5 @@
 # ══════════════════════════════════════════════════════════════════════
-# teardown-azure.ps1 — Delete all Azure resources for NGO Treasury
+# teardown-azure.ps1 — Delete all Azure resources for OpenTreasury
 # ══════════════════════════════════════════════════════════════════════
 # Deletes: resource group (all infra), app registrations, service principal.
 #

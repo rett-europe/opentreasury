@@ -57,7 +57,7 @@ graph TD
 ## Project Structure
 
 ```
-ngo-treasury/
+opentreasury/
 ├── frontend/          Angular 19 app (standalone components, MSAL auth)
 ├── api/               Python FastAPI backend
 │   └── tests/         Backend test suite (pytest)
@@ -127,8 +127,8 @@ And configure the MSAL settings with your Entra ID app registration.
 |----------|-------------|---------|
 | `AZURE_TENANT_ID` | Entra ID tenant | `xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx` |
 | `AZURE_CLIENT_ID` | Backend app registration client ID | `xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx` |
-| `COSMOS_ENDPOINT` | Cosmos DB account endpoint | `https://cosmos-ngo-treasury.documents.azure.com:443/` |
-| `COSMOS_DATABASE_NAME` | Database name | `ngo-treasury` || `COSMOS_KEY` | Cosmos DB primary key (local dev only — Managed Identity in Azure) | `your-cosmos-key` || `CORS_ORIGINS` | Allowed frontend origins | `["http://localhost:4200"]` |
+| `COSMOS_ENDPOINT` | Cosmos DB account endpoint | `https://cosmos-opentreasury.documents.azure.com:443/` |
+| `COSMOS_DATABASE_NAME` | Database name | `opentreasury` || `COSMOS_KEY` | Cosmos DB primary key (local dev only — Managed Identity in Azure) | `your-cosmos-key` || `CORS_ORIGINS` | Allowed frontend origins | `["http://localhost:4200"]` |
 
 ## Features
 

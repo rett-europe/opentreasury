@@ -3,7 +3,7 @@
 **Date:** 2026-04-12  
 **Analyst:** Niobe (Spec / UX Analyst)  
 **Requested by:** Pedro (perocha)  
-**Scope:** 34 functional requirements across 6 groups, compared against the current NGO Treasury implementation
+**Scope:** 34 functional requirements across 6 groups, compared against the current OpenTreasury implementation
 
 ---
 

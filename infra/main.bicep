@@ -1,9 +1,9 @@
-// main.bicep — NGO Treasury Infrastructure Orchestrator
-// Deploys all Azure resources for the NGO Treasury application.
+// main.bicep — OpenTreasury Infrastructure Orchestrator
+// Deploys all Azure resources for the OpenTreasury application.
 //
 // Usage:
 //   az deployment group create \
-//     --resource-group rg-ngo-treasury-dev \
+//     --resource-group rg-opentreasury-dev \
 //     --template-file infra/main.bicep \
 //     --parameters infra/parameters/dev.bicepparam
 
@@ -19,7 +19,7 @@ param environmentName string
 param location string = resourceGroup().location
 
 @description('Project name used in resource naming')
-param projectName string = 'ngo-treasury'
+param projectName string = 'opentreasury'
 
 @description('Enable Cosmos DB free tier (one per subscription)')
 param cosmosDbEnableFreeTier bool = false
@@ -46,7 +46,7 @@ var cosmosAccountName = 'cosmos-${projectName}-${env}'
 var appServicePlanName = 'plan-${projectName}-${env}'
 var appServiceName = 'app-${projectName}-${env}'
 var staticWebAppName = 'swa-${projectName}-${env}'
-var keyVaultName = 'kv${replace(projectName, '-', '')}${env}' // kvngotreasury{env}
+var keyVaultName = 'kv${replace(projectName, '-', '')}${env}' // kvopentreasury{env}
 var appInsightsName = 'ai-${projectName}-${env}'
 var logAnalyticsName = 'log-${projectName}-${env}'
 
@@ -68,6 +68,7 @@ module cosmosDb 'modules/cosmos-db.bicep' = {
     location: location
     accountName: cosmosAccountName
     enableFreeTier: cosmosDbEnableFreeTier
+    databaseName: projectName
     tags: tags
   }
 }
@@ -107,6 +108,7 @@ module appService 'modules/app-service.bicep' = {
     appInsightsConnectionString: appInsights.outputs.connectionString
     corsOrigin: staticWebApp.outputs.siteUrl
     keyVaultName: keyVaultName
+    cosmosDatabaseName: projectName
     tags: tags
   }
 }

@@ -1,5 +1,5 @@
 // app-service.bicep — App Service Plan (B1 Linux) + Web App (Python 3.12)
-// NGO Treasury
+// OpenTreasury
 
 @description('Azure region')
 param location string
@@ -21,6 +21,9 @@ param corsOrigin string
 
 @description('Key Vault name for secret references')
 param keyVaultName string
+
+@description('Cosmos DB database name')
+param cosmosDatabaseName string
 
 @description('Tags to apply to all resources')
 param tags object
@@ -74,7 +77,7 @@ resource webApp 'Microsoft.Web/sites@2023-12-01' = {
         }
         {
           name: 'COSMOS_DATABASE_NAME'
-          value: 'ngo-treasury'
+          value: cosmosDatabaseName
         }
         {
           name: 'AZURE_TENANT_ID'

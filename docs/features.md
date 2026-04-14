@@ -1,4 +1,4 @@
-# NGO Treasury — Feature Catalog
+# OpenTreasury — Feature Catalog
 
 A financial management platform built for non-governmental organizations. It tracks bank accounts, categorizes income and expenses, supports multilingual Excel imports, and provides reporting tools for annual financial oversight. Designed for small-to-medium NGO teams with an Admin/Viewer role model.
 

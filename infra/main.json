@@ -5,7 +5,7 @@
     "_generator": {
       "name": "bicep",
       "version": "0.42.1.51946",
-      "templateHash": "1589303475417401448"
+      "templateHash": "15681724912837247055"
     }
   },
   "parameters": {
@@ -28,7 +28,7 @@
     },
     "projectName": {
       "type": "string",
-      "defaultValue": "ngo-treasury",
+      "defaultValue": "opentreasury",
       "metadata": {
         "description": "Project name used in resource naming"
       }
@@ -204,6 +204,9 @@
           "enableFreeTier": {
             "value": "[parameters('cosmosDbEnableFreeTier')]"
           },
+          "databaseName": {
+            "value": "[parameters('projectName')]"
+          },
           "tags": {
             "value": "[variables('tags')]"
           }
@@ -215,7 +218,7 @@
             "_generator": {
               "name": "bicep",
               "version": "0.42.1.51946",
-              "templateHash": "1995280011472820711"
+              "templateHash": "1205842938365611063"
             }
           },
           "parameters": {
@@ -236,6 +239,12 @@
               "defaultValue": false,
               "metadata": {
                 "description": "Enable free tier (only one per subscription)"
+              }
+            },
+            "databaseName": {
+              "type": "string",
+              "metadata": {
+                "description": "Name of the Cosmos DB database"
               }
             },
             "tags": {
@@ -277,10 +286,10 @@
             {
               "type": "Microsoft.DocumentDB/databaseAccounts/sqlDatabases",
               "apiVersion": "2024-05-15",
-              "name": "[format('{0}/{1}', parameters('accountName'), 'ngo-treasury')]",
+              "name": "[format('{0}/{1}', parameters('accountName'), parameters('databaseName'))]",
               "properties": {
                 "resource": {
-                  "id": "ngo-treasury"
+                  "id": "[parameters('databaseName')]"
                 }
               },
               "dependsOn": [
@@ -290,7 +299,7 @@
             {
               "type": "Microsoft.DocumentDB/databaseAccounts/sqlDatabases/containers",
               "apiVersion": "2024-05-15",
-              "name": "[format('{0}/{1}/{2}', parameters('accountName'), 'ngo-treasury', 'transactions')]",
+              "name": "[format('{0}/{1}/{2}', parameters('accountName'), parameters('databaseName'), 'transactions')]",
               "properties": {
                 "resource": {
                   "id": "transactions",
@@ -372,13 +381,13 @@
                 }
               },
               "dependsOn": [
-                "[resourceId('Microsoft.DocumentDB/databaseAccounts/sqlDatabases', parameters('accountName'), 'ngo-treasury')]"
+                "[resourceId('Microsoft.DocumentDB/databaseAccounts/sqlDatabases', parameters('accountName'), parameters('databaseName'))]"
               ]
             },
             {
               "type": "Microsoft.DocumentDB/databaseAccounts/sqlDatabases/containers",
               "apiVersion": "2024-05-15",
-              "name": "[format('{0}/{1}/{2}', parameters('accountName'), 'ngo-treasury', 'categories')]",
+              "name": "[format('{0}/{1}/{2}', parameters('accountName'), parameters('databaseName'), 'categories')]",
               "properties": {
                 "resource": {
                   "id": "categories",
@@ -392,13 +401,13 @@
                 }
               },
               "dependsOn": [
-                "[resourceId('Microsoft.DocumentDB/databaseAccounts/sqlDatabases', parameters('accountName'), 'ngo-treasury')]"
+                "[resourceId('Microsoft.DocumentDB/databaseAccounts/sqlDatabases', parameters('accountName'), parameters('databaseName'))]"
               ]
             },
             {
               "type": "Microsoft.DocumentDB/databaseAccounts/sqlDatabases/containers",
               "apiVersion": "2024-05-15",
-              "name": "[format('{0}/{1}/{2}', parameters('accountName'), 'ngo-treasury', 'reference_data')]",
+              "name": "[format('{0}/{1}/{2}', parameters('accountName'), parameters('databaseName'), 'reference_data')]",
               "properties": {
                 "resource": {
                   "id": "reference_data",
@@ -435,13 +444,13 @@
                 }
               },
               "dependsOn": [
-                "[resourceId('Microsoft.DocumentDB/databaseAccounts/sqlDatabases', parameters('accountName'), 'ngo-treasury')]"
+                "[resourceId('Microsoft.DocumentDB/databaseAccounts/sqlDatabases', parameters('accountName'), parameters('databaseName'))]"
               ]
             },
             {
               "type": "Microsoft.DocumentDB/databaseAccounts/sqlDatabases/containers",
               "apiVersion": "2024-05-15",
-              "name": "[format('{0}/{1}/{2}', parameters('accountName'), 'ngo-treasury', 'audit_log')]",
+              "name": "[format('{0}/{1}/{2}', parameters('accountName'), parameters('databaseName'), 'audit_log')]",
               "properties": {
                 "resource": {
                   "id": "audit_log",
@@ -479,7 +488,7 @@
                 }
               },
               "dependsOn": [
-                "[resourceId('Microsoft.DocumentDB/databaseAccounts/sqlDatabases', parameters('accountName'), 'ngo-treasury')]"
+                "[resourceId('Microsoft.DocumentDB/databaseAccounts/sqlDatabases', parameters('accountName'), parameters('databaseName'))]"
               ]
             }
           ],
@@ -788,6 +797,9 @@
           "keyVaultName": {
             "value": "[variables('keyVaultName')]"
           },
+          "cosmosDatabaseName": {
+            "value": "[parameters('projectName')]"
+          },
           "tags": {
             "value": "[variables('tags')]"
           }
@@ -799,7 +811,7 @@
             "_generator": {
               "name": "bicep",
               "version": "0.42.1.51946",
-              "templateHash": "7251588475598888367"
+              "templateHash": "11874377932968490966"
             }
           },
           "parameters": {
@@ -843,6 +855,12 @@
               "type": "string",
               "metadata": {
                 "description": "Key Vault name for secret references"
+              }
+            },
+            "cosmosDatabaseName": {
+              "type": "string",
+              "metadata": {
+                "description": "Cosmos DB database name"
               }
             },
             "tags": {
@@ -903,7 +921,7 @@
                     },
                     {
                       "name": "COSMOS_DATABASE_NAME",
-                      "value": "ngo-treasury"
+                      "value": "[parameters('cosmosDatabaseName')]"
                     },
                     {
                       "name": "AZURE_TENANT_ID",

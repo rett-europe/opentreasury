@@ -1,12 +1,12 @@
-# NGO Treasury — Azure Infrastructure
+# OpenTreasury — Azure Infrastructure
 
-Bicep templates to provision all Azure resources for the NGO Treasury application.
+Bicep templates to provision all Azure resources for the OpenTreasury application.
 
 ## Prerequisites
 
 - [Azure CLI](https://learn.microsoft.com/en-us/cli/azure/install-azure-cli) v2.50+
 - An Azure subscription
-- A resource group already created (e.g., `rg-ngo-treasury-dev`)
+- A resource group already created (e.g., `rg-opentreasury-dev`)
 - An Entra ID app registration for the API (you need the tenant ID and client ID)
 
 ## Resources Provisioned
@@ -27,7 +27,7 @@ Bicep templates to provision all Azure resources for the NGO Treasury applicatio
 
 ```bash
 az deployment group create \
-  --resource-group rg-ngo-treasury-dev \
+  --resource-group rg-opentreasury-dev \
   --template-file infra/main.bicep \
   --parameters infra/parameters/dev.bicepparam \
   --parameters azureTenantId='<YOUR_TENANT_ID>' azureClientId='<YOUR_CLIENT_ID>'
@@ -37,7 +37,7 @@ az deployment group create \
 
 ```bash
 az deployment group create \
-  --resource-group rg-ngo-treasury-prod \
+  --resource-group rg-opentreasury-prod \
   --template-file infra/main.bicep \
   --parameters infra/parameters/prod.bicepparam \
   --parameters azureTenantId='<YOUR_TENANT_ID>' azureClientId='<YOUR_CLIENT_ID>'
@@ -59,13 +59,13 @@ Static Web App (Angular) → App Service (FastAPI, Python 3.12)
 
 | Type | Pattern | Example |
 |------|---------|---------|
-| Cosmos DB | `cosmos-{project}-{env}` | `cosmos-ngo-treasury-prod` |
-| App Service Plan | `plan-{project}-{env}` | `plan-ngo-treasury-prod` |
-| App Service | `app-{project}-{env}` | `app-ngo-treasury-prod` |
-| Static Web App | `swa-{project}-{env}` | `swa-ngo-treasury-prod` |
-| Key Vault | `kv{project}{env}` | `kvngotreasuryprod` |
-| App Insights | `ai-{project}-{env}` | `ai-ngo-treasury-prod` |
-| Log Analytics | `log-{project}-{env}` | `log-ngo-treasury-prod` |
+| Cosmos DB | `cosmos-{project}-{env}` | `cosmos-opentreasury-prod` |
+| App Service Plan | `plan-{project}-{env}` | `plan-opentreasury-prod` |
+| App Service | `app-{project}-{env}` | `app-opentreasury-prod` |
+| Static Web App | `swa-{project}-{env}` | `swa-opentreasury-prod` |
+| Key Vault | `kv{project}{env}` | `kvopentreasuryprod` |
+| App Insights | `ai-{project}-{env}` | `ai-opentreasury-prod` |
+| Log Analytics | `log-{project}-{env}` | `log-opentreasury-prod` |
 
 ## Security
 

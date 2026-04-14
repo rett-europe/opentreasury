@@ -1,5 +1,5 @@
 // cosmos-db.bicep — Cosmos DB Account (Serverless, NoSQL) + Database + Containers
-// NGO Treasury
+// OpenTreasury
 
 @description('Azure region for the Cosmos DB account')
 param location string
@@ -9,6 +9,9 @@ param accountName string
 
 @description('Enable free tier (only one per subscription)')
 param enableFreeTier bool = false
+
+@description('Name of the Cosmos DB database')
+param databaseName string
 
 @description('Tags to apply to all resources')
 param tags object
@@ -42,10 +45,10 @@ resource cosmosAccount 'Microsoft.DocumentDB/databaseAccounts@2024-05-15' = {
 // ─── Database ────────────────────────────────────────────────────────
 resource database 'Microsoft.DocumentDB/databaseAccounts/sqlDatabases@2024-05-15' = {
   parent: cosmosAccount
-  name: 'ngo-treasury'
+  name: databaseName
   properties: {
     resource: {
-      id: 'ngo-treasury'
+      id: databaseName
     }
   }
 }

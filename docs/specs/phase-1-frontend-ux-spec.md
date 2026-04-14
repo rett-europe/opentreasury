@@ -614,7 +614,7 @@ Add a `currency` field.
 
 **Default:** `EUR` (pre-selected for new accounts).
 
-**Short list rationale:** Rett Spain deals almost exclusively in EUR. USD and GBP cover edge cases (international donations). If Pedro needs more currencies, the list is trivial to extend.
+**Short list rationale:** Most European NGOs deal primarily in EUR. USD and GBP cover edge cases (international donations). The currency list is trivial to extend per deployment.
 
 ### 4.3 Account Card — Currency Display
 

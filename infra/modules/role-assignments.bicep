@@ -1,5 +1,5 @@
 // role-assignments.bicep — RBAC assignments for App Service Managed Identity
-// NGO Treasury
+// OpenTreasury
 
 @description('Principal ID of the App Service Managed Identity')
 param principalId string

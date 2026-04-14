@@ -1,4 +1,4 @@
-# Azure Setup Guide — NGO Treasury
+# Azure Setup Guide — OpenTreasury
 
 Complete instructions for provisioning all Azure infrastructure, Entra ID app registrations, and GitHub Actions secrets.
 
@@ -64,16 +64,16 @@ chmod +x scripts/setup-azure.sh
 
 | Resource | Name | Purpose |
 |---|---|---|
-| Resource Group | `rg-ngo-treasury-prod` | Container for all Azure resources |
-| Cosmos DB (Serverless) | `cosmos-ngo-treasury-prod` | NoSQL database |
-| App Service (Python 3.12) | `app-ngo-treasury-prod` | FastAPI backend |
-| Static Web App | `swa-ngo-treasury-prod` | Angular frontend |
-| Key Vault | `kvngotreasuryprod` | Secrets (Cosmos endpoint, tenant/client IDs) |
-| Application Insights | `ai-ngo-treasury-prod` | Monitoring and logging |
-| Log Analytics Workspace | `log-ngo-treasury-prod` | Log storage for App Insights |
-| API App Registration | `ngo-treasury-api-prod` | Entra ID auth for backend API |
-| SPA App Registration | `ngo-treasury-spa-prod` | Entra ID auth for Angular frontend |
-| Service Principal | `sp-ngo-treasury-github-prod` | GitHub Actions deploy identity |
+| Resource Group | `rg-opentreasury-prod` | Container for all Azure resources |
+| Cosmos DB (Serverless) | `cosmos-opentreasury-prod` | NoSQL database |
+| App Service (Python 3.12) | `app-opentreasury-prod` | FastAPI backend |
+| Static Web App | `swa-opentreasury-prod` | Angular frontend |
+| Key Vault | `kvopentreasuryprod` | Secrets (Cosmos endpoint, tenant/client IDs) |
+| Application Insights | `ai-opentreasury-prod` | Monitoring and logging |
+| Log Analytics Workspace | `log-opentreasury-prod` | Log storage for App Insights |
+| API App Registration | `opentreasury-api-prod` | Entra ID auth for backend API |
+| SPA App Registration | `opentreasury-spa-prod` | Entra ID auth for Angular frontend |
+| Service Principal | `sp-opentreasury-github-prod` | GitHub Actions deploy identity |
 
 After the script finishes, it prints:
 1. A table of GitHub secrets to set
@@ -91,17 +91,17 @@ If you prefer setting things up via the Azure Portal and CLI.
 **Portal:**
 1. Go to [portal.azure.com](https://portal.azure.com) → **Resource groups** → **Create**
 2. Subscription: select yours
-3. Resource group name: `rg-ngo-treasury-prod`
+3. Resource group name: `rg-opentreasury-prod`
 4. Region: **West Europe**
-5. Tags: `project=ngo-treasury`, `environment=prod`
+5. Tags: `project=opentreasury`, `environment=prod`
 6. Click **Review + create** → **Create**
 
 **CLI:**
 ```bash
 az group create \
-  --name rg-ngo-treasury-prod \
+  --name rg-opentreasury-prod \
   --location westeurope \
-  --tags project=ngo-treasury environment=prod
+  --tags project=opentreasury environment=prod
 ```
 
 ### 3.2 Entra ID: Backend API Registration
@@ -110,7 +110,7 @@ This app registration protects the FastAPI backend and defines the auth scopes a
 
 **Portal:**
 1. Go to **Microsoft Entra ID** → **App registrations** → **New registration**
-2. Name: `ngo-treasury-api-prod`
+2. Name: `opentreasury-api-prod`
 3. Supported account types: **Accounts in this organizational directory only** (single tenant)
 4. Redirect URI: leave blank (API doesn't need one)
 5. Click **Register**
@@ -118,12 +118,12 @@ This app registration protects the FastAPI backend and defines the auth scopes a
 **Configure the API:**
 
 6. Go to **Expose an API**
-7. Set the **Application ID URI** to: `api://ngo-treasury-api`
+7. Set the **Application ID URI** to: `api://opentreasury-api`
 8. Click **Add a scope**:
    - Scope name: `access_as_user`
    - Who can consent: **Admins and users**
-   - Admin consent display name: `Access NGO Treasury API`
-   - Admin consent description: `Allow the application to access NGO Treasury API on behalf of the signed-in user`
+   - Admin consent display name: `Access OpenTreasury API`
+   - Admin consent description: `Allow the application to access OpenTreasury API on behalf of the signed-in user`
    - State: **Enabled**
    - Click **Add scope**
 
@@ -151,9 +151,9 @@ This app registration protects the FastAPI backend and defines the auth scopes a
 ```bash
 # Create the app (app roles as JSON)
 az ad app create \
-  --display-name "ngo-treasury-api-prod" \
+  --display-name "opentreasury-api-prod" \
   --sign-in-audience "AzureADMyOrg" \
-  --identifier-uris "api://ngo-treasury-api" \
+  --identifier-uris "api://opentreasury-api" \
   --app-roles '[
     {"allowedMemberTypes":["User"],"displayName":"Admin","isEnabled":true,"value":"Admin","description":"Admins can read and write all data"},
     {"allowedMemberTypes":["User"],"displayName":"Viewer","isEnabled":true,"value":"Viewer","description":"Viewers can read data only"}
@@ -169,7 +169,7 @@ This app registration is used by the Angular frontend via MSAL.js.
 
 **Portal:**
 1. Go to **Microsoft Entra ID** → **App registrations** → **New registration**
-2. Name: `ngo-treasury-spa-prod`
+2. Name: `opentreasury-spa-prod`
 3. Supported account types: **Accounts in this organizational directory only**
 4. Redirect URI:
    - Platform: **Single-page application (SPA)**
@@ -181,7 +181,7 @@ This app registration is used by the Angular frontend via MSAL.js.
 **Add API permission:**
 
 6. Go to **API permissions** → **Add a permission**
-7. Select **My APIs** → `ngo-treasury-api-prod`
+7. Select **My APIs** → `opentreasury-api-prod`
 8. Select **Delegated permissions** → check `access_as_user`
 9. Click **Add permissions**
 10. Click **Grant admin consent for [your tenant]** (requires admin)
@@ -193,7 +193,7 @@ This app registration is used by the Angular frontend via MSAL.js.
 ```bash
 # Create the SPA app
 az ad app create \
-  --display-name "ngo-treasury-spa-prod" \
+  --display-name "opentreasury-spa-prod" \
   --sign-in-audience "AzureADMyOrg"
 
 # Set SPA redirect URIs
@@ -216,9 +216,9 @@ Create a service principal scoped to the resource group, for CI/CD deployments.
 
 ```bash
 az ad sp create-for-rbac \
-  --name "sp-ngo-treasury-github-prod" \
+  --name "sp-opentreasury-github-prod" \
   --role Contributor \
-  --scopes /subscriptions/<SUBSCRIPTION_ID>/resourceGroups/rg-ngo-treasury-prod \
+  --scopes /subscriptions/<SUBSCRIPTION_ID>/resourceGroups/rg-opentreasury-prod \
   --sdk-auth
 ```
 
@@ -234,7 +234,7 @@ TENANT_ID=$(az account show --query tenantId -o tsv)
 
 # Deploy (prod)
 az deployment group create \
-  --resource-group rg-ngo-treasury-prod \
+  --resource-group rg-opentreasury-prod \
   --template-file infra/main.bicep \
   --parameters infra/parameters/prod.bicepparam \
   --parameters azureTenantId=$TENANT_ID azureClientId=<API_CLIENT_ID>
@@ -252,9 +252,9 @@ Add each of these:
 |---|---|---|
 | `AZURE_CREDENTIALS` | Service principal JSON from Step 3.4 | Full JSON block, not just the password |
 | `AZURE_SUBSCRIPTION_ID` | Your subscription ID | GUID from `az account show` |
-| `AZURE_RESOURCE_GROUP` | `rg-ngo-treasury-prod` | Resource group name |
-| `AZURE_WEBAPP_NAME` | `app-ngo-treasury-prod` | App Service name for API deployment |
-| `AZURE_STATIC_WEB_APPS_API_TOKEN` | SWA deployment token | Get with: `az staticwebapp secrets list --name swa-ngo-treasury-prod --resource-group rg-ngo-treasury-prod --query "properties.apiKey" -o tsv` |
+| `AZURE_RESOURCE_GROUP` | `rg-opentreasury-prod` | Resource group name |
+| `AZURE_WEBAPP_NAME` | `app-opentreasury-prod` | App Service name for API deployment |
+| `AZURE_STATIC_WEB_APPS_API_TOKEN` | SWA deployment token | Get with: `az staticwebapp secrets list --name swa-opentreasury-prod --resource-group rg-opentreasury-prod --query "properties.apiKey" -o tsv` |
 | `MSAL_CLIENT_ID` | SPA app client ID | From Step 3.3 |
 | `API_CLIENT_ID` | API app client ID | From Step 3.2 |
 
@@ -266,14 +266,14 @@ Edit `frontend/src/environments/environment.prod.ts` with the real values:
 export const environment = {
   production: true,
   useMocks: false,
-  apiBaseUrl: 'https://app-ngo-treasury-prod.azurewebsites.net/api',
+  apiBaseUrl: 'https://app-opentreasury-prod.azurewebsites.net/api',
   msal: {
     clientId: '<SPA_CLIENT_ID>',           // from Step 3.3
     tenantId: '<TENANT_ID>',               // from az account show
     authority: 'https://login.microsoftonline.com/<TENANT_ID>',
     redirectUri: 'https://<SWA_HOSTNAME>', // from az staticwebapp show
     postLogoutRedirectUri: 'https://<SWA_HOSTNAME>',
-    apiScope: 'api://ngo-treasury-api/access_as_user',
+    apiScope: 'api://opentreasury-api/access_as_user',
   },
 };
 ```
@@ -324,7 +324,7 @@ The script will:
 
 **After teardown:**
 - Remove all GitHub secrets from the repo settings
-- Key Vault uses soft-delete — to purge immediately: `az keyvault purge --name kvngotreasuryprod`
+- Key Vault uses soft-delete — to purge immediately: `az keyvault purge --name kvopentreasuryprod`
 
 ---
 
@@ -352,17 +352,17 @@ Fix: You need **Application Administrator** or **Global Administrator** role in 
 ERROR: Unable to grant admin consent.
 ```
 
-Fix: Admin consent requires the **Global Administrator** or **Privileged Role Administrator** role. Grant consent manually in the Azure Portal: Entra ID → App registrations → `ngo-treasury-spa-prod` → API permissions → **Grant admin consent**.
+Fix: Admin consent requires the **Global Administrator** or **Privileged Role Administrator** role. Grant consent manually in the Azure Portal: Entra ID → App registrations → `opentreasury-spa-prod` → API permissions → **Grant admin consent**.
 
 ### Key Vault soft-delete conflict
 
 ```
-ERROR: A vault or HSM with the name 'kvngotreasuryprod' already exists in a deleted state.
+ERROR: A vault or HSM with the name 'kvopentreasuryprod' already exists in a deleted state.
 ```
 
 Fix: Key Vault has a 90-day soft-delete retention. Either:
-- Recover it: `az keyvault recover --name kvngotreasuryprod`
-- Purge it: `az keyvault purge --name kvngotreasuryprod`
+- Recover it: `az keyvault recover --name kvopentreasuryprod`
+- Purge it: `az keyvault purge --name kvopentreasuryprod`
 
 ### Static Web App token not found
 
@@ -373,8 +373,8 @@ Could not retrieve SWA token
 Fix: The SWA hasn't been deployed yet. Run the Bicep deployment first (Step 3.5), then re-run the setup script or get the token manually:
 ```bash
 az staticwebapp secrets list \
-  --name swa-ngo-treasury-prod \
-  --resource-group rg-ngo-treasury-prod \
+  --name swa-opentreasury-prod \
+  --resource-group rg-opentreasury-prod \
   --query "properties.apiKey" -o tsv
 ```
 
@@ -385,7 +385,7 @@ Pass them explicitly:
 
 ```bash
 az deployment group create \
-  --resource-group rg-ngo-treasury-prod \
+  --resource-group rg-opentreasury-prod \
   --template-file infra/main.bicep \
   --parameters infra/parameters/prod.bicepparam \
   --parameters azureTenantId=<TENANT_ID> azureClientId=<API_CLIENT_ID>
@@ -396,7 +396,7 @@ az deployment group create \
 The backend CORS is configured to allow the SWA URL. If you see CORS errors:
 1. Check that the SWA URL in `app-service.bicep` matches the actual SWA hostname
 2. Verify the Bicep deployment completed successfully
-3. Restart the App Service: `az webapp restart --name app-ngo-treasury-prod --resource-group rg-ngo-treasury-prod`
+3. Restart the App Service: `az webapp restart --name app-opentreasury-prod --resource-group rg-opentreasury-prod`
 
 ### MSAL "redirect_uri mismatch" error
 

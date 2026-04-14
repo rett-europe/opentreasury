@@ -107,6 +107,25 @@
 **By:** Morpheus (Backend Dev), requested by Pedro
 **What:** `COSMOS_DATABASE_NAME` default in `config.py` changed from `ngo-treasury` to `opentreasury`. Existing deployments must set `COSMOS_DATABASE_NAME=ngo-treasury` in environment or rename/recreate the database. `api/tests/conftest.py` Entra audience (`api://ngo-treasury-api`) unchanged until infra is re-provisioned.
 **Why:** Aligns backend default with new product name.
+### 2026-04-14: Infra naming — 3-tier strategy
+**By:** Neo (Lead), requested by Pedro
+**What:** Infra `ngo-treasury` references classified into three tiers:
+- **Do Now:** Change main.bicep default, parameterize cosmos-db.bicep + app-service.bicep database names, regenerate main.json, update scripts + docs. Zero deployment risk — Bicep only runs when explicitly triggered.
+- **Do When Reprovisioning:** Pedro's `.azure/config`, Cosmos DB database rename (no in-place rename), Entra ID app registration URI (`api://ngo-treasury-api`).
+- **Do Never:** Redeploy existing prod with `projectName = 'opentreasury'` without migration planning — would create new resources and orphan old ones.
+**Why:** Azure resource names are baked into DNS/connection strings. Code/docs should reflect `opentreasury` for fresh deployments; existing resources stay as-is until reprovisioned.
+
+### 2026-04-14: Infra parameterized — hardcoded database names removed
+**By:** Tank (DevOps), requested by Pedro
+**What:** `cosmos-db.bicep` and `app-service.bicep` now accept database name as a parameter wired from `main.bicep` via `projectName`. Default `projectName` changed to `opentreasury`. Scripts and docs updated accordingly.
+**Why:** OpenTreasury is org-agnostic. Database names must be parameterized so per-org deploy repos can override defaults.
+**Impact:** `main.json` must be regenerated after Bicep changes. Existing deployments using `ngo-treasury` continue working if they pass `projectName: 'ngo-treasury'` explicitly.
+
+### 2026-04-14: Org-agnostic posture confirmed
+**By:** Pedro (user directive)
+**What:** The public OpenTreasury repo must contain zero org-specific references. No "Rett Spain", no hardcoded database names, no deployment config. Each deploying org has a separate private repo for deployment configuration (bicepparam overrides, workflows, secrets).
+**Why:** Multi-org product — same codebase, different deployments per NGO.
+
 ### 2026-04-12: No backward compatibility — clean break
 **By:** Pedro (user directive)
 **What:** V2 is a clean break. No deprecated endpoints, no backward-compatible shims, no legacy aliases. Old code gets deleted, not kept around.

@@ -1,5 +1,5 @@
 // app-insights.bicep — Log Analytics Workspace + Application Insights
-// NGO Treasury
+// OpenTreasury
 
 @description('Azure region')
 param location string

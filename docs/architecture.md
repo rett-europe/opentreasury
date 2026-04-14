@@ -1,6 +1,6 @@
 # Architecture Overview
 
-> A 5-minute guide to how NGO Treasury is built, deployed, and connected.
+> A 5-minute guide to how OpenTreasury is built, deployed, and connected.
 
 ## High-Level Architecture
 
@@ -72,7 +72,7 @@ graph LR
 
 ## Data Model (Cosmos DB)
 
-All containers live in the `ngo-treasury` database.
+All containers live in the `opentreasury` database (name derived from the `projectName` parameter).
 
 | Container | Partition Key | Stores |
 |-----------|--------------|--------|
@@ -116,7 +116,7 @@ Defined in Bicep at [`infra/main.bicep`](../infra/main.bicep) with parameterized
 
 **Environments:** [`dev.bicepparam`](../infra/parameters/dev.bicepparam) and [`prod.bicepparam`](../infra/parameters/prod.bicepparam).
 
-**Naming convention:** `{type}-{project}-{env}` (e.g. `app-ngo-treasury-dev`, `cosmos-ngo-treasury-prod`).
+**Naming convention:** `{type}-{project}-{env}` (e.g. `app-opentreasury-dev`, `cosmos-opentreasury-prod`).
 
 **Security model:** App Service uses Managed Identity — no database keys in app settings. Key Vault stores secrets; App Service reads them via Key Vault references. `DefaultAzureCredential` in the Python SDK handles auth transparently.
 

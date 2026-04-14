@@ -1,6 +1,6 @@
 # Security Audits & Compliance
 
-Security scan reports and remediation tracking for NGO Treasury.
+Security scan reports and remediation tracking for OpenTreasury.
 
 ## Scan History
 

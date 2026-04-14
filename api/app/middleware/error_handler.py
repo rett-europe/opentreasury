@@ -4,7 +4,7 @@ from azure.cosmos.exceptions import CosmosHttpResponseError, CosmosResourceNotFo
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 
-logger = logging.getLogger("ngo-treasury")
+logger = logging.getLogger("opentreasury")
 
 
 def register_error_handlers(app: FastAPI):

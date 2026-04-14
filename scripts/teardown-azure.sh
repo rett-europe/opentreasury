@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ══════════════════════════════════════════════════════════════════════
-# teardown-azure.sh — Delete all Azure resources for NGO Treasury
+# teardown-azure.sh — Delete all Azure resources for OpenTreasury
 # ══════════════════════════════════════════════════════════════════════
 # Deletes: resource group (all infra), app registrations, service principal.
 #

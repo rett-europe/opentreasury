@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ══════════════════════════════════════════════════════════════════════
-# setup-azure.sh — Provision all Azure resources for NGO Treasury
+# setup-azure.sh — Provision all Azure resources for OpenTreasury
 # ══════════════════════════════════════════════════════════════════════
 # Idempotent: safe to run multiple times.
 # Requires: Azure CLI (az), logged in with admin access to Entra ID.
@@ -116,13 +116,13 @@ else
 
     az ad app update --id "$API_OBJECT_ID" \
         --set "api.oauth2PermissionScopes=[{
-            \"adminConsentDescription\": \"Allow the application to access NGO Treasury API on behalf of the signed-in user\",
-            \"adminConsentDisplayName\": \"Access NGO Treasury API\",
+            \"adminConsentDescription\": \"Allow the application to access OpenTreasury API on behalf of the signed-in user\",
+            \"adminConsentDisplayName\": \"Access OpenTreasury API\",
             \"id\": \"$SCOPE_ID\",
             \"isEnabled\": true,
             \"type\": \"User\",
-            \"userConsentDescription\": \"Allow the application to access NGO Treasury API on your behalf\",
-            \"userConsentDisplayName\": \"Access NGO Treasury API\",
+            \"userConsentDescription\": \"Allow the application to access OpenTreasury API on your behalf\",
+            \"userConsentDisplayName\": \"Access OpenTreasury API\",
             \"value\": \"access_as_user\"
         }]"
 

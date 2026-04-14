@@ -44,8 +44,7 @@ import { ReferenceDataService } from './core/services/reference-data.service';
 
       <div class="toolbar-brand">
         <span class="brand-mark">✦</span>
-        <span class="brand-title">NGO Treasury</span>
-        <span class="brand-subtitle">Rett Spain</span>
+        <span class="brand-title">OpenTreasury</span>
       </div>
 
       <span class="spacer"></span>

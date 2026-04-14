@@ -1,5 +1,5 @@
 # ======================================================================
-# setup-azure.ps1 -- Provision all Azure resources for NGO Treasury
+# setup-azure.ps1 -- Provision all Azure resources for OpenTreasury
 # ======================================================================
 # Idempotent: safe to run multiple times.
 # Requires: Azure CLI (az), logged in with admin access to Entra ID.
@@ -159,13 +159,13 @@ if ($existingApiApp -and $existingApiApp -ne "None") {
 {
     "api": {
         "oauth2PermissionScopes": [{
-            "adminConsentDescription": "Allow the application to access NGO Treasury API on behalf of the signed-in user",
-            "adminConsentDisplayName": "Access NGO Treasury API",
+            "adminConsentDescription": "Allow the application to access OpenTreasury API on behalf of the signed-in user",
+            "adminConsentDisplayName": "Access OpenTreasury API",
             "id": "$scopeId",
             "isEnabled": true,
             "type": "User",
-            "userConsentDescription": "Allow the application to access NGO Treasury API on your behalf",
-            "userConsentDisplayName": "Access NGO Treasury API",
+            "userConsentDescription": "Allow the application to access OpenTreasury API on your behalf",
+            "userConsentDisplayName": "Access OpenTreasury API",
             "value": "access_as_user"
         }]
     }
@@ -333,7 +333,7 @@ if (-not $CosmosEndpoint) {
 az keyvault secret set --vault-name $KvName --name "AZURE-TENANT-ID" --value $TenantId --output none 2>$null
 az keyvault secret set --vault-name $KvName --name "AZURE-CLIENT-ID" --value $ApiClientId --output none 2>$null
 az keyvault secret set --vault-name $KvName --name "COSMOS-ENDPOINT" --value $CosmosEndpoint --output none 2>$null
-az keyvault secret set --vault-name $KvName --name "COSMOS-DATABASE-NAME" --value "ngo-treasury" --output none 2>$null
+az keyvault secret set --vault-name $KvName --name "COSMOS-DATABASE-NAME" --value "$ProjectName" --output none 2>$null
 Write-Ok "Key Vault secrets populated"
 
 # Configure App Service to read from Key Vault + set CORS

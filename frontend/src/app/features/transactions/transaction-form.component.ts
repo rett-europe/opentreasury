@@ -50,7 +50,7 @@ const TYPE_MAP: Record<TransactionTypeDisplay, { transactionType: TransactionTyp
   refund_given:    { transactionType: 'refund',   sign: -1 },
 };
 
-const LAST_ACCOUNT_KEY = 'ngo-treasury-last-account';
+const LAST_ACCOUNT_KEY = 'opentreasury-last-account';
 
 @Component({
   selector: 'app-transaction-form',

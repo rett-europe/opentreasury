@@ -1,5 +1,5 @@
 // static-web-app.bicep — Azure Static Web App for Angular frontend
-// NGO Treasury
+// OpenTreasury
 
 @description('Azure region')
 param location string

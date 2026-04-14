@@ -19,7 +19,7 @@ interface AppSettings {
   reducedMotion: boolean;
 }
 
-const STORAGE_KEY = 'ngo-treasury.app-settings';
+const STORAGE_KEY = 'opentreasury.app-settings';
 
 const DEFAULT_SETTINGS: AppSettings = {
   language: 'es',

@@ -1,4 +1,4 @@
-# Frontend — NGO Treasury (Angular)
+# Frontend — OpenTreasury (Angular)
 
 ## Prerequisites
 
@@ -26,7 +26,7 @@ Runs at `http://localhost:4200`.
 npm run build
 ```
 
-Output in `dist/ngo-treasury/`.
+Output in `dist/opentreasury/`.
 
 ## Configuration
 

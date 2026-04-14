@@ -3,7 +3,7 @@
   "version": 1,
   "newProjectRoot": "projects",
   "projects": {
-    "ngo-treasury": {
+    "opentreasury": {
       "projectType": "application",
       "schematics": {
         "@schematics/angular:component": {
@@ -18,7 +18,7 @@
         "build": {
           "builder": "@angular-devkit/build-angular:application",
           "options": {
-            "outputPath": "dist/ngo-treasury",
+            "outputPath": "dist/opentreasury",
             "index": "src/index.html",
             "browser": "src/main.ts",
             "polyfills": [
@@ -87,13 +87,13 @@
           "builder": "@angular-devkit/build-angular:dev-server",
           "configurations": {
             "production": {
-              "buildTarget": "ngo-treasury:build:production"
+              "buildTarget": "opentreasury:build:production"
             },
             "development": {
-              "buildTarget": "ngo-treasury:build:development"
+              "buildTarget": "opentreasury:build:development"
             },
             "local_srr": {
-              "buildTarget": "ngo-treasury:build:local_srr"
+              "buildTarget": "opentreasury:build:local_srr"
             }
           },
           "defaultConfiguration": "development"

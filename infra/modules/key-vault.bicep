@@ -1,5 +1,5 @@
 // key-vault.bicep — Azure Key Vault + Secrets
-// NGO Treasury
+// OpenTreasury
 
 @description('Azure region')
 param location string

@@ -32,7 +32,7 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(
-    title="NGO Treasury API",
+    title="OpenTreasury API",
     version="1.0.0",
     docs_url="/api/docs",
     openapi_url="/api/openapi.json",

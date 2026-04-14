@@ -1,5 +1,5 @@
 """
-Shared pytest fixtures for NGO Treasury API tests.
+Shared pytest fixtures for OpenTreasury API tests.
 
 Provides:
 - Mock Cosmos DB containers (async)

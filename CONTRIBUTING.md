@@ -1,6 +1,6 @@
-# Contributing to NGO Treasury
+# Contributing to OpenTreasury
 
-Thank you for your interest in contributing to the NGO Treasury project for Rett Spain.
+Thank you for your interest in contributing to the OpenTreasury project.
 
 ## Development Setup
 
