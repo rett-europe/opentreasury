@@ -2,7 +2,7 @@
 Tests for auth/dependencies.py.
 
 The real token-validation flow makes HTTP calls to Azure JWKS endpoints and
-uses python-jose to decode RSA-signed JWTs.  We mock those external calls to
+uses PyJWT to decode RSA-signed JWTs.  We mock those external calls to
 exercise the logic without real Azure credentials.
 """
 
@@ -85,8 +85,12 @@ class TestValidateToken:
             "sub": "subject",
         }
 
+        mock_pyjwk = MagicMock()
+        mock_pyjwk.return_value.key = "fake-rsa-key"
+
         with (
             patch("app.auth.dependencies._get_signing_keys", new=AsyncMock(return_value=fake_jwks)),
+            patch("app.auth.dependencies.PyJWK", mock_pyjwk),
             patch("app.auth.dependencies.jwt.get_unverified_header", return_value={"kid": "test-kid"}),
             patch("app.auth.dependencies.jwt.decode", return_value=fake_payload),
         ):
@@ -101,8 +105,8 @@ class TestValidateToken:
         assert user["role"] == "Admin"
 
     async def test_invalid_token_header_raises_401(self):
-        """JWTError on get_unverified_header should raise 401."""
-        from jose import JWTError
+        """PyJWTError on get_unverified_header should raise 401."""
+        import jwt.exceptions
 
         fake_jwks = {"keys": [{"kid": "test-kid"}]}
 
@@ -110,7 +114,7 @@ class TestValidateToken:
             patch("app.auth.dependencies._get_signing_keys", new=AsyncMock(return_value=fake_jwks)),
             patch(
                 "app.auth.dependencies.jwt.get_unverified_header",
-                side_effect=JWTError("bad header"),
+                side_effect=jwt.exceptions.DecodeError("bad header"),
             ),
         ):
             from fastapi.security import HTTPAuthorizationCredentials
@@ -141,14 +145,17 @@ class TestValidateToken:
 
     async def test_all_decode_combinations_fail_raises_401(self):
         """All audience/issuer combinations fail → 401."""
-        from jose import JWTError
+        import jwt.exceptions
 
         fake_jwks = {"keys": [{"kid": "test-kid"}]}
+        mock_pyjwk = MagicMock()
+        mock_pyjwk.return_value.key = "fake-rsa-key"
 
         with (
             patch("app.auth.dependencies._get_signing_keys", new=AsyncMock(return_value=fake_jwks)),
+            patch("app.auth.dependencies.PyJWK", mock_pyjwk),
             patch("app.auth.dependencies.jwt.get_unverified_header", return_value={"kid": "test-kid"}),
-            patch("app.auth.dependencies.jwt.decode", side_effect=JWTError("expired")),
+            patch("app.auth.dependencies.jwt.decode", side_effect=jwt.exceptions.PyJWTError("expired")),
         ):
             from fastapi.security import HTTPAuthorizationCredentials
 

@@ -1,9 +1,11 @@
 import time
 
 import httpx
+import jwt
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
-from jose import JWTError, jwt
+from jwt import PyJWK
+from jwt.exceptions import PyJWTError
 
 from app.config import settings
 
@@ -43,7 +45,7 @@ async def _validate_token(token: str) -> dict:
 
     try:
         unverified_header = jwt.get_unverified_header(token)
-    except JWTError:
+    except PyJWTError:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid token header",
@@ -61,6 +63,8 @@ async def _validate_token(token: str) -> dict:
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Unable to find matching signing key",
         )
+
+    rsa_key_obj = PyJWK(rsa_key).key
 
     # Try combinations of audience and issuer formats
     # v1 tokens: aud=api://clientid, iss=https://sts.windows.net/{tenant}/
@@ -81,13 +85,13 @@ async def _validate_token(token: str) -> dict:
             try:
                 token_payload = jwt.decode(
                     token,
-                    rsa_key,
+                    rsa_key_obj,
                     algorithms=["RS256"],
                     audience=aud,
                     issuer=iss,
                 )
                 break
-            except JWTError as e:
+            except PyJWTError as e:
                 last_error = e
                 continue
         if token_payload:
