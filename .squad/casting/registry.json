@@ -1,0 +1,84 @@
+{
+  "agents": {
+    "neo": {
+      "persistent_name": "Neo",
+      "universe": "The Matrix",
+      "role": "Lead",
+      "created_at": "2026-04-10T00:00:00Z",
+      "legacy_named": false,
+      "status": "active"
+    },
+    "trinity": {
+      "persistent_name": "Trinity",
+      "universe": "The Matrix",
+      "role": "Frontend Dev",
+      "created_at": "2026-04-10T00:00:00Z",
+      "legacy_named": false,
+      "status": "active"
+    },
+    "morpheus": {
+      "persistent_name": "Morpheus",
+      "universe": "The Matrix",
+      "role": "Backend Dev",
+      "created_at": "2026-04-10T00:00:00Z",
+      "legacy_named": false,
+      "status": "active"
+    },
+    "cypher": {
+      "persistent_name": "Cypher",
+      "universe": "The Matrix",
+      "role": "Tester",
+      "created_at": "2026-04-10T00:00:00Z",
+      "legacy_named": false,
+      "status": "active"
+    },
+    "oracle": {
+      "persistent_name": "Oracle",
+      "universe": "The Matrix",
+      "role": "Docs / Feature Writer",
+      "created_at": "2026-04-12T00:00:00Z",
+      "legacy_named": false,
+      "status": "active"
+    },
+    "tank": {
+      "persistent_name": "Tank",
+      "universe": "The Matrix",
+      "role": "DevOps / CI/CD Engineer",
+      "created_at": "2026-04-12T00:00:00Z",
+      "legacy_named": false,
+      "status": "active"
+    },
+    "switch": {
+      "persistent_name": "Switch",
+      "universe": "The Matrix",
+      "role": "Security Engineer",
+      "created_at": "2026-04-12T00:00:00Z",
+      "legacy_named": false,
+      "status": "active"
+    },
+    "niobe": {
+      "persistent_name": "Niobe",
+      "universe": "The Matrix",
+      "role": "Spec / UX Analyst",
+      "created_at": "2026-04-12T00:00:00Z",
+      "legacy_named": false,
+      "status": "active"
+    },
+    "mouse": {
+      "persistent_name": "Mouse",
+      "universe": "The Matrix",
+      "role": "UI Designer",
+      "created_at": "2026-04-12T00:00:00Z",
+      "legacy_named": false,
+      "status": "active"
+    },
+    "scribe": {
+      "persistent_name": "Scribe",
+      "universe": null,
+      "role": "Session Logger",
+      "created_at": "2026-04-10T00:00:00Z",
+      "legacy_named": false,
+      "status": "active"
+    }
+  }
+}
