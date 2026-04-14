@@ -68,13 +68,18 @@ class SplitService:
         parent_amount: Decimal,
         transaction_type: str,
     ) -> None:
-        """Validate split line list: count, sum, and categories."""
+        """Validate split line list: count, sum, line amounts, and categories."""
         if len(lines) < 2:
             raise ValueError("A split must have at least 2 lines")
         if len(lines) > 20:
             raise ValueError("A split must have at most 20 lines")
 
-        line_sum = sum(Decimal(str(line["amount"])) for line in lines)
+        line_sum = Decimal("0")
+        for line in lines:
+            amount = Decimal(str(line["amount"]))
+            if amount <= 0:
+                raise ValueError("Each split line amount must be greater than 0")
+            line_sum += amount
         if line_sum != abs(parent_amount):
             raise ValueError(f"Split line amounts ({line_sum}) must equal " f"the parent amount ({abs(parent_amount)})")
 
