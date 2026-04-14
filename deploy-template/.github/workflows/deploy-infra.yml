@@ -1,0 +1,49 @@
+# deploy-infra.yml — OpenTreasury Infrastructure Deployment
+# Deploys Bicep IaC from the product repo. Used for first-time bootstrap and infra changes.
+# Requires broader permissions (Contributor + User Access Administrator) than deploy.yml.
+
+name: Deploy Infrastructure
+
+on:
+  workflow_dispatch:
+    inputs:
+      product_ref:
+        description: 'Product repo ref for Bicep modules'
+        default: 'main'
+        type: string
+
+permissions:
+  id-token: write    # Required for OIDC federation
+  contents: read     # Required for actions/checkout
+
+jobs:
+  deploy-infra:
+    runs-on: ubuntu-latest
+    steps:
+      # ── Checkout ──────────────────────────────────────────────────
+      - name: Checkout product repo
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+        with:
+          repository: rett-europe/opentreasury
+          ref: ${{ inputs.product_ref || 'main' }}
+          path: product
+
+      # ── Auth ──────────────────────────────────────────────────────
+      - name: Azure Login (OIDC)
+        uses: azure/login@a457da9ea143d694b1b9c7c869eed04575f8b2db  # v2.3.0
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+
+      # ── Deploy Bicep ──────────────────────────────────────────────
+      - name: Deploy Bicep
+        uses: azure/arm-deploy@a1361c2c2cd2e944d2ae6b48b598b3090c7d9ca0  # v2.0.0
+        with:
+          resourceGroupName: ${{ vars.AZURE_RESOURCE_GROUP }}
+          template: product/infra/main.bicep
+          parameters: >-
+            projectName=${{ vars.PROJECT_NAME || 'opentreasury' }}
+            environmentName=${{ vars.ENVIRONMENT_NAME || 'prod' }}
+            azureTenantId=${{ vars.AZURE_TENANT_ID }}
+            azureClientId=${{ vars.ENTRA_API_CLIENT_ID }}

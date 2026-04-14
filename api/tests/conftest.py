@@ -22,7 +22,7 @@ import pytest
 # pydantic-settings reads these at Settings() instantiation time.
 # ---------------------------------------------------------------------------
 os.environ.setdefault("AZURE_TENANT_ID", "test-tenant-id-00000000")
-os.environ.setdefault("AZURE_CLIENT_ID", "test-client-id-00000000")
+os.environ.setdefault("ENTRA_API_CLIENT_ID", "test-client-id-00000000")
 os.environ.setdefault("COSMOS_ENDPOINT", "https://test.documents.azure.com:443/")
 os.environ.setdefault("COSMOS_DATABASE_NAME", "test-db")
 

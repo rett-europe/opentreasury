@@ -38,7 +38,7 @@ resource cosmosAccount 'Microsoft.DocumentDB/databaseAccounts@2024-05-15' = {
         isZoneRedundant: false
       }
     ]
-    disableLocalAuth: false // Keep enabled for portal access; data plane uses RBAC
+    disableLocalAuth: true // Managed Identity only — no connection string/key auth
   }
 }
 

@@ -152,6 +152,101 @@
 **What:** Two-repo architecture: `rett-europe/opentreasury` (public product code) + private per-org deployment repos (workflows, parameters, secrets). Product repo has no org-specific config. Deployment repos check out the product repo and overlay org config.
 **Why:** Multi-org support — same product, different deployments per NGO.
 
+### 2026-04-14: Trunk-based development — branching policy
+**By:** Pedro (user directive)
+**What:** All new features and fixes must be on separate branches. Use trunk-based development: commit on feature/fix branches, open pull requests to merge into main. No direct commits to main.
+**Why:** User request — captured for team memory.
+
+### 2026-04-14: Deploy template spec — architectural decisions
+**By:** Neo (Lead/Architect)
+**Status:** Superseded by the agreed architecture in "Deploy template — DevOps review" and "Deploy template — security review" below.
+**What:**
+1. Deploy template includes **3 files** (deploy.yml + deploy-infra.yml + README) — product repo has all infra/code
+2. **Standalone `deploy-infra.yml`** for first-time bootstrap and infra-only changes (least-privilege separation)
+3. **No prod.bicepparam in deploy repo** — `using` path creates fragile cross-repo dependencies; params passed inline
+4. **1 secret + 8 variables** (not 12) — OIDC federation, Key Vault refs + Managed Identity eliminate persistent credentials
+5. **Manual workflow_dispatch only** for v1 — adopters control when to pull new product versions
+6. **Zip deploy** (not container) for v1 — matches existing `WEBSITE_RUN_FROM_PACKAGE=1` + `startup.sh` pattern
+**Why:** Simplest version that works with security-first posture. Don't duplicate what the product repo already provides.
+**Spec:** docs/specs/deploy-template-spec.md
+
+### 2026-04-14: Deploy template — DevOps review
+**By:** Tank (DevOps)
+**What:**
+1. **3-job workflow** correct: `deploy-infra` → (`deploy-backend` + `deploy-frontend`) in parallel
+2. **Standalone deploy-infra.yml** — yes, keep separate for first-time bootstrap and infra-only changes
+3. **Checkout layout**: deploy repo at root, product repo as subdirectory pinned to release tag
+4. **Secrets reduced to 6 + 3 variables**: eliminated COSMOS_KEY (managed identity) and COSMOS_ENDPOINT (Bicep-wired)
+5. **Key Vault RBAC propagation delay** (5-10 min) — first deploy needs health-check retry step
+6. **Frontend env injection**: `sed` placeholder replacement in `environment.prod.ts` before `ng build`
+**Why:** Practical DevOps validation of the spec.
+
+### 2026-04-14: Deploy template — security review
+**By:** Switch (Security Engineer)
+**What:**
+1. **Only 1 real GitHub Secret** (`AZURE_STATIC_WEB_APPS_API_TOKEN`). All others are Variables or eliminated.
+2. **OIDC federation is mandatory** — replaces `AZURE_CREDENTIALS` persistent SP credential. Short-lived tokens (5-10 min) instead of 1-year client secrets.
+3. **COSMOS_KEY must not be a GitHub Secret** — flagged as C4 in April 12 scan. App uses managed identity at runtime.
+4. **Secret classification**: 1 secret + 8 variables + 3 eliminated (from original 12).
+5. **NGO fork caveat**: OIDC federated credential `subject` claim must match the deploying org's repo name.
+**Why:** Security-first review. Persistent credentials are unacceptable risk for NGO adopters.
+
+### 2026-04-14: Mandatory branch enforcement — coordinator must branch before spawning
+**By:** Pedro (user directive)
+**What:** ALL work MUST go on feature branches. Never commit directly to main. The coordinator must create a feature branch BEFORE spawning any agents that produce artifacts. This is trunk-based development — all changes go through PRs. Learned the hard way: spec commit went to main (2026-04-14).
+**Why:** Spec work was committed directly to main instead of a branch. Pedro caught it.
+
+### 2026-04-14: Security expert (Switch) has final say — non-negotiable
+**By:** Pedro (user directive)
+**What:** On all security-related decisions, Switch's opinion is authoritative and non-negotiable. The team must always adopt the most secure option. For the deploy-template this means: OIDC federation (no persistent SP secrets), COSMOS_KEY eliminated (Managed Identity only), config values → GitHub Variables, Cosmos DB `disableLocalAuth: true`, Key Vault `enablePurgeProtection: true`, AZURE_CLIENT_ID naming conflict resolved, GitHub Actions pinned to SHA with explicit permissions blocks.
+**Why:** "This needs to be a top solution from security perspective, not negotiable, so the security expert opinion will always win."
+
+### 2026-04-14: Deploy template spec v2 — Neo answers Pedro's 4 questions
+**By:** Neo (Lead/Architect)
+**What:**
+1. **Why wasn't Niobe involved?** Neo acknowledges the oversight — specs need requirements/UX review, not just architecture. Going forward, ALL specs (including Lead-authored) get a Niobe review pass before merge.
+2. **Versioning:** GitHub Releases with semantic versioning. Tags are immutable. Adopter sets `product_ref: v1.2.0` in workflow dispatch. Changelog via `gh release create --generate-notes`.
+3. **Full lifecycle:** Discovery → Provisioning (~30 min claimed) → Day-2 ops → Upgrading → Troubleshooting. Persona-aware: NGO admin, not a developer.
+4. **Switch's security requirements:** All adopted. OIDC federation, COSMOS_KEY eliminated, 1 secret + 8 variables, Cosmos `disableLocalAuth`, Key Vault `enablePurgeProtection`, Actions pinned to SHA. Switch has final say — team policy.
+**Also adopted from Tank:** Separate `deploy-infra.yml`, sed-before-build for frontend tokens, RBAC propagation delay + health check retry.
+**Process decisions:** Niobe reviews all specs (no exceptions). All work on feature branches. Switch's authority on security is absolute.
+**Spec:** docs/specs/deploy-template-spec.md (v2)
+
+### 2026-04-14: Deploy template — adopter experience review (14 recommendations)
+**By:** Niobe (Spec / UX Analyst)
+**What:** Full adopter journey analysis. Defined realistic persona ("Ana" — NGO IT contact, not a DevOps engineer). Mapped 7-stage lifecycle from discovery to ongoing operations. Reality-checked the "30 minutes" claim (actual: 60-90 min for deployment, 2-3 hours from "I want to try" to "first spreadsheet imported"). Identified 7 spec gaps:
+1. **No post-deployment onboarding** (Entra role assignment, first-use setup) — HIGH
+2. **No error recovery guidance** (adopters afraid to re-run scripts) — HIGH
+3. **Windows/PowerShell is second-class** (only bash mentioned) — MEDIUM
+4. **No cost transparency at decision time** (€15-25/month breakdown needed) — MEDIUM
+5. **No "is my deployment healthy?" checklist** — MEDIUM
+6. **MSAL_API_SCOPE naming mismatch** between script output and GitHub secrets — MEDIUM
+7. **No Entra ID tier requirements documented** (P1 needed for group-based roles?) — HIGH
+**Key recommendations:** Define adopter persona in README, revise time claim to ~1 hour, add cost breakdown, make PowerShell first-class, default `product_ref` to latest release tag (not `main`), add version badge in app footer, add plain-language changelogs.
+**Assessment:** Spec is technically solid but written by engineers for engineers. Biggest adoption risks are non-technical: the gap between deployment and first use, the versioning story, and no error recovery.
+
+### 2026-04-14: AZURE_CLIENT_ID → ENTRA_API_CLIENT_ID rename (backend)
+**By:** Morpheus (Backend Dev)
+**What:** Renamed `AZURE_CLIENT_ID` to `ENTRA_API_CLIENT_ID` in all backend Python code and .env example files (config.py, auth/dependencies.py, conftest.py, .env.example, .env.cosmos-emulator.example). This is the API app registration client ID used for Entra ID audience validation — distinct from the `AZURE_CLIENT_ID` that `DefaultAzureCredential` auto-discovers for managed identity.
+**Why:** Per deploy-template-spec §4.5 — `DefaultAzureCredential` consumes `AZURE_CLIENT_ID` for managed identity auth. Reusing the same env var for the API audience registration caused a collision. The new name `ENTRA_API_CLIENT_ID` is unambiguous.
+**Scope:** Backend only. Bicep/workflows/scripts are Tank's responsibility.
+
+### 2026-04-14: Deploy template implementation — Bicep hardening + workflows
+**By:** Tank (DevOps)
+**What:**
+1. **Bicep hardening applied:** `disableLocalAuth: true` on Cosmos DB (forces Managed Identity, eliminates COSMOS_KEY attack vector), `enablePurgeProtection: true` on Key Vault (prevents permanent secret deletion).
+2. **AZURE_CLIENT_ID → ENTRA_API_CLIENT_ID rename:** Updated in key-vault.bicep (secret name) and app-service.bicep (app setting + KV reference). Eliminates collision with DefaultAzureCredential's AZURE_CLIENT_ID.
+3. **deploy-infra.yml passes azureClientId from vars.MSAL_CLIENT_ID:** The API app registration client ID is needed as a Bicep @secure() param for the Key Vault secret.
+4. **setup-python action added to deploy.yml:** SHA-pinned actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 (v5.6.0) for Python 3.12 in the API build step.
+5. **main.json regenerated** after all Bicep changes — clean, zero diagnostics.
+**Why:** Per deploy-template-spec.md §4.3, §4.5, §5.1, §5.2. Security hardening endorsed by Switch.
+
+### 2026-04-14: Script output must match README's GitHub config table
+**By:** Niobe (Spec / UX Analyst)
+**What:** The setup scripts (`setup-azure.sh` and `setup-azure.ps1`) still print a legacy GitHub Secrets table that includes `AZURE_CREDENTIALS` and doesn't distinguish Secrets vs Variables. The deploy-template README documents the spec's correct classification: 1 GitHub Secret (`AZURE_STATIC_WEB_APPS_API_TOKEN`) + 8 GitHub Variables. The scripts need updating so their output matches the README 1:1.
+**Why:** Adopter UX — script output is the single source of truth during provisioning. Mismatch causes confusion.
+**Action needed:** Update Step 9 output in both scripts to print two separate tables (Secrets and Variables), matching the exact names documented in the README.
+
 ## Governance
 
 - All meaningful changes require team consensus
