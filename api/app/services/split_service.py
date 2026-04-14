@@ -113,7 +113,7 @@ class SplitService:
             if cat_id:
                 category_ids.add(cat_id)
 
-        return split_lines, list(category_ids)
+        return split_lines, sorted(category_ids)
 
     # ------------------------------------------------------------------
     # Public API
