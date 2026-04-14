@@ -116,7 +116,11 @@ class CosmosTransactionRepository:
                 parameters.append({"name": "@accountId", "value": account_id})
 
             where = " AND ".join(conditions)
-            query = "SELECT c.categoryId, c.accountId, c.amount, c.month, c.transactionType " f"FROM c WHERE {where}"
+            query = (
+                "SELECT c.categoryId, c.accountId, c.amount, c.month,"
+                " c.transactionType, c.isSplit, c.splitLines"
+                f" FROM c WHERE {where}"
+            )
             kwargs: dict = {
                 "query": query,
                 "parameters": parameters,
@@ -131,7 +135,11 @@ class CosmosTransactionRepository:
                 parameters.append({"name": "@accountId", "value": account_id})
 
             where = " AND ".join(conditions)
-            query = "SELECT c.categoryId, c.accountId, c.amount, c.month, c.transactionType " f"FROM c WHERE {where}"
+            query = (
+                "SELECT c.categoryId, c.accountId, c.amount, c.month,"
+                " c.transactionType, c.isSplit, c.splitLines"
+                f" FROM c WHERE {where}"
+            )
             kwargs = {
                 "query": query,
                 "parameters": parameters,
@@ -251,7 +259,7 @@ class CosmosTransactionRepository:
     ) -> dict:
         conditions, parameters = _build_filter_conditions(partition_key, filters, include_deleted)
         where = " AND ".join(conditions)
-        query = "SELECT c.amount, c.transactionType, c.categoryId " f"FROM c WHERE {where}"
+        query = "SELECT c.amount, c.transactionType, c.categoryId, c.isSplit" f" FROM c WHERE {where}"
 
         total_income = Decimal("0")
         total_expenses = Decimal("0")
@@ -271,7 +279,7 @@ class CosmosTransactionRepository:
             elif txn_type == "expense":
                 total_expenses += amount
             # transfer and refund: excluded from totals
-            if not item.get("categoryId"):
+            if not item.get("categoryId") and not item.get("isSplit"):
                 uncategorized_count += 1
 
         return {

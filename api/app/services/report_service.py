@@ -41,12 +41,23 @@ class ReportService:
             txn_type = item.get("transactionType")
             if txn_type not in ("income", "expense"):
                 continue  # transfer and refund: excluded from category breakdown
-            cat = item.get("categoryId") or "uncategorized"
-            amount = abs(Decimal(str(item["amount"])))
-            if txn_type == "income":
-                buckets[cat]["income"] += amount
+
+            if item.get("isSplit") and item.get("splitLines"):
+                # Aggregate at split-line level
+                for line in item["splitLines"]:
+                    cat = line.get("categoryId") or "uncategorized"
+                    amount = abs(Decimal(str(line["amount"])))
+                    if txn_type == "income":
+                        buckets[cat]["income"] += amount
+                    else:
+                        buckets[cat]["expense"] += amount
             else:
-                buckets[cat]["expense"] += amount
+                cat = item.get("categoryId") or "uncategorized"
+                amount = abs(Decimal(str(item["amount"])))
+                if txn_type == "income":
+                    buckets[cat]["income"] += amount
+                else:
+                    buckets[cat]["expense"] += amount
 
         breakdown_items = [
             {
