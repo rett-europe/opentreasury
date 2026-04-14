@@ -98,7 +98,15 @@
 - Phase 3 — Split transactions (FR-022–025)
 - Phase 4 — Smart categorization (FR-019, FR-020)
 **Why:** Core model must be solid before building features on top.
+### 2026-04-14: Product renamed — "NGO Treasury" → "OpenTreasury"
+**By:** Oracle (Docs), Trinity (Frontend), Morpheus (Backend), requested by Pedro
+**What:** All user-facing text renamed from "NGO Treasury" / "ngo-treasury" to "OpenTreasury" / "opentreasury" across docs (13 files), frontend code (package.json, angular.json, localStorage keys), and backend config (config.py default, logger name, .env examples). Azure resource names (`rg-ngo-treasury-*`, `cosmos-ngo-treasury-*`, etc.) and generic NGO references intentionally preserved.
+**Why:** Product identity change requested by Pedro.
 
+### 2026-04-14: Cosmos DB default database name changed to "opentreasury"
+**By:** Morpheus (Backend Dev), requested by Pedro
+**What:** `COSMOS_DATABASE_NAME` default in `config.py` changed from `ngo-treasury` to `opentreasury`. Existing deployments must set `COSMOS_DATABASE_NAME=ngo-treasury` in environment or rename/recreate the database. `api/tests/conftest.py` Entra audience (`api://ngo-treasury-api`) unchanged until infra is re-provisioned.
+**Why:** Aligns backend default with new product name.
 ### 2026-04-12: No backward compatibility — clean break
 **By:** Pedro (user directive)
 **What:** V2 is a clean break. No deprecated endpoints, no backward-compatible shims, no legacy aliases. Old code gets deleted, not kept around.
