@@ -22,7 +22,7 @@
 7. [Acceptance Criteria](#7-acceptance-criteria)
 8. [Edge Cases](#8-edge-cases)
 9. [Reporting Impact](#9-reporting-impact)
-10. [Open Questions](#10-open-questions)
+10. [Resolved Questions](#10-resolved-questions)
 
 ---
 
