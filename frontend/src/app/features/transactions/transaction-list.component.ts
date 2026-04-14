@@ -357,13 +357,7 @@ export class TransactionListComponent implements OnInit, OnDestroy {
       data: { transaction: tx },
     });
     dialogRef.afterClosed().subscribe((updated: Transaction | undefined) => {
-      if (updated) {
-        const idx = this.allTransactions.findIndex(t => t.id === updated.id);
-        if (idx >= 0) {
-          this.allTransactions[idx] = { ...this.allTransactions[idx], ...updated };
-        }
-        this.applyClientFilters();
-      }
+      this.handleDialogUpdate(updated);
     });
   }
 
@@ -374,14 +368,18 @@ export class TransactionListComponent implements OnInit, OnDestroy {
       data: { transaction: tx },
     });
     dialogRef.afterClosed().subscribe((updated: Transaction | undefined) => {
-      if (updated) {
-        const idx = this.allTransactions.findIndex(t => t.id === updated.id);
-        if (idx >= 0) {
-          this.allTransactions[idx] = { ...this.allTransactions[idx], ...updated };
-        }
-        this.applyClientFilters();
-      }
+      this.handleDialogUpdate(updated);
     });
+  }
+
+  private handleDialogUpdate(updated: Transaction | undefined): void {
+    if (updated) {
+      const idx = this.allTransactions.findIndex(t => t.id === updated.id);
+      if (idx >= 0) {
+        this.allTransactions[idx] = { ...this.allTransactions[idx], ...updated };
+      }
+      this.applyClientFilters();
+    }
   }
 
   // TODO: Replace native confirm() with MatDialog confirmation — tech debt
