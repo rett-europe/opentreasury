@@ -21,8 +21,7 @@ pydantic-settings>=2.7,<3.0
 python-multipart>=0.0.9,<1.0
 
 # Auth (JWT)
-python-jose[cryptography]>=3.3,<4.0
-cryptography>=44,<45
+PyJWT[crypto]>=2.8,<3.0
 
 # HTTP client
 httpx>=0.28,<1.0
