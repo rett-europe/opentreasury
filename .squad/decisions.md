@@ -190,6 +190,40 @@
 5. **NGO fork caveat**: OIDC federated credential `subject` claim must match the deploying org's repo name.
 **Why:** Security-first review. Persistent credentials are unacceptable risk for NGO adopters.
 
+### 2026-04-14: Mandatory branch enforcement — coordinator must branch before spawning
+**By:** Pedro (user directive)
+**What:** ALL work MUST go on feature branches. Never commit directly to main. The coordinator must create a feature branch BEFORE spawning any agents that produce artifacts. This is trunk-based development — all changes go through PRs. Learned the hard way: spec commit went to main (2026-04-14).
+**Why:** Spec work was committed directly to main instead of a branch. Pedro caught it.
+
+### 2026-04-14: Security expert (Switch) has final say — non-negotiable
+**By:** Pedro (user directive)
+**What:** On all security-related decisions, Switch's opinion is authoritative and non-negotiable. The team must always adopt the most secure option. For the deploy-template this means: OIDC federation (no persistent SP secrets), COSMOS_KEY eliminated (Managed Identity only), config values → GitHub Variables, Cosmos DB `disableLocalAuth: true`, Key Vault `enablePurgeProtection: true`, AZURE_CLIENT_ID naming conflict resolved, GitHub Actions pinned to SHA with explicit permissions blocks.
+**Why:** "This needs to be a top solution from security perspective, not negotiable, so the security expert opinion will always win."
+
+### 2026-04-14: Deploy template spec v2 — Neo answers Pedro's 4 questions
+**By:** Neo (Lead/Architect)
+**What:**
+1. **Why wasn't Niobe involved?** Neo acknowledges the oversight — specs need requirements/UX review, not just architecture. Going forward, ALL specs (including Lead-authored) get a Niobe review pass before merge.
+2. **Versioning:** GitHub Releases with semantic versioning. Tags are immutable. Adopter sets `product_ref: v1.2.0` in workflow dispatch. Changelog via `gh release create --generate-notes`.
+3. **Full lifecycle:** Discovery → Provisioning (~30 min claimed) → Day-2 ops → Upgrading → Troubleshooting. Persona-aware: NGO admin, not a developer.
+4. **Switch's security requirements:** All adopted. OIDC federation, COSMOS_KEY eliminated, 1 secret + 8 variables, Cosmos `disableLocalAuth`, Key Vault `enablePurgeProtection`, Actions pinned to SHA. Switch has final say — team policy.
+**Also adopted from Tank:** Separate `deploy-infra.yml`, sed-before-build for frontend tokens, RBAC propagation delay + health check retry.
+**Process decisions:** Niobe reviews all specs (no exceptions). All work on feature branches. Switch's authority on security is absolute.
+**Spec:** docs/specs/deploy-template-spec.md (v2)
+
+### 2026-04-14: Deploy template — adopter experience review (14 recommendations)
+**By:** Niobe (Spec / UX Analyst)
+**What:** Full adopter journey analysis. Defined realistic persona ("Ana" — NGO IT contact, not a DevOps engineer). Mapped 7-stage lifecycle from discovery to ongoing operations. Reality-checked the "30 minutes" claim (actual: 60-90 min for deployment, 2-3 hours from "I want to try" to "first spreadsheet imported"). Identified 7 spec gaps:
+1. **No post-deployment onboarding** (Entra role assignment, first-use setup) — HIGH
+2. **No error recovery guidance** (adopters afraid to re-run scripts) — HIGH
+3. **Windows/PowerShell is second-class** (only bash mentioned) — MEDIUM
+4. **No cost transparency at decision time** (€15-25/month breakdown needed) — MEDIUM
+5. **No "is my deployment healthy?" checklist** — MEDIUM
+6. **MSAL_API_SCOPE naming mismatch** between script output and GitHub secrets — MEDIUM
+7. **No Entra ID tier requirements documented** (P1 needed for group-based roles?) — HIGH
+**Key recommendations:** Define adopter persona in README, revise time claim to ~1 hour, add cost breakdown, make PowerShell first-class, default `product_ref` to latest release tag (not `main`), add version badge in app footer, add plain-language changelogs.
+**Assessment:** Spec is technically solid but written by engineers for engineers. Biggest adoption risks are non-technical: the gap between deployment and first use, the versioning story, and no error recovery.
+
 ## Governance
 
 - All meaningful changes require team consensus
