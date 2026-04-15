@@ -307,6 +307,7 @@ export class SplitDialogComponent implements OnInit {
   readonly canSave = computed(() =>
     this.remaining() === 0
     && this.linesArray?.length >= MIN_LINES
+    && !!this.linesArray?.valid
     && !this.saving(),
   );
   readonly overAmount = computed(() => {
@@ -401,12 +402,11 @@ export class SplitDialogComponent implements OnInit {
     this.saving.set(true);
 
     const tx = this.data.transaction;
-    const sign = tx.amount >= 0 ? 1 : -1;
     const request: SplitRequest = {
       lines: this.linesArray.controls.map((ctrl) => {
         const g = ctrl as FormGroup;
         return {
-          amount: (g.get('amount')?.value ?? 0) * sign,
+          amount: Math.abs(g.get('amount')?.value ?? 0),
           categoryId: g.get('categoryId')?.value || null,
           subcategoryId: g.get('subcategoryId')?.value || null,
           tagIds: g.get('tagIds')?.value ?? [],
@@ -428,8 +428,10 @@ export class SplitDialogComponent implements OnInit {
         );
         this.dialogRef.close(updated);
       },
-      error: () => {
+      error: (err: { error?: { detail?: string } }) => {
         this.saving.set(false);
+        const msg = err?.error?.detail || 'Failed to save split';
+        this.snackBar.open(msg, this.settings.labels().close, { duration: 5000 });
       },
     });
   }
@@ -449,13 +451,18 @@ export class SplitDialogComponent implements OnInit {
         );
         this.dialogRef.close(updated);
       },
-      error: () => {
+      error: (err: { error?: { detail?: string } }) => {
         this.saving.set(false);
+        const msg = err?.error?.detail || 'Failed to remove split';
+        this.snackBar.open(msg, this.settings.labels().close, { duration: 5000 });
       },
     });
   }
 
   onCancel(): void {
+    if (this.linesArray.dirty && !confirm(this.settings.labels().splitDiscardConfirm)) {
+      return;
+    }
     this.dialogRef.close(undefined);
   }
 

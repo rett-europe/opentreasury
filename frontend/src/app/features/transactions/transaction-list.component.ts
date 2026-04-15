@@ -111,7 +111,7 @@ import { SplitDialogComponent, SplitDialogData } from './split-dialog.component'
                     <span class="split-label" role="button" tabindex="0"
                           (click)="toggleSplitExpand(tx); $event.stopPropagation()"
                           (keydown.enter)="toggleSplitExpand(tx); $event.stopPropagation()"
-                          (keydown.space)="toggleSplitExpand(tx); $event.stopPropagation()">
+                          (keydown.space)="toggleSplitExpand(tx); $event.stopPropagation(); $event.preventDefault()">
                       {{ settings.labels().splitIndicator(tx.splitCount) }}
                     </span>
                   } @else if (tx.categoryId) {

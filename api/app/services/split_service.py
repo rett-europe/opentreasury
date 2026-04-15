@@ -127,7 +127,7 @@ class SplitService:
         lines: list[dict],
         user_id: str,
         user_name: str,
-    ) -> dict:
+    ) -> dict | None:
         """Create a split on a non-split transaction."""
         existing = await self._get_active_transaction(transaction_id, year, month)
         if not existing:
@@ -186,7 +186,7 @@ class SplitService:
         lines: list[dict],
         user_id: str,
         user_name: str,
-    ) -> dict:
+    ) -> dict | None:
         """Replace all split lines on an already-split transaction."""
         existing = await self._get_active_transaction(transaction_id, year, month)
         if not existing:
@@ -250,7 +250,7 @@ class SplitService:
         month: int,
         user_id: str,
         user_name: str,
-    ) -> dict:
+    ) -> dict | None:
         """Remove all split lines and revert to non-split state."""
         existing = await self._get_active_transaction(transaction_id, year, month)
         if not existing:

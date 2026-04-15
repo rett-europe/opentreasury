@@ -530,9 +530,7 @@ The audit entries should reference the parent transaction ID so that the audit t
 
 ### 8.11 Maximum number of split lines
 
-**Verdict: There should be a practical limit.** Suggest **50 lines per split** as a soft maximum. This covers the largest realistic remesa (50 members). The UI should warn at 50 lines but not hard-block. The backend may enforce a hard limit (e.g., 100) to prevent abuse.
-
-> **Open question:** Should the limit be 50 or different? See Open Questions §10.
+**Verdict: Maximum 20 lines per split.** The resolved decision caps split transactions at 20 lines. The UI and backend enforce this maximum consistently. This covers all realistic scenarios including large remesas.
 
 ### 8.12 Duplicate split lines
 
@@ -583,7 +581,7 @@ The audit entries should reference the parent transaction ID so that the audit t
 
 **Recommendation:** Option B. The whole point of splitting is granular classification — losing that in the export defeats the purpose. The export should include a column indicating whether a row is a parent, split line, or regular transaction. The parent row's amount should still appear so the totals are correct (split lines should be visually subordinate or have a separate "Split Amount" column).
 
-> **Open question:** Exact export column layout needs Pedro's input. See Open Questions §10.
+> **Note:** Export changes are deferred to a follow-up phase (per Pedro's decision). Current export shows parent rows only.
 
 ### 9.4 Transaction list aggregates (summary strip)
 
