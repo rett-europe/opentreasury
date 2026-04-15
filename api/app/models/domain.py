@@ -5,7 +5,7 @@ class AuditAction(str, Enum):
     CREATE = "Create"
     UPDATE = "Update"
     DELETE = "Delete"
-    SPLIT = "split"
+    SPLIT = "Split"
 
 
 class CategoryType(str, Enum):
