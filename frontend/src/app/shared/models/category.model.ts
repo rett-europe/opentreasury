@@ -1,6 +1,12 @@
 // Category — matches Cosmos DB categories container
 export type CategoryType = 'income' | 'expense';
 
+// Named constants — use these instead of hardcoded strings
+export const CATEGORY_TYPES = {
+  INCOME: 'income' as CategoryType,
+  EXPENSE: 'expense' as CategoryType,
+} as const;
+
 export interface Category {
   id: string;
   type: string;

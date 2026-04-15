@@ -7,7 +7,7 @@ import { MatDialog, MatDialogModule } from '@angular/material/dialog';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { AppSettingsService } from '@core/services/app-settings.service';
 import { CategoryService } from '@core/services/category.service';
-import { Category } from '@shared/models/category.model';
+import { Category, CATEGORY_TYPES } from '@shared/models/category.model';
 import { CategoryFormDialogComponent } from './category-form-dialog.component';
 import { LoadingContainerComponent } from '@shared/components/loading-container/loading-container.component';
 import { EmptyStateComponent } from '@shared/components/empty-state/empty-state.component';
@@ -46,9 +46,9 @@ import { ConfirmDialogComponent, ConfirmDialogData } from '@shared/components/co
                 <mat-card-title>
                   {{ cat.name }}
                   <span class="category-type-badge"
-                        [class.income]="cat.categoryType === 'income'"
-                        [class.expense]="cat.categoryType === 'expense'">
-                    {{ cat.categoryType === 'income' ? settings.labels().incomeType : settings.labels().expenseType }}
+                        [class.income]="cat.categoryType === CATEGORY_TYPES.INCOME"
+                        [class.expense]="cat.categoryType === CATEGORY_TYPES.EXPENSE">
+                    {{ cat.categoryType === CATEGORY_TYPES.INCOME ? settings.labels().incomeType : settings.labels().expenseType }}
                   </span>
                   @if (!cat.isActive) {
                     <span class="inactive-badge">{{ settings.labels().inactiveLabel }}</span>
@@ -151,6 +151,7 @@ import { ConfirmDialogComponent, ConfirmDialogData } from '@shared/components/co
   `,
 })
 export class CategoryListComponent implements OnInit {
+  readonly CATEGORY_TYPES = CATEGORY_TYPES;
   private readonly categoryService = inject(CategoryService);
   private readonly dialog = inject(MatDialog);
   private readonly snackBar = inject(MatSnackBar);

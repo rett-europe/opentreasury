@@ -3,6 +3,14 @@ export type TransactionType = 'income' | 'expense' | 'transfer' | 'refund';
 export type CategorizationStatus = 'uncategorized' | 'manually_categorized' | 'auto_categorized';
 export type ReviewStatus = 'pending' | 'reviewed' | 'approved' | 'flagged';
 
+// Named constants — use these instead of hardcoded strings
+export const TRANSACTION_TYPES = {
+  INCOME: 'income' as TransactionType,
+  EXPENSE: 'expense' as TransactionType,
+  TRANSFER: 'transfer' as TransactionType,
+  REFUND: 'refund' as TransactionType,
+} as const;
+
 // --- Phase 3: Split transactions ---
 export interface SplitLine {
   id: string;
