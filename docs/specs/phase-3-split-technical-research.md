@@ -19,7 +19,7 @@
 4. [Reporting Impact Analysis](#4-reporting-impact-analysis)
 5. [Impact on Existing Code](#5-impact-on-existing-code)
 6. [Recommendation](#6-recommendation)
-7. [Open Questions and Risks](#7-open-questions-and-risks)
+7. [Resolved Questions](#7-resolved-questions)
 
 ---
 
@@ -294,8 +294,9 @@ POST   /api/transactions/{id}/split?year=YYYY&month=MM
   → Creates split lines. Parent becomes isSplit=true. Validates sum = parent amount.
 
 PUT    /api/transactions/{id}/split?year=YYYY&month=MM
-  Body: { "lines": [ { "id": "sl-1", "amount": -100, ... }, { "amount": -50, ... } ] }
-  → Replaces ALL split lines. Lines with "id" are updates; lines without "id" are new.
+  Body: { "lines": [ { "amount": -100, "categoryId": "...", ... }, ... ] }
+  → Fully replaces ALL split lines. All existing lines are discarded and new IDs are generated.
+  → Input schema is identical to POST (SplitLineCreate has no id field).
   → Validates sum = parent amount after replacement.
 
 DELETE /api/transactions/{id}/split?year=YYYY&month=MM

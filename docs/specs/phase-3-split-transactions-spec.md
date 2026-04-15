@@ -450,9 +450,9 @@ The split editor opens as a **full-width Angular Material dialog** (`MatDialog`)
 | AC-025-03 | Admin can change the category/subcategory/tags/notes of an existing split line | Change category on line 2 → save succeeds, reports update |
 | AC-025-04 | Admin can add new lines to an existing split | Click "+ Add Line" on existing 3-line split → 4th line appears |
 | AC-025-05 | Admin can remove lines from an existing split (as long as ≥ 2 remain) | Delete line 4 from a 4-line split → 3 lines remain, balance bar updates |
-| AC-025-06 | Admin can reverse (unsplit) a transaction via "Remove Split" | Click "Remove Split" → confirmation dialog → confirm → all lines removed, parent restored |
-| AC-025-07 | Unsplitting restores the parent's category to whatever it was before splitting (or null if it had none) | Parent had category "Varios" before split → after unsplit, category is "Varios" again |
-| AC-025-08 | Confirmation dialog for unsplit clearly states how many lines will be removed | Dialog shows: "Remove all 12 split lines? The original transaction will be restored." |
+| AC-025-06 | Admin can reverse (unsplit) a transaction via "Remove Split" | Click "Remove Split" → confirmation dialog → confirm → all lines removed, parent remains with split removed |
+| AC-025-07 | Unsplitting clears the parent's category/subcategory to null (uncategorized), regardless of what it had before splitting | Parent had category "Varios" before split → after unsplit, parent category is null / uncategorized |
+| AC-025-08 | Confirmation dialog for unsplit clearly states how many lines will be removed and that the parent will be uncategorized afterward | Dialog shows: "Remove all 12 split lines? The parent transaction will remain, and its category will be cleared." |
 | AC-025-09 | All split modifications (create, edit, delete, unsplit) are logged in the audit trail | Check audit log after split operations → entries exist with before/after values |
 | AC-025-10 | Canceling the split editor without saving discards changes | Modify a line → click Cancel → confirm discard → no changes persisted |
 
