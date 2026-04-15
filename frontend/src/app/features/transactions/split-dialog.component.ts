@@ -17,8 +17,8 @@ import { CurrencyPipe, DatePipe } from '@angular/common';
 import { AppSettingsService } from '@core/services/app-settings.service';
 import { TransactionService } from '@core/services/transaction.service';
 import { ReferenceDataService } from '@core/services/reference-data.service';
-import { Transaction, SplitRequest, TRANSACTION_TYPES } from '@shared/models/transaction.model';
-import { Category, Subcategory, CATEGORY_TYPES } from '@shared/models/category.model';
+import { Transaction, SplitRequest } from '@shared/models/transaction.model';
+import { Category, Subcategory } from '@shared/models/category.model';
 import { Tag } from '@shared/models/tag.model';
 
 export interface SplitDialogData {
@@ -316,11 +316,7 @@ export class SplitDialogComponent implements OnInit {
   });
 
   readonly filteredCategories = computed((): Category[] => {
-    const txType = this.data.transaction.transactionType;
-    const cats = this.refData.categories().filter(c => c.isActive);
-    if (txType === TRANSACTION_TYPES.INCOME) return cats.filter(c => c.categoryType === CATEGORY_TYPES.INCOME);
-    if (txType === TRANSACTION_TYPES.EXPENSE) return cats.filter(c => c.categoryType === CATEGORY_TYPES.EXPENSE);
-    return cats;
+    return this.refData.categories().filter(c => c.isActive);
   });
 
   readonly activeTags = computed((): Tag[] =>
