@@ -35,7 +35,7 @@ class TransactionCreate(CamelModel):
     category_id: Optional[str] = None
     subcategory_id: Optional[str] = None
     tag_ids: list[str] = []
-    detail: Optional[str] = Field(default=None, max_length=500)
+    detail: Optional[str] = Field(default=None, max_length=2000)
     movement_number: Optional[str] = Field(default=None, max_length=50)
     branch_number: Optional[str] = Field(default=None, max_length=50)
     balance: Optional[Decimal] = Field(default=None, max_digits=14, decimal_places=2)
@@ -57,7 +57,7 @@ class TransactionUpdate(CamelModel):
     category_id: Optional[str] = None
     subcategory_id: Optional[str] = None
     tag_ids: Optional[list[str]] = None
-    detail: Optional[str] = Field(default=None, max_length=500)
+    detail: Optional[str] = Field(default=None, max_length=2000)
     movement_number: Optional[str] = Field(default=None, max_length=50)
     branch_number: Optional[str] = Field(default=None, max_length=50)
     balance: Optional[Decimal] = Field(default=None, max_digits=14, decimal_places=2)
@@ -75,7 +75,7 @@ class SplitLineCreate(CamelModel):
     category_id: Optional[str] = None
     subcategory_id: Optional[str] = None
     tag_ids: list[str] = []
-    detail: Optional[str] = Field(default=None, max_length=500)
+    detail: Optional[str] = Field(default=None, max_length=2000)
 
 
 class SplitLineResponse(CamelModel):

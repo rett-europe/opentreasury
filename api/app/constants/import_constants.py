@@ -10,18 +10,15 @@ HEADER_ALIASES: dict[str, list[str]] = {
     "amount": ["importe", "amount", "montante", "betrag", "montant"],
     "currency": ["divisa", "currency", "moeda", "wahrung", "devise"],
     "balance": ["saldo", "balance", "solde"],
-    "movement_no": ["no mov", "n mov", "n. mov", "movement", "movimento", "mouvement", "bewegung", "movement no"],
-    "branch": ["oficina", "branch", "agencia", "filiale", "succursale"],
     "category": ["categoria", "category", "categorie", "kategorie"],
     "subcategory": ["subcategoria", "subcategory", "sous categorie", "unterkategorie"],
     "detail": ["detalle", "detail", "detalhe", "details"],
-    "invoice_no": ["no factura", "n factura", "n. factura", "invoice", "fatura", "facture", "rechnung"],
-    "file_ref": ["referencia archivo factura", "file reference", "referencia arquivo"],
-    "extra_data": ["datos", "dados", "donnees", "daten"],
-    "ref": ["ref"],
 }
 
 REQUIRED_HEADERS = {"date", "amount"}
+
+# Headers that map to dedicated transaction fields (not captured into detail)
+KNOWN_HEADERS = set(HEADER_ALIASES.keys())
 
 # Optional columns that determine import mode
 CATEGORY_HEADERS = {"category", "subcategory"}
