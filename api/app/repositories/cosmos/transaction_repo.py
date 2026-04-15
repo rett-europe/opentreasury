@@ -2,6 +2,7 @@ from decimal import Decimal
 
 from azure.cosmos.exceptions import CosmosResourceNotFoundError
 
+from app.models.domain import TransactionType
 from app.services.cosmos_client import cosmos_service
 
 
@@ -274,9 +275,9 @@ class CosmosTransactionRepository:
             transaction_count += 1
             txn_type = item.get("transactionType")
             amount = abs(Decimal(str(item["amount"])))
-            if txn_type == "income":
+            if txn_type == TransactionType.INCOME.value:
                 total_income += amount
-            elif txn_type == "expense":
+            elif txn_type == TransactionType.EXPENSE.value:
                 total_expenses += amount
             # transfer and refund: excluded from totals
             if not item.get("categoryId") and not item.get("isSplit"):

@@ -4,8 +4,14 @@ from collections import defaultdict
 from decimal import Decimal
 from typing import TYPE_CHECKING
 
+from app.models.domain import TransactionType
+
 if TYPE_CHECKING:
     from app.services.transaction_service import TransactionService
+
+_INCOME = TransactionType.INCOME.value
+_EXPENSE = TransactionType.EXPENSE.value
+_INCOME_EXPENSE = (_INCOME, _EXPENSE)
 
 
 class ReportService:
@@ -20,9 +26,9 @@ class ReportService:
 
         for item in items:
             txn_type = item.get("transactionType")
-            if txn_type == "income":
+            if txn_type == _INCOME:
                 total_income += abs(Decimal(str(item["amount"])))
-            elif txn_type == "expense":
+            elif txn_type == _EXPENSE:
                 total_expense += abs(Decimal(str(item["amount"])))
             # transfer and refund: excluded from income/expense totals
 
@@ -39,7 +45,7 @@ class ReportService:
         buckets: dict[str, dict[str, Decimal]] = defaultdict(lambda: {"income": Decimal("0"), "expense": Decimal("0")})
         for item in items:
             txn_type = item.get("transactionType")
-            if txn_type not in ("income", "expense"):
+            if txn_type not in _INCOME_EXPENSE:
                 continue  # transfer and refund: excluded from category breakdown
 
             if item.get("isSplit") and item.get("splitLines"):
@@ -47,14 +53,14 @@ class ReportService:
                 for line in item["splitLines"]:
                     cat = line.get("categoryId") or "uncategorized"
                     amount = abs(Decimal(str(line["amount"])))
-                    if txn_type == "income":
+                    if txn_type == _INCOME:
                         buckets[cat]["income"] += amount
                     else:
                         buckets[cat]["expense"] += amount
             else:
                 cat = item.get("categoryId") or "uncategorized"
                 amount = abs(Decimal(str(item["amount"])))
-                if txn_type == "income":
+                if txn_type == _INCOME:
                     buckets[cat]["income"] += amount
                 else:
                     buckets[cat]["expense"] += amount
@@ -78,11 +84,11 @@ class ReportService:
 
         for item in items:
             txn_type = item.get("transactionType")
-            if txn_type not in ("income", "expense"):
+            if txn_type not in _INCOME_EXPENSE:
                 continue  # transfer and refund: excluded from monthly totals
             m = item["month"]
             amount = abs(Decimal(str(item["amount"])))
-            if txn_type == "income":
+            if txn_type == _INCOME:
                 monthly[m]["income"] += amount
             else:
                 monthly[m]["expense"] += amount
@@ -110,9 +116,9 @@ class ReportService:
             acc = item.get("accountId", "unknown")
             buckets[acc]["count"] += 1  # count ALL types including transfers/refunds
             txn_type = item.get("transactionType")
-            if txn_type == "income":
+            if txn_type == _INCOME:
                 buckets[acc]["income"] += abs(Decimal(str(item["amount"])))
-            elif txn_type == "expense":
+            elif txn_type == _EXPENSE:
                 buckets[acc]["expense"] += abs(Decimal(str(item["amount"])))
             # transfer and refund: excluded from income/expense totals
 
