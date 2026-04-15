@@ -64,7 +64,7 @@ import { SplitDialogComponent, SplitDialogData } from './split-dialog.component'
       <app-loading-container [loading]="loading()">
         @if (transactions().length > 0) {
           <div class="table-wrapper">
-            <table mat-table [dataSource]="transactions()" class="full-width">
+            <table mat-table [dataSource]="transactions()" class="full-width" multiTemplateDataRows>
               <!-- Type column -->
               <ng-container matColumnDef="type">
                 <th mat-header-cell *matHeaderCellDef class="col-type">{{ settings.labels().type }}</th>
@@ -195,43 +195,48 @@ import { SplitDialogComponent, SplitDialogData } from './split-dialog.component'
                 </td>
               </ng-container>
 
-              <tr mat-header-row *matHeaderRowDef="displayedColumns; sticky: true"></tr>
-              <tr mat-row *matRowDef="let row; columns: displayedColumns"
-                  (click)="onRowClick(row)"></tr>
-            </table>
-
-            <!-- Expanded split lines shown below the table for expanded transactions -->
-            @for (tx of transactions(); track tx.id) {
-              @if (tx.isSplit && expandedSplitIds().has(tx.id)) {
-                <div class="split-detail-panel">
-                  <div class="split-detail-header">
-                    {{ tx.bankDescription || tx.detail || '—' }} — {{ settings.labels().splitIndicator(tx.splitCount) }}
-                  </div>
-                  @for (line of tx.splitLines; track line.id) {
-                    <div class="split-detail-line">
-                      <span class="sdl-indicator">├─</span>
-                      <span class="sdl-amount" [class.income-amount]="tx.amount > 0"
-                            [class.expense-amount]="tx.amount < 0">
-                        {{ line.amount | currency: 'EUR':'symbol':'1.2-2' }}
-                      </span>
-                      <span class="sdl-category">
-                        @if (line.categoryId) {
-                          {{ refData.getCategoryName(line.categoryId) }}
-                          @if (line.subcategoryId) {
-                            / {{ refData.getSubcategoryName(line.categoryId, line.subcategoryId) }}
+              <!-- Expansion row for split details (spans all columns) -->
+              <ng-container matColumnDef="splitDetail">
+                <td mat-cell *matCellDef="let tx" [attr.colspan]="displayedColumns.length">
+                  @if (tx.isSplit && expandedSplitIds().has(tx.id)) {
+                    <div class="split-detail-panel">
+                      <div class="split-detail-header">
+                        {{ tx.bankDescription || tx.detail || '—' }} — {{ settings.labels().splitIndicator(tx.splitCount) }}
+                      </div>
+                      @for (line of tx.splitLines; track line.id) {
+                        <div class="split-detail-line">
+                          <span class="sdl-indicator">├─</span>
+                          <span class="sdl-amount" [class.income-amount]="tx.amount > 0"
+                                [class.expense-amount]="tx.amount < 0">
+                            {{ line.amount | currency: 'EUR':'symbol':'1.2-2' }}
+                          </span>
+                          <span class="sdl-category">
+                            @if (line.categoryId) {
+                              {{ refData.getCategoryName(line.categoryId) }}
+                              @if (line.subcategoryId) {
+                                / {{ refData.getSubcategoryName(line.categoryId, line.subcategoryId) }}
+                              }
+                            } @else {
+                              —
+                            }
+                          </span>
+                          @if (line.detail) {
+                            <span class="sdl-detail">"{{ line.detail }}"</span>
                           }
-                        } @else {
-                          —
-                        }
-                      </span>
-                      @if (line.detail) {
-                        <span class="sdl-detail">"{{ line.detail }}"</span>
+                        </div>
                       }
                     </div>
                   }
-                </div>
-              }
-            }
+                </td>
+              </ng-container>
+
+              <tr mat-header-row *matHeaderRowDef="displayedColumns; sticky: true"></tr>
+              <tr mat-row *matRowDef="let row; columns: displayedColumns"
+                  (click)="onRowClick(row)"></tr>
+              <tr mat-row *matRowDef="let row; columns: ['splitDetail']"
+                  class="split-detail-row"
+                  [class.expanded]="row.isSplit && expandedSplitIds().has(row.id)"></tr>
+            </table>
           </div>
           @if (loadingMore()) {
             <div class="loading-more">Loading more…</div>
@@ -387,6 +392,17 @@ import { SplitDialogComponent, SplitDialogData } from './split-dialog.component'
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
+    }
+    /* Expansion row: hidden by default, shown when expanded */
+    .split-detail-row {
+      height: 0;
+    }
+    .split-detail-row:not(.expanded) td {
+      padding: 0;
+      border: none;
+    }
+    .split-detail-row.expanded td {
+      padding: 0 var(--spc-16, 16px) var(--spc-8, 8px);
     }
   `,
 })
