@@ -10,6 +10,7 @@ import {
   ReviewStatusUpdate,
   CategorizeRequest,
   NoteCreate,
+  SplitRequest,
 } from '@shared/models/transaction.model';
 
 @Injectable({ providedIn: 'root' })
@@ -62,5 +63,19 @@ export class TransactionService {
 
   addNote(id: string, data: NoteCreate, year: number, month: number): Observable<Transaction> {
     return this.api.post<Transaction>(`/transactions/${id}/notes`, data, { year, month });
+  }
+
+  // --- Phase 3: Split transactions ---
+
+  createSplit(id: string, data: SplitRequest, year: number, month: number): Observable<Transaction> {
+    return this.api.post<Transaction>(`/transactions/${id}/split`, data, { year, month });
+  }
+
+  updateSplit(id: string, data: SplitRequest, year: number, month: number): Observable<Transaction> {
+    return this.api.put<Transaction>(`/transactions/${id}/split`, data, { year, month });
+  }
+
+  unsplit(id: string, year: number, month: number): Observable<Transaction> {
+    return this.api.delete<Transaction>(`/transactions/${id}/split`, { year, month });
   }
 }

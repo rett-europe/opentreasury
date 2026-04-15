@@ -21,7 +21,7 @@ import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { AppSettingsService } from '@core/services/app-settings.service';
 import { CategoryService } from '@core/services/category.service';
-import { Category } from '@shared/models/category.model';
+import { Category, CATEGORY_TYPES } from '@shared/models/category.model';
 
 @Component({
   selector: 'app-category-form-dialog',
@@ -55,14 +55,14 @@ import { Category } from '@shared/models/category.model';
         <!-- Type toggle cards -->
         <div class="type-toggle-cards">
           <button type="button" class="type-card income"
-                  [class.selected]="form.value.categoryType === 'income'"
-                  (click)="form.patchValue({ categoryType: 'income' })">
+                  [class.selected]="form.value.categoryType === CATEGORY_TYPES.INCOME"
+                  (click)="form.patchValue({ categoryType: CATEGORY_TYPES.INCOME })">
             <mat-icon>arrow_upward</mat-icon>
             <span>{{ settings.labels().incomeType }}</span>
           </button>
           <button type="button" class="type-card expense"
-                  [class.selected]="form.value.categoryType === 'expense'"
-                  (click)="form.patchValue({ categoryType: 'expense' })">
+                  [class.selected]="form.value.categoryType === CATEGORY_TYPES.EXPENSE"
+                  (click)="form.patchValue({ categoryType: CATEGORY_TYPES.EXPENSE })">
             <mat-icon>arrow_downward</mat-icon>
             <span>{{ settings.labels().expenseType }}</span>
           </button>
@@ -323,6 +323,7 @@ import { Category } from '@shared/models/category.model';
   `,
 })
 export class CategoryFormDialogComponent {
+  readonly CATEGORY_TYPES = CATEGORY_TYPES;
   readonly data = inject<Category | null>(MAT_DIALOG_DATA);
   private readonly dialogRef = inject(MatDialogRef<CategoryFormDialogComponent>);
   private readonly fb = inject(FormBuilder);

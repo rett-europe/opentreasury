@@ -250,4 +250,23 @@ export const EN_LABELS: AppLabels = {
   // --- Confirm dialog defaults ---
   confirmDefault: 'Confirm',
   cancelDefault: 'Cancel',
+  // --- Phase 3: Split transactions ---
+  splitTransaction: 'Split',
+  editSplit: 'Edit Split',
+  splitDialogTitle: 'Split Transaction',
+  splitLines: 'Split lines',
+  addLine: 'Add line',
+  removeSplit: 'Remove Split',
+  saveSplit: 'Save Split',
+  splitAllocated: 'Allocated',
+  splitUnallocated: 'Unallocated',
+  splitOverAllocated: (amount: string) => `Over-allocated by ${amount}`,
+  splitBalanced: 'Balanced',
+  splitMinLinesError: 'A split must have at least 2 lines',
+  splitRemoveConfirm: (count: number) => `Remove all ${count} split lines? The original transaction will be restored.`,
+  splitSaved: '✓ Split saved',
+  splitRemoved: '✓ Split removed',
+  splitIndicator: (count: number) => `Split (${count})`,
+  splitDiscardConfirm: 'Discard unsaved changes?',
+  splitLineAmountRequired: 'Amount is required',
 };

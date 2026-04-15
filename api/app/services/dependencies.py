@@ -13,6 +13,7 @@ from app.services.export_service import ExportService
 from app.services.import_service import ImportService
 from app.services.reference_data_service import ReferenceDataService
 from app.services.report_service import ReportService
+from app.services.split_service import SplitService
 from app.services.tag_service import TagService
 from app.services.transaction_service import TransactionService
 
@@ -29,6 +30,14 @@ def get_transaction_service(
     category_repo=Depends(get_category_repo),
 ) -> TransactionService:
     return TransactionService(repo=repo, audit_service=audit_service, category_repo=category_repo)
+
+
+def get_split_service(
+    repo=Depends(get_transaction_repo),
+    audit_service: AuditService = Depends(get_audit_service),
+    category_repo=Depends(get_category_repo),
+) -> SplitService:
+    return SplitService(repo=repo, audit_service=audit_service, category_repo=category_repo)
 
 
 def get_account_service(

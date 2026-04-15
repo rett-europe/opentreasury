@@ -303,3 +303,107 @@ class TestGetByAccount:
         assert items["acc-002"]["transaction_count"] == 1
         assert items["acc-002"]["total_income"] == Decimal("0")
         assert items["acc-002"]["total_expense"] == Decimal("0")
+
+
+# ---------------------------------------------------------------------------
+# Split-aware report tests — by_category uses split lines when isSplit=True
+# ---------------------------------------------------------------------------
+
+SPLIT_EXPENSE_TX = {
+    "categoryId": None,  # parent category cleared after split
+    "accountId": "acc-001",
+    "amount": -150.0,
+    "month": 4,
+    "transactionType": "expense",
+    "isSplit": True,
+    "splitLines": [
+        {"amount": -100.0, "categoryId": "cat-rent", "subcategoryId": None, "tagIds": []},
+        {"amount": -50.0, "categoryId": "cat-supplies", "subcategoryId": None, "tagIds": []},
+    ],
+}
+
+SPLIT_INCOME_TX = {
+    "categoryId": None,
+    "accountId": "acc-001",
+    "amount": 1200.0,
+    "month": 4,
+    "transactionType": "income",
+    "isSplit": True,
+    "splitLines": [
+        {"amount": 500.0, "categoryId": "cat-grants", "subcategoryId": None, "tagIds": []},
+        {"amount": 400.0, "categoryId": "cat-donations", "subcategoryId": None, "tagIds": []},
+        {"amount": 300.0, "categoryId": None, "subcategoryId": None, "tagIds": []},
+    ],
+}
+
+
+class TestSplitAwareByCategory:
+    async def test_split_expense_uses_line_categories(self, service, mock_txn_svc):
+        """Split parent category (null) should be ignored; lines' categories are used."""
+        mock_txn_svc.get_transactions_for_report.return_value = [SPLIT_EXPENSE_TX]
+
+        result = await service.get_by_category(year=2026)
+        items = {item["category_id"]: item for item in result["items"]}
+
+        assert "cat-rent" in items
+        assert items["cat-rent"]["expense"] == Decimal("100")
+        assert "cat-supplies" in items
+        assert items["cat-supplies"]["expense"] == Decimal("50")
+        # Parent's null categoryId should NOT appear as "uncategorized"
+        assert "uncategorized" not in items
+
+    async def test_split_income_uses_line_categories(self, service, mock_txn_svc):
+        """Split income lines are aggregated by their own categories."""
+        mock_txn_svc.get_transactions_for_report.return_value = [SPLIT_INCOME_TX]
+
+        result = await service.get_by_category(year=2026)
+        items = {item["category_id"]: item for item in result["items"]}
+
+        assert items["cat-grants"]["income"] == Decimal("500")
+        assert items["cat-donations"]["income"] == Decimal("400")
+        # Third line has no category — goes to uncategorized
+        assert items["uncategorized"]["income"] == Decimal("300")
+
+    async def test_mixed_split_and_regular_transactions(self, service, mock_txn_svc):
+        """Split and non-split transactions aggregate correctly together."""
+        mock_txn_svc.get_transactions_for_report.return_value = [
+            INCOME_TX,  # cat-donations, 500 income
+            SPLIT_EXPENSE_TX,  # split: cat-rent(-100) + cat-supplies(-50)
+        ]
+
+        result = await service.get_by_category(year=2026)
+        items = {item["category_id"]: item for item in result["items"]}
+
+        # Regular income tx
+        assert items["cat-donations"]["income"] == Decimal("500")
+        # Split expense lines
+        assert items["cat-rent"]["expense"] == Decimal("100")
+        assert items["cat-supplies"]["expense"] == Decimal("50")
+
+    async def test_split_transaction_in_summary_uses_parent_amount(self, service, mock_txn_svc):
+        """Summary totals use parent amount (no double counting from split lines)."""
+        mock_txn_svc.get_transactions_for_report.return_value = [SPLIT_EXPENSE_TX]
+
+        result = await service.get_summary(year=2026)
+
+        assert result["total_expense"] == Decimal("150")
+        assert result["total_income"] == Decimal("0")
+
+    async def test_split_transaction_in_monthly_trend(self, service, mock_txn_svc):
+        """Monthly trend uses parent amount, not split line amounts."""
+        mock_txn_svc.get_transactions_for_report.return_value = [SPLIT_EXPENSE_TX]
+
+        result = await service.get_monthly_trend(year=2026)
+
+        assert len(result["months"]) == 1
+        assert result["months"][0]["expense"] == Decimal("150")
+
+    async def test_split_transaction_in_by_account(self, service, mock_txn_svc):
+        """By-account report uses parent amount and counts split as one transaction."""
+        mock_txn_svc.get_transactions_for_report.return_value = [SPLIT_EXPENSE_TX]
+
+        result = await service.get_by_account(year=2026)
+        items = {item["account_id"]: item for item in result["items"]}
+
+        assert items["acc-001"]["transaction_count"] == 1
+        assert items["acc-001"]["total_expense"] == Decimal("150")

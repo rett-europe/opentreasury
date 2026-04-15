@@ -67,6 +67,36 @@ class TransactionUpdate(CamelModel):
     review_status: Optional[ReviewStatus] = None
 
 
+# --- Split Lines ---
+
+
+class SplitLineCreate(CamelModel):
+    amount: Decimal = Field(max_digits=12, decimal_places=2)
+    category_id: Optional[str] = None
+    subcategory_id: Optional[str] = None
+    tag_ids: list[str] = []
+    detail: Optional[str] = Field(default=None, max_length=500)
+
+
+class SplitLineResponse(CamelModel):
+    id: str
+    amount: Decimal
+    category_id: Optional[str] = None
+    subcategory_id: Optional[str] = None
+    tag_ids: list[str] = []
+    detail: Optional[str] = None
+    sort_order: int = 0
+
+    @field_validator("amount", mode="before")
+    @classmethod
+    def round_split_amount(cls, v):
+        return _round_decimal(v)
+
+
+class SplitRequest(CamelModel):
+    lines: list[SplitLineCreate] = Field(min_length=2, max_length=20)
+
+
 class TransactionResponse(CamelModel):
     id: str
     transaction_date: date = Field(serialization_alias="date", validation_alias="date")
@@ -104,6 +134,10 @@ class TransactionResponse(CamelModel):
     updated_by_name: Optional[str] = None
     updated_at: Optional[datetime] = None
     is_deleted: bool = False
+    is_split: bool = False
+    split_count: int = 0
+    split_lines: list[SplitLineResponse] = []
+    split_category_ids: list[str] = []
 
     @field_validator("transaction_type", mode="before")
     @classmethod

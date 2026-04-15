@@ -250,4 +250,23 @@ export interface AppLabels {
   // --- Confirm dialog defaults ---
   confirmDefault: string;
   cancelDefault: string;
+  // --- Phase 3: Split transactions ---
+  splitTransaction: string;
+  editSplit: string;
+  splitDialogTitle: string;
+  splitLines: string;
+  addLine: string;
+  removeSplit: string;
+  saveSplit: string;
+  splitAllocated: string;
+  splitUnallocated: string;
+  splitOverAllocated: (amount: string) => string;
+  splitBalanced: string;
+  splitMinLinesError: string;
+  splitRemoveConfirm: (count: number) => string;
+  splitSaved: string;
+  splitRemoved: string;
+  splitIndicator: (count: number) => string;
+  splitDiscardConfirm: string;
+  splitLineAmountRequired: string;
 }

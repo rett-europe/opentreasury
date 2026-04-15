@@ -250,4 +250,23 @@ export const ES_LABELS: AppLabels = {
   // --- Confirm dialog defaults ---
   confirmDefault: 'Confirmar',
   cancelDefault: 'Cancelar',
+  // --- Phase 3: Split transactions ---
+  splitTransaction: 'Dividir',
+  editSplit: 'Editar División',
+  splitDialogTitle: 'Dividir Movimiento',
+  splitLines: 'Líneas de la división',
+  addLine: 'Añadir línea',
+  removeSplit: 'Eliminar División',
+  saveSplit: 'Guardar División',
+  splitAllocated: 'Asignado',
+  splitUnallocated: 'Sin asignar',
+  splitOverAllocated: (amount: string) => `Excedido en ${amount}`,
+  splitBalanced: 'Balanceado',
+  splitMinLinesError: 'Una división debe tener al menos 2 líneas',
+  splitRemoveConfirm: (count: number) => `¿Eliminar las ${count} líneas de la división? Se restaurará el movimiento original.`,
+  splitSaved: '✓ División guardada',
+  splitRemoved: '✓ División eliminada',
+  splitIndicator: (count: number) => `División (${count})`,
+  splitDiscardConfirm: '¿Descartar cambios sin guardar?',
+  splitLineAmountRequired: 'El importe es obligatorio',
 };

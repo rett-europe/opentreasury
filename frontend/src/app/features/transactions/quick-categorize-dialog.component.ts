@@ -9,7 +9,7 @@ import { FormsModule } from '@angular/forms';
 import { AppSettingsService } from '@core/services/app-settings.service';
 import { TransactionService } from '@core/services/transaction.service';
 import { ReferenceDataService } from '@core/services/reference-data.service';
-import { Transaction, TransactionType } from '@shared/models/transaction.model';
+import { Transaction } from '@shared/models/transaction.model';
 import { Category, Subcategory } from '@shared/models/category.model';
 
 export interface QuickCategorizeData {
@@ -105,11 +105,7 @@ export class QuickCategorizeDialogComponent implements OnInit {
   selectedSubcategoryId: string | null = null;
 
   readonly filteredCategories = computed((): Category[] => {
-    const txType: TransactionType = this.data.transaction.transactionType;
-    const cats = this.refData.categories().filter(c => c.isActive);
-    if (txType === 'income') return cats.filter(c => c.categoryType === 'income');
-    if (txType === 'expense') return cats.filter(c => c.categoryType === 'expense');
-    return cats; // transfer/refund show all
+    return this.refData.categories().filter(c => c.isActive);
   });
 
   readonly subcategories = computed((): Subcategory[] => {

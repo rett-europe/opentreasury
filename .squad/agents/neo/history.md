@@ -24,3 +24,13 @@
 - **Template is now 3 files:** deploy.yml + deploy-infra.yml + README.md. The infra separation serves security (narrower permissions for code deploy) and usability (infra changes are rare, code deploys are frequent).
 - **Versioning strategy added:** GitHub Releases with semver tags. product_ref input already supports tags. Adopters watch releases, set tag, redeploy. No new infrastructure needed.
 - **Adopter lifecycle designed:** Full journey from discovery → provisioning (~30 min) → day-2 ops → upgrading → troubleshooting. Persona: NGO admin/IT coordinator, not a developer.
+
+### 2026-04-14: Split transactions technical research (Phase 3)
+- **Data model decision: Embedded split lines (Option C — with `splitCategoryIds` convenience array).** Embedded is the clear winner over separate documents: atomic writes, single reads, zero migration, matches existing codebase patterns (subcategories, notes are both embedded). Separate documents introduce multi-document consistency issues, query contamination, and N+1 reads — all for no benefit at NGO scale.
+- **API design decision: Batch operations (POST/PUT/DELETE /split).** Atomic batch maps 1:1 to the embedded model. No intermediate invalid states, trivial validation. Individual line CRUD solves a problem we don't have (large collections of sub-resources, not 2-5 categorization entries).
+- **Cosmos DB analysis:** 2MB document limit is a non-concern (20 split lines × 250 bytes = 5KB). RU cost for embedded is optimal (single point-read). Separate docs would cost 3-5x more per page load.
+- **Report impact:** Only `get_by_category()` needs modification — Python-side unrolling of `splitLines`. Summary/trend/account reports use parent amount and are unaffected. `aggregate_filtered` needs a minor change for uncategorized count.
+- **Export impact:** Unroll split lines into separate Excel rows. Import needs no changes (splitting is post-import).
+- **Key design constraint:** `splitLines[].amount` sum MUST equal parent `amount`. Validated on every write. No draft/partial splits.
+- **Open questions for Pedro:** Split line cap (recommended 20), unsplit behavior (recommended → uncategorized), transfers/refunds splittable.
+- **Open questions for Niobe:** Split dialog UX, list view indicator, re-categorization frequency (determines if PATCH endpoint needed).

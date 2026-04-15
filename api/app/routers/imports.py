@@ -4,6 +4,7 @@ from typing import Optional
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile, status
 
 from app.auth.dependencies import get_current_admin
+from app.models.domain import TransactionType
 from app.models.schemas import ExcelImportSummary, ImportPreview
 from app.services.dependencies import get_import_service
 from app.services.import_service import ImportService
@@ -70,7 +71,7 @@ async def import_workbook(
             ) from exc
         category_type_overrides = parsed.get("categoryTypeOverrides", {})
         for name, value in category_type_overrides.items():
-            if value not in ("income", "expense"):
+            if value not in (TransactionType.INCOME.value, TransactionType.EXPENSE.value):
                 raise HTTPException(
                     status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
                     detail=f"Invalid category type '{value}' for '{name}'. Must be 'income' or 'expense'.",

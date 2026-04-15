@@ -48,6 +48,28 @@ When triaging, the Lead should ask:
 
 ## Rules
 
+### Rule 0: Spec Driven Development (SDD) — Non-Negotiable
+
+**No new feature implementation without an approved spec.** This is the team's most important process rule.
+
+When a new feature request arrives, the routing order is ALWAYS:
+
+1. **Niobe writes the spec** — user stories, acceptance criteria, UX flows, edge cases, data model implications. The spec must answer: *what does the user need, and how will they use it?*
+2. **Neo + relevant domain agents research technical implications** — data model options, API design alternatives, performance considerations, migration impact. This research is part of the spec, not separate. It must include:
+   - At least 2 alternative approaches with pros/cons
+   - Impact on existing data and APIs
+   - Security considerations (flagged for Switch)
+   - Estimated complexity and risks
+3. **Neo reviews the spec** for architectural feasibility and completeness
+4. **Pedro approves** the spec before any code is written
+5. **Only then** do implementers (Morpheus, Trinity, etc.) begin coding
+
+**What counts as a "new feature":** Any work that adds new models, new API endpoints, new UI screens, or changes existing data structures. Bug fixes, refactors within existing patterns, and doc updates do NOT require a spec.
+
+**Violations:** If an implementer starts coding without an approved spec, the coordinator must block the work and route back to Niobe. No exceptions.
+
+### Operational Rules
+
 1. **Eager by default** — spawn all agents who could usefully start work, including anticipatory downstream work.
 2. **Scribe always runs** after substantial work, always as `mode: "background"`. Never blocks.
 3. **Quick facts → coordinator answers directly.** Don't spawn an agent for "what port does the server run on?"

@@ -13,6 +13,7 @@ from app.routers import (
     imports,
     reference_data,
     reports,
+    split,
     tags,
     transactions,
     user,
@@ -50,6 +51,7 @@ app.add_middleware(
 register_error_handlers(app)
 
 app.include_router(transactions.router)
+app.include_router(split.router)
 app.include_router(categories.router)
 app.include_router(accounts.router)
 app.include_router(tags.router)
