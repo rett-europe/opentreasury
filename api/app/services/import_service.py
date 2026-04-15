@@ -622,8 +622,8 @@ class ImportService:
         """Map canonical column keys to column indices.
 
         Known columns are mapped to their canonical key (e.g., 'fecha' → 'date').
-        Unrecognized columns are kept under their original header text (lowercased,
-        stripped) so they can be captured into the detail field.
+        Unrecognized columns are kept under their normalized header text so they
+        can be captured into the detail field by _build_detail.
         """
         result: dict[str, int] = {}
         for idx, cell in enumerate(sheet[header_row]):
@@ -633,8 +633,8 @@ class ImportService:
             if canonical and canonical not in result:
                 result[canonical] = idx
             elif not canonical:
-                # Unrecognized column — keep under original header text
-                raw = str(cell.value).strip()
+                # Unrecognized column — normalize and keep for detail capture
+                raw = self._normalize_header(cell.value)
                 if raw and raw not in result:
                     result[raw] = idx
         return result

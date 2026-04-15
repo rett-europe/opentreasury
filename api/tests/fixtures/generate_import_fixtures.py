@@ -394,7 +394,7 @@ def gen_missing_categories_sheet():
 
 
 # ---------------------------------------------------------------------------
-# 7. missing-headers.xlsx — Sheet without required columns
+# 7. missing-headers.xlsx — Bank mode (Date + Amount, no Category columns)
 # ---------------------------------------------------------------------------
 
 
@@ -404,7 +404,7 @@ def gen_missing_headers():
     ws.title = "BANK EXPORT"
     _add_metadata(ws)
 
-    # Date + Amount (required) + Description, but NO Category/Subcategory → Bank mode
+    # Bank mode: Date + Amount (required) + Description, but NO Category/Subcategory
     ws.append(["Date", "Amount", "Description"])
     ws.append(["2025-01-01", 100, "Test transaction"])
     ws.append(["2025-01-02", -50, "Payment"])
