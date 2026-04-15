@@ -167,7 +167,7 @@ import { SplitDialogComponent, SplitDialogData } from './split-dialog.component'
                 <td mat-cell *matCellDef="let tx" class="col-status">
                   <div class="status-badges">
                     <app-status-badge [status]="tx.reviewStatus" />
-                    @if (!tx.categoryId) {
+                    @if (!tx.categoryId && !tx.isSplit) {
                       <app-status-badge status="uncategorized" />
                     }
                   </div>

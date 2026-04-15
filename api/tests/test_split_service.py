@@ -786,15 +786,15 @@ class TestCreateSplitValidation:
 
         lines = _make_split_lines(amounts=[Decimal("60.00"), Decimal("40.00")])
 
-        with pytest.raises(ValueError, match="[Dd]eleted|[Nn]ot found"):
-            await service.split_transaction(
-                transaction_id="tx-034",
-                year=2026,
-                month=4,
-                lines=lines,
-                user_id=USER_ID,
-                user_name=USER_NAME,
-            )
+        result = await service.split_transaction(
+            transaction_id="tx-034",
+            year=2026,
+            month=4,
+            lines=lines,
+            user_id=USER_ID,
+            user_name=USER_NAME,
+        )
+        assert result is None
 
     async def test_reject_split_on_nonexistent_transaction(self, service, mock_repo):
         """Cannot split a non-existent transaction."""
@@ -802,15 +802,15 @@ class TestCreateSplitValidation:
 
         lines = _make_split_lines(amounts=[Decimal("50.00"), Decimal("50.00")])
 
-        with pytest.raises(ValueError, match="[Nn]ot found"):
-            await service.split_transaction(
-                transaction_id="tx-nonexistent",
-                year=2026,
-                month=4,
-                lines=lines,
-                user_id=USER_ID,
-                user_name=USER_NAME,
-            )
+        result = await service.split_transaction(
+            transaction_id="tx-nonexistent",
+            year=2026,
+            month=4,
+            lines=lines,
+            user_id=USER_ID,
+            user_name=USER_NAME,
+        )
+        assert result is None
 
     async def test_reject_line_with_invalid_category(self, service, mock_repo, mock_category_repo):
         """Reject split line referencing a non-existent category."""

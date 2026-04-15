@@ -55,11 +55,11 @@ class SplitService:
                     f"Subcategory '{subcategory_id}' does not belong to " f"category '{category_id}' or is inactive"
                 )
 
-    async def _get_active_transaction(self, transaction_id: str, year: int, month: int) -> dict:
+    async def _get_active_transaction(self, transaction_id: str, year: int, month: int) -> dict | None:
         partition_key = f"{year:04d}-{month:02d}"
         item = await self._repo.get_by_id(transaction_id, partition_key)
         if not item or item.get("isDeleted"):
-            raise ValueError("Transaction not found")
+            return None
         return item
 
     async def _validate_lines(
@@ -130,6 +130,8 @@ class SplitService:
     ) -> dict:
         """Create a split on a non-split transaction."""
         existing = await self._get_active_transaction(transaction_id, year, month)
+        if not existing:
+            return None
 
         if existing.get("isSplit"):
             raise ValueError("Transaction is already split. Use PUT to update.")
@@ -187,6 +189,8 @@ class SplitService:
     ) -> dict:
         """Replace all split lines on an already-split transaction."""
         existing = await self._get_active_transaction(transaction_id, year, month)
+        if not existing:
+            return None
 
         if not existing.get("isSplit"):
             raise ValueError("Transaction is not split. Use POST to create a split.")
@@ -249,6 +253,8 @@ class SplitService:
     ) -> dict:
         """Remove all split lines and revert to non-split state."""
         existing = await self._get_active_transaction(transaction_id, year, month)
+        if not existing:
+            return None
 
         if not existing.get("isSplit"):
             raise ValueError("Transaction is not split.")
