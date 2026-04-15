@@ -66,17 +66,9 @@ def gen_valid_spanish():
             "Importe",
             "Divisa",
             "Saldo",
-            "Divisa",
-            "Nº mov",
-            "Oficina",
             "Categoria",
             "Subcategoria",
             "Detalle",
-            "Nº Factura",
-            "Referencia archivo factura",
-            "DATOS",
-            "importe",
-            "ref",
         ]
     )
 
@@ -88,17 +80,9 @@ def gen_valid_spanish():
             30,
             "EUR",
             71670.37,
-            "EUR",
-            6715,
-            30,
             "Cuotas",
             "Cuota Socio Mensual",
             "transferencia",
-            None,
-            None,
-            "detalle extra",
-            None,
-            "ref-1",
         ]
     )
     ws.append(
@@ -109,17 +93,9 @@ def gen_valid_spanish():
             10,
             "EUR",
             71680.37,
-            "EUR",
-            6716,
-            30,
             "Donaciones",
             "Donación Particular",
             "particular",
-            None,
-            None,
-            None,
-            None,
-            None,
         ]
     )
     ws.append(
@@ -130,17 +106,9 @@ def gen_valid_spanish():
             -85.40,
             "EUR",
             71594.97,
-            "EUR",
-            6717,
-            30,
             "Gastos Generales",
             "Electricidad",
             "recibo bimestral",
-            "F-2025-001",
-            None,
-            None,
-            None,
-            None,
         ]
     )
     ws.append(
@@ -151,17 +119,9 @@ def gen_valid_spanish():
             500,
             "EUR",
             72094.97,
-            "EUR",
-            6718,
-            30,
             "Donaciones",
             "Donación Empresa",
             "RSC anual",
-            None,
-            None,
-            None,
-            None,
-            None,
         ]
     )
     ws.append(
@@ -172,17 +132,9 @@ def gen_valid_spanish():
             -42.99,
             "EUR",
             72051.98,
-            "EUR",
-            6719,
-            30,
             "Gastos Generales",
             "Material Oficina",
             "pedido toner",
-            "INV-87654",
-            "archivo.pdf",
-            "datos adicionales",
-            None,
-            "ref-5",
         ]
     )
 
@@ -212,17 +164,9 @@ def gen_valid_english():
             "Amount",
             "Currency",
             "Balance",
-            "Currency",
-            "Movement No",
-            "Branch",
             "Category",
             "Subcategory",
             "Detail",
-            "Invoice",
-            "File Reference",
-            "Data",
-            "amount",
-            "Ref",
         ]
     )
 
@@ -234,17 +178,9 @@ def gen_valid_english():
             30,
             "EUR",
             71670.37,
-            "EUR",
-            6715,
-            30,
             "Fees",
             "Monthly Member Fee",
             "transfer",
-            None,
-            None,
-            "extra detail",
-            None,
-            "ref-1",
         ]
     )
     ws.append(
@@ -255,17 +191,9 @@ def gen_valid_english():
             10,
             "EUR",
             71680.37,
-            "EUR",
-            6716,
-            30,
             "Donations",
             "Individual Donation",
             "individual",
-            None,
-            None,
-            None,
-            None,
-            None,
         ]
     )
     ws.append(
@@ -276,17 +204,9 @@ def gen_valid_english():
             -85.40,
             "EUR",
             71594.97,
-            "EUR",
-            6717,
-            30,
             "General Expenses",
             "Electricity",
             "bimonthly bill",
-            "F-2025-001",
-            None,
-            None,
-            None,
-            None,
         ]
     )
     ws.append(
@@ -297,17 +217,9 @@ def gen_valid_english():
             500,
             "EUR",
             72094.97,
-            "EUR",
-            6718,
-            30,
             "Donations",
             "Corporate Donation",
             "annual CSR",
-            None,
-            None,
-            None,
-            None,
-            None,
         ]
     )
     ws.append(
@@ -318,17 +230,9 @@ def gen_valid_english():
             -42.99,
             "EUR",
             72051.98,
-            "EUR",
-            6719,
-            30,
             "General Expenses",
             "Office Supplies",
             "toner order",
-            "INV-87654",
-            "file.pdf",
-            "additional data",
-            None,
-            "ref-5",
         ]
     )
 
@@ -358,9 +262,6 @@ def gen_with_duplicates():
             "Importe",
             "Divisa",
             "Saldo",
-            "Divisa",
-            "Nº mov",
-            "Oficina",
             "Categoria",
             "Subcategoria",
             "Detalle",
@@ -376,9 +277,6 @@ def gen_with_duplicates():
             30,
             "EUR",
             71670.37,
-            "EUR",
-            6715,
-            30,
             "Cuotas",
             "Cuota Socio Mensual",
             "transferencia",
@@ -393,9 +291,6 @@ def gen_with_duplicates():
             10,
             "EUR",
             71680.37,
-            "EUR",
-            6716,
-            30,
             "Donaciones",
             "Donación Particular",
             "particular",
@@ -410,9 +305,6 @@ def gen_with_duplicates():
             25,
             "EUR",
             72076.98,
-            "EUR",
-            6720,
-            30,
             "Donaciones",
             "Donación Particular",
             "nueva",
@@ -509,17 +401,13 @@ def gen_missing_categories_sheet():
 def gen_missing_headers():
     wb = Workbook()
     ws = wb.active
-    ws.title = "BAD HEADERS"
+    ws.title = "BANK EXPORT"
     _add_metadata(ws)
 
-    # Missing both Date and Amount — no recognized required headers
-    ws.append(["Description", "Notes", "Category", "Subcategory"])
-    ws.append(["Some description", "Some notes", "Donations", "Individual"])
-
-    cs = wb.create_sheet("Categories")
-    cs.append(["Income"])
-    cs.append(["Donations"])
-    cs.append(["Individual Donation"])
+    # Date + Amount (required) + Description, but NO Category/Subcategory → Bank mode
+    ws.append(["Date", "Amount", "Description"])
+    ws.append(["2025-01-01", 100, "Test transaction"])
+    ws.append(["2025-01-02", -50, "Payment"])
 
     _save(wb, "missing-headers.xlsx")
 

@@ -69,14 +69,12 @@ class TestFixtureWithDuplicates:
         existing_txns = [
             {
                 "date": "2025-01-02",
-                "movementNumber": "6715",
                 "bankDescription": "BULTO MILLET VICTOR",
                 "detail": "transferencia",
                 "amount": 30,
             },
             {
                 "date": "2025-01-03",
-                "movementNumber": "6716",
                 "bankDescription": "FRANCISCO BORJA",
                 "detail": "particular",
                 "amount": 10,

@@ -16,6 +16,7 @@ from app.constants.import_constants import (
     CATEGORY_SHEET_NAMES,
     EXPENSE_ALIASES,
     INCOME_ALIASES,
+    KNOWN_HEADERS,
     REQUIRED_HEADERS,
 )
 from app.models.domain import CategoryType, TransactionType
@@ -272,7 +273,6 @@ class ImportService:
             existing_keys = {
                 self._transaction_identity(
                     item.get("date"),
-                    item.get("movementNumber"),
                     item.get("bankDescription"),
                     item.get("detail"),
                     item.get("amount"),
@@ -285,10 +285,8 @@ class ImportService:
                 amount = self._to_decimal(self._cell(row, headers.get("amount")))
                 desc = self._string_value(self._cell(row, headers.get("description")))
                 detail = self._build_detail(headers, row)
-                mvmt = self._string_value(self._cell(row, headers.get("movement_no")))
                 identity = self._transaction_identity(
                     tx_date.isoformat() if tx_date else "",
-                    mvmt,
                     desc,
                     detail,
                     amount,
@@ -621,7 +619,12 @@ class ImportService:
         return None
 
     def _build_header_map(self, sheet, header_row: int) -> dict[str, int]:
-        """Map canonical column keys to column indices."""
+        """Map canonical column keys to column indices.
+
+        Known columns are mapped to their canonical key (e.g., 'fecha' → 'date').
+        Unrecognized columns are kept under their original header text (lowercased,
+        stripped) so they can be captured into the detail field.
+        """
         result: dict[str, int] = {}
         for idx, cell in enumerate(sheet[header_row]):
             if cell.value is None:
@@ -629,6 +632,11 @@ class ImportService:
             canonical = self._resolve_alias(cell.value)
             if canonical and canonical not in result:
                 result[canonical] = idx
+            elif not canonical:
+                # Unrecognized column — keep under original header text
+                raw = str(cell.value).strip()
+                if raw and raw not in result:
+                    result[raw] = idx
         return result
 
     def _resolve_alias(self, value) -> str | None:
@@ -639,11 +647,6 @@ class ImportService:
         canonical = _ALIAS_LOOKUP.get(normalized)
         if canonical:
             return canonical
-        # Pattern match for movement/invoice number variants
-        if "mov" in normalized and normalized[0] == "n":
-            return "movement_no"
-        if "factura" in normalized and normalized[0] == "n":
-            return "invoice_no"
         return None
 
     def _normalize_header(self, value) -> str:
@@ -785,7 +788,6 @@ class ImportService:
         existing_keys = {
             self._transaction_identity(
                 item.get("date"),
-                item.get("movementNumber"),
                 item.get("bankDescription"),
                 item.get("detail"),
                 item.get("amount"),
@@ -837,11 +839,8 @@ class ImportService:
                 self._string_value(row[headers["description"]]) if "description" in headers else None, 500
             )
             detail = self._build_detail(headers, row)
-            movement_number = self._string_value(row[headers["movement_no"]]) if "movement_no" in headers else None
-
             identity = self._transaction_identity(
                 tx_date.isoformat(),
-                movement_number,
                 bank_description,
                 detail,
                 amount,
@@ -854,7 +853,6 @@ class ImportService:
             value_date = self._to_date(row[headers["value_date"]]) if "value_date" in headers else tx_date
             currency = self._string_value(row[headers["currency"]]) if "currency" in headers else "EUR"
             balance = self._to_decimal(row[headers["balance"]]) if "balance" in headers else None
-            branch_number = self._string_value(row[headers["branch"]]) if "branch" in headers else None
 
             # Transaction type from amount sign (all modes)
             tx_type = self._infer_transaction_type(amount)
@@ -871,8 +869,6 @@ class ImportService:
                     category_id=category_id,
                     subcategory_id=subcategory_id,
                     detail=detail,
-                    movement_number=movement_number,
-                    branch_number=branch_number,
                     balance=balance,
                     tag_ids=[],
                     import_batch_id=import_batch_id,
@@ -906,22 +902,16 @@ class ImportService:
             if val:
                 parts.append(val)
 
-        labeled_fields = {
-            "invoice_no": "Invoice",
-            "file_ref": "File",
-            "extra_data": "Data",
-            "ref": "Ref",
-        }
-        for key, label in labeled_fields.items():
-            idx = headers.get(key)
-            if idx is None:
+        # Capture any unrecognized columns (not in KNOWN_HEADERS) into detail
+        for key, idx in headers.items():
+            if key in KNOWN_HEADERS:
                 continue
             val = self._string_value(row[idx])
             if val:
-                parts.append(f"{label}: {val}")
+                parts.append(f"{key}: {val}")
 
         result = " | ".join(parts) if parts else None
-        return self._truncate(result, 500)
+        return self._truncate(result, 2000)
 
     @staticmethod
     def _truncate(value: str | None, max_len: int) -> str | None:
@@ -937,13 +927,12 @@ class ImportService:
                 return category
         return None
 
-    def _transaction_identity(self, tx_date, movement_number, bank_description, detail, amount) -> str:
+    def _transaction_identity(self, tx_date, bank_description, detail, amount) -> str:
         amount_decimal = self._to_decimal(amount)
         amount_value = str(abs(amount_decimal)) if amount_decimal is not None else ""
         return "|".join(
             [
                 self._string_value(tx_date),
-                self._string_value(movement_number),
                 self._normalize_text(bank_description),
                 self._normalize_text(detail),
                 amount_value,

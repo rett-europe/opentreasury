@@ -44,17 +44,9 @@ def make_full_workbook_bytes(*, headers_lang: str = "es") -> bytes:
                 "Amount",
                 "Currency",
                 "Balance",
-                "Currency",
-                "Movement No",
-                "Branch",
                 "Category",
                 "Subcategory",
                 "Detail",
-                "Invoice",
-                "File Reference",
-                "Data",
-                "amount",
-                "Ref",
             ]
         )
     else:
@@ -66,17 +58,9 @@ def make_full_workbook_bytes(*, headers_lang: str = "es") -> bytes:
                 "Importe",
                 "Divisa",
                 "Saldo",
-                "Divisa",
-                "Nº mov",
-                "Oficina",
                 "Categoria",
                 "Subcategoria",
                 "Detalle",
-                "Nº Factura",
-                "Referencia archivo factura",
-                "DATOS",
-                "importe",
-                "ref",
             ]
         )
 
@@ -88,17 +72,9 @@ def make_full_workbook_bytes(*, headers_lang: str = "es") -> bytes:
             30,
             "EUR",
             71670.37,
-            "EUR",
-            6715,
-            30,
             "Cuotas",
             "Cuota Socio Mensual",
             "transferencia",
-            None,
-            None,
-            "detalle extra",
-            None,
-            "ref-1",
         ]
     )
     ws.append(
@@ -109,17 +85,9 @@ def make_full_workbook_bytes(*, headers_lang: str = "es") -> bytes:
             10,
             "EUR",
             71680.37,
-            "EUR",
-            6716,
-            30,
             "Donaciones",
             "Donación Particular",
             "particular",
-            None,
-            None,
-            None,
-            None,
-            None,
         ]
     )
 
@@ -152,14 +120,14 @@ def make_bank_workbook_bytes() -> bytes:
     ws.append([])
     ws.append([])
 
-    ws.append(["Fecha", "Valor", "Observaciones", "Importe", "Divisa", "Saldo", "Nº mov", "Oficina"])
+    ws.append(["Fecha", "Valor", "Observaciones", "Importe", "Divisa", "Saldo"])
 
     # Positive amount (income)
-    ws.append(["2025-01-02", "2025-01-02", "INGRESO TRANSFERENCIA", 500, "EUR", 70500.00, 6715, 30])
+    ws.append(["2025-01-02", "2025-01-02", "INGRESO TRANSFERENCIA", 500, "EUR", 70500.00])
     # Negative amount (expense)
-    ws.append(["2025-01-03", "2025-01-03", "PAGO ELECTRICIDAD", -85.40, "EUR", 70414.60, 6716, 30])
+    ws.append(["2025-01-03", "2025-01-03", "PAGO ELECTRICIDAD", -85.40, "EUR", 70414.60])
     # Another positive
-    ws.append(["2025-01-04", "2025-01-04", "DONACION RECIBIDA", 200, "EUR", 70614.60, 6717, 30])
+    ws.append(["2025-01-04", "2025-01-04", "DONACION RECIBIDA", 200, "EUR", 70614.60])
 
     buffer = BytesIO()
     wb.save(buffer)
@@ -186,16 +154,12 @@ def make_inline_workbook_bytes() -> bytes:
             "Importe",
             "Divisa",
             "Saldo",
-            "Nº mov",
-            "Oficina",
             "Categoria",
             "Subcategoria",
         ]
     )
 
-    ws.append(
-        ["2025-01-02", "2025-01-02", "CUOTA MENSUAL", 30, "EUR", 70530, 6715, 30, "Cuotas", "Cuota Socio Mensual"]
-    )
+    ws.append(["2025-01-02", "2025-01-02", "CUOTA MENSUAL", 30, "EUR", 70530, "Cuotas", "Cuota Socio Mensual"])
     ws.append(
         [
             "2025-01-03",
@@ -204,13 +168,11 @@ def make_inline_workbook_bytes() -> bytes:
             10,
             "EUR",
             70540,
-            6716,
-            30,
             "Donaciones",
             "Donación Particular",
         ]
     )
-    ws.append(["2025-01-04", "2025-01-04", "NUEVA CATEGORIA", -50, "EUR", 70490, 6717, 30, "NewCategory", "NewSub"])
+    ws.append(["2025-01-04", "2025-01-04", "NUEVA CATEGORIA", -50, "EUR", 70490, "NewCategory", "NewSub"])
 
     # NO categories sheet — this is what makes it Inline mode
     buffer = BytesIO()
@@ -741,9 +703,8 @@ class TestFullModeImport:
         txn_svc.get_transactions_for_export.return_value = [
             {
                 "date": "2025-01-02",
-                "movementNumber": "6715",
                 "bankDescription": "BULTO MILLET VICTOR",
-                "detail": "transferencia | Data: detalle extra | Ref: ref-1",
+                "detail": "transferencia",
                 "amount": 30,
             }
         ]
@@ -874,9 +835,8 @@ class TestPreviewWorkbook:
         txn_svc.get_transactions_for_export.return_value = [
             {
                 "date": "2025-01-02",
-                "movementNumber": "6715",
                 "bankDescription": "BULTO MILLET VICTOR",
-                "detail": "transferencia | Data: detalle extra | Ref: ref-1",
+                "detail": "transferencia",
                 "amount": 30,
             },
         ]
@@ -1022,7 +982,6 @@ class TestImportBatchTracking:
         txn_svc.get_transactions_for_export.return_value = [
             {
                 "date": "2025-01-02",
-                "movementNumber": "6715",
                 "bankDescription": "INGRESO TRANSFERENCIA",
                 "detail": None,
                 "amount": 500,
