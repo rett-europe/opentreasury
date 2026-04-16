@@ -67,10 +67,11 @@ import { Transaction } from '@shared/models/transaction.model';
 
       <ng-container matColumnDef="amount">
         <th mat-header-cell *matHeaderCellDef class="text-right">{{ settings.labels().amount }}</th>
-        <td mat-cell *matCellDef="let tx" class="text-right"
-            [class.text-income]="tx.amount > 0"
-            [class.text-expense]="tx.amount < 0">
-          {{ tx.amount | currency: 'EUR':'symbol':'1.2-2' }}
+        <td mat-cell *matCellDef="let tx" class="text-right">
+          <span [class.text-income]="tx.amount > 0"
+                [class.text-expense]="tx.amount < 0">
+            {{ tx.amount | currency: 'EUR':'symbol':'1.2-2' }}
+          </span>
         </td>
       </ng-container>
 
