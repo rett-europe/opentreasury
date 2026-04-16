@@ -269,4 +269,15 @@ export interface AppLabels {
   splitIndicator: (count: number) => string;
   splitDiscardConfirm: string;
   splitLineAmountRequired: string;
+  // --- Date range filter ---
+  presetThisMonth: string;
+  presetLastMonth: string;
+  presetLast30Days: string;
+  presetThisQuarter: string;
+  presetLastQuarter: string;
+  presetThisYear: string;
+  presetLastYear: string;
+  clearDateRange: string;
+  selectDateRange: string;
+  noTransactionsInRange: string;
 }

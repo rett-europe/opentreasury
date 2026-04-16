@@ -4,12 +4,82 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatSelectModule } from '@angular/material/select';
 import { MatInputModule } from '@angular/material/input';
 import { MatIconModule } from '@angular/material/icon';
+import { MatButtonModule } from '@angular/material/button';
+import { MatButtonToggleModule } from '@angular/material/button-toggle';
+import { MatDatepickerModule } from '@angular/material/datepicker';
+import { MatNativeDateModule } from '@angular/material/core';
 import { AppSettingsService } from '@core/services/app-settings.service';
 import { ReferenceDataService } from '@core/services/reference-data.service';
 
+// --- Preset date range helpers (pure, testable) ---
+
+export interface DateRange { from: Date; to: Date }
+
+export function getThisMonth(): DateRange {
+  const now = new Date();
+  return { from: new Date(now.getFullYear(), now.getMonth(), 1), to: now };
+}
+
+export function getLastMonth(): DateRange {
+  const now = new Date();
+  const y = now.getMonth() === 0 ? now.getFullYear() - 1 : now.getFullYear();
+  const m = now.getMonth() === 0 ? 11 : now.getMonth() - 1;
+  return { from: new Date(y, m, 1), to: new Date(y, m + 1, 0) };
+}
+
+export function getLast30Days(): DateRange {
+  const now = new Date();
+  const from = new Date(now);
+  from.setDate(from.getDate() - 30);
+  return { from, to: now };
+}
+
+export function getThisQuarter(): DateRange {
+  const now = new Date();
+  const qStart = Math.floor(now.getMonth() / 3) * 3;
+  return { from: new Date(now.getFullYear(), qStart, 1), to: now };
+}
+
+export function getLastQuarter(): DateRange {
+  const now = new Date();
+  const currentQStart = Math.floor(now.getMonth() / 3) * 3;
+  const prevQStart = currentQStart - 3;
+  const y = prevQStart < 0 ? now.getFullYear() - 1 : now.getFullYear();
+  const m = prevQStart < 0 ? prevQStart + 12 : prevQStart;
+  return { from: new Date(y, m, 1), to: new Date(y, m + 3, 0) };
+}
+
+export function getThisYear(): DateRange {
+  const now = new Date();
+  return { from: new Date(now.getFullYear(), 0, 1), to: now };
+}
+
+export function getLastYear(): DateRange {
+  const now = new Date();
+  const y = now.getFullYear() - 1;
+  return { from: new Date(y, 0, 1), to: new Date(y, 11, 31) };
+}
+
+const PRESET_FNS: Record<string, () => DateRange> = {
+  'this-month': getThisMonth,
+  'last-month': getLastMonth,
+  'last-30-days': getLast30Days,
+  'this-quarter': getThisQuarter,
+  'last-quarter': getLastQuarter,
+  'this-year': getThisYear,
+  'last-year': getLastYear,
+};
+
+function toIsoDate(d: Date): string {
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  return `${yyyy}-${mm}-${dd}`;
+}
+
 export interface TransactionFilters {
-  year: number;
-  month: number | null;
+  dateFrom: string | null;
+  dateTo: string | null;
   accountId: string | null;
   categoryId: string | null;
   subcategoryId: string | null;
@@ -32,27 +102,45 @@ export interface TransactionFilters {
     MatSelectModule,
     MatInputModule,
     MatIconModule,
+    MatButtonModule,
+    MatButtonToggleModule,
+    MatDatepickerModule,
+    MatNativeDateModule,
   ],
   template: `
     <div class="filter-bar">
-      <div class="filter-row">
-        <mat-form-field appearance="outline" class="filter-field">
-          <mat-label>{{ settings.labels().year }}</mat-label>
-          <mat-select [(ngModel)]="year" (selectionChange)="emitFilters()">
-            @for (y of years; track y) {
-              <mat-option [value]="y">{{ y }}</mat-option>
-            }
-          </mat-select>
-        </mat-form-field>
+      <!-- ROW 0: Preset strip -->
+      <div class="filter-preset-strip">
+        <mat-button-toggle-group [value]="activePreset()" (change)="onPresetChange($event.value)"
+                                 class="preset-group" hideSingleSelectionIndicator>
+          <mat-button-toggle value="this-month">{{ settings.labels().presetThisMonth }}</mat-button-toggle>
+          <mat-button-toggle value="last-month">{{ settings.labels().presetLastMonth }}</mat-button-toggle>
+          <mat-button-toggle value="last-30-days">{{ settings.labels().presetLast30Days }}</mat-button-toggle>
+          <mat-button-toggle value="this-quarter">{{ settings.labels().presetThisQuarter }}</mat-button-toggle>
+          <mat-button-toggle value="last-quarter">{{ settings.labels().presetLastQuarter }}</mat-button-toggle>
+          <mat-button-toggle value="this-year">{{ settings.labels().presetThisYear }}</mat-button-toggle>
+          <mat-button-toggle value="last-year">{{ settings.labels().presetLastYear }}</mat-button-toggle>
+        </mat-button-toggle-group>
+        @if (dateFrom || dateTo) {
+          <button mat-stroked-button class="clear-btn" (click)="clearDateRange()">
+            <mat-icon>close</mat-icon>
+            {{ settings.labels().clearDateRange }}
+          </button>
+        }
+      </div>
 
-        <mat-form-field appearance="outline" class="filter-field">
-          <mat-label>{{ settings.labels().month }}</mat-label>
-          <mat-select [(ngModel)]="month" (selectionChange)="emitFilters()">
-            <mat-option [value]="null">{{ settings.labels().allMonths }}</mat-option>
-            @for (m of monthOptions(); track m.value) {
-              <mat-option [value]="m.value">{{ m.label }}</mat-option>
-            }
-          </mat-select>
+      <!-- ROW 1: Primary filters (date range replaces year/month) -->
+      <div class="filter-row">
+        <mat-form-field appearance="outline" class="filter-field-date">
+          <mat-label>{{ settings.labels().dateFrom }} — {{ settings.labels().dateTo }}</mat-label>
+          <mat-date-range-input [rangePicker]="picker">
+            <input matStartDate [ngModel]="dateFrom" (dateChange)="onManualDateChange($event.value, 'from')"
+                   [placeholder]="settings.labels().dateFrom">
+            <input matEndDate [ngModel]="dateTo" (dateChange)="onManualDateChange($event.value, 'to')"
+                   [placeholder]="settings.labels().dateTo">
+          </mat-date-range-input>
+          <mat-datepicker-toggle matIconSuffix [for]="picker" />
+          <mat-date-range-picker #picker />
         </mat-form-field>
 
         <mat-form-field appearance="outline" class="filter-field">
@@ -114,6 +202,7 @@ export interface TransactionFilters {
         </mat-form-field>
       </div>
 
+      <!-- ROW 2: Secondary filters -->
       <div class="filter-row">
         <mat-form-field appearance="outline" class="filter-field search-field">
           <mat-label>{{ settings.labels().search }}</mat-label>
@@ -165,6 +254,43 @@ export interface TransactionFilters {
       padding: var(--spc-16) var(--spc-20);
       margin-bottom: var(--spc-16);
     }
+    .filter-preset-strip {
+      display: flex;
+      align-items: center;
+      gap: var(--spc-8);
+      padding-bottom: var(--spc-12);
+      margin-bottom: var(--spc-8);
+      border-bottom: 1px solid var(--clr-divider);
+      flex-wrap: wrap;
+    }
+    .preset-group {
+      border-radius: var(--rad-pill);
+      border: 1px solid var(--clr-border);
+    }
+    :host ::ng-deep .preset-group .mat-button-toggle-appearance-standard {
+      background: transparent;
+      color: var(--clr-text-secondary);
+      font-size: var(--font-sm);
+      font-weight: var(--fw-medium);
+    }
+    :host ::ng-deep .preset-group .mat-button-toggle-checked .mat-button-toggle-appearance-standard {
+      background: var(--brand-primary);
+      color: var(--brand-on-primary);
+      font-weight: var(--fw-semibold);
+    }
+    :host ::ng-deep .preset-group .mat-button-toggle-appearance-standard:hover:not(.mat-button-toggle-disabled) {
+      background: var(--brand-surface-hover);
+      color: var(--clr-text-primary);
+    }
+    :host ::ng-deep .preset-group .mat-button-toggle-checked .mat-button-toggle-appearance-standard:hover {
+      background: var(--brand-primary);
+      color: var(--brand-on-primary);
+    }
+    .clear-btn {
+      margin-left: auto;
+      color: var(--clr-text-muted);
+      border-color: var(--clr-border);
+    }
     .filter-row {
       display: flex;
       flex-wrap: wrap;
@@ -177,6 +303,10 @@ export interface TransactionFilters {
     }
     .filter-field {
       width: 160px;
+    }
+    .filter-field-date {
+      width: 260px;
+      min-width: 220px;
     }
     .filter-field-sm {
       width: 130px;
@@ -193,8 +323,10 @@ export class TransactionFilterBarComponent implements OnInit {
 
   readonly filtersChanged = output<TransactionFilters>();
 
-  year = new Date().getFullYear();
-  month: number | null = null;
+  readonly activePreset = signal<string | null>(null);
+
+  dateFrom: Date | null = null;
+  dateTo: Date | null = null;
   accountId: string | null = null;
   categoryId: string | null = null;
   subcategoryId: string | null = null;
@@ -206,12 +338,6 @@ export class TransactionFilterBarComponent implements OnInit {
   amountMin: number | null = null;
   amountMax: number | null = null;
 
-  readonly years = Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - i);
-
-  readonly monthOptions = computed(() =>
-    this.settings.labels().monthNames.map((label: string, i: number) => ({ value: i + 1, label }))
-  );
-
   private readonly selectedCategoryId = signal<string | null>(null);
 
   readonly filterSubcategories = computed(() => {
@@ -222,6 +348,41 @@ export class TransactionFilterBarComponent implements OnInit {
   });
 
   ngOnInit(): void {
+    // Page starts empty — emit null dates so transaction-list knows no range is selected
+    this.emitFilters();
+  }
+
+  onPresetChange(value: string): void {
+    const fn = PRESET_FNS[value];
+    if (!fn) return;
+    const range = fn();
+    this.dateFrom = range.from;
+    this.dateTo = range.to;
+    this.activePreset.set(value);
+    this.emitFilters();
+  }
+
+  /** Apply a preset by key — called from inline shortcut chips in the empty state */
+  applyPreset(key: string): void {
+    this.onPresetChange(key);
+  }
+
+  onManualDateChange(value: Date | null, field: 'from' | 'to'): void {
+    if (field === 'from') {
+      this.dateFrom = value;
+    } else {
+      this.dateTo = value;
+    }
+    // Deselect any preset when user manually edits
+    this.activePreset.set(null);
+    // Emit when both dates are set, OR when a previously-complete range becomes incomplete
+    this.emitFilters();
+  }
+
+  clearDateRange(): void {
+    this.dateFrom = null;
+    this.dateTo = null;
+    this.activePreset.set(null);
     this.emitFilters();
   }
 
@@ -233,8 +394,8 @@ export class TransactionFilterBarComponent implements OnInit {
 
   emitFilters(): void {
     this.filtersChanged.emit({
-      year: this.year,
-      month: this.month,
+      dateFrom: this.dateFrom ? toIsoDate(this.dateFrom) : null,
+      dateTo: this.dateTo ? toIsoDate(this.dateTo) : null,
       accountId: this.accountId,
       categoryId: this.categoryId,
       subcategoryId: this.subcategoryId,

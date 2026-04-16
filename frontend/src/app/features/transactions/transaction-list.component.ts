@@ -56,196 +56,211 @@ import { SplitDialogComponent, SplitDialogData } from './split-dialog.component'
           }
         </app-page-header>
 
-        <app-tx-filter-bar (filtersChanged)="onFiltersChanged($event)" />
+        <app-tx-filter-bar #filterBar (filtersChanged)="onFiltersChanged($event)" />
       </div>
 
       <div class="scroll-area" #scrollContainer>
 
-      <app-loading-container [loading]="loading()">
-        @if (transactions().length > 0) {
-          <div class="table-wrapper">
-            <table mat-table [dataSource]="transactions()" class="full-width" multiTemplateDataRows>
-              <!-- Type column -->
-              <ng-container matColumnDef="type">
-                <th mat-header-cell *matHeaderCellDef class="col-type">{{ settings.labels().type }}</th>
-                <td mat-cell *matCellDef="let tx" class="col-type">
-                  <div class="type-cell">
-                    <mat-icon [class]="tx | typeColor"
-                              [matTooltip]="typeTooltip(tx)"
-                              class="type-icon">
-                      {{ tx | typeIcon }}
-                    </mat-icon>
-                    @if (tx.isSplit) {
-                      <mat-icon class="split-icon"
-                                [matTooltip]="settings.labels().splitIndicator(tx.splitCount)">
-                        call_split
+      @if (!rangeSelected()) {
+        <!-- Empty state: no range selected -->
+        <div class="date-empty-state">
+          <mat-icon class="date-empty-icon">calendar_today</mat-icon>
+          <p class="date-empty-headline">{{ settings.labels().selectDateRange }}</p>
+          <div class="date-empty-shortcuts">
+            <button mat-stroked-button (click)="applyPreset('this-month')">{{ settings.labels().presetThisMonth }}</button>
+            <button mat-stroked-button (click)="applyPreset('last-30-days')">{{ settings.labels().presetLast30Days }}</button>
+            <button mat-stroked-button (click)="applyPreset('this-year')">{{ settings.labels().presetThisYear }}</button>
+          </div>
+        </div>
+      } @else {
+        <app-loading-container [loading]="loading()">
+          @if (transactions().length > 0) {
+            <div class="table-wrapper">
+              <table mat-table [dataSource]="transactions()" class="full-width" multiTemplateDataRows>
+                <!-- Type column -->
+                <ng-container matColumnDef="type">
+                  <th mat-header-cell *matHeaderCellDef class="col-type">{{ settings.labels().type }}</th>
+                  <td mat-cell *matCellDef="let tx" class="col-type">
+                    <div class="type-cell">
+                      <mat-icon [class]="tx | typeColor"
+                                [matTooltip]="typeTooltip(tx)"
+                                class="type-icon">
+                        {{ tx | typeIcon }}
                       </mat-icon>
-                    }
-                  </div>
-                </td>
-              </ng-container>
-
-              <ng-container matColumnDef="date">
-                <th mat-header-cell *matHeaderCellDef>{{ settings.labels().date }}</th>
-                <td mat-cell *matCellDef="let tx">{{ tx.date | date: 'dd/MM/yyyy' }}</td>
-              </ng-container>
-
-              <ng-container matColumnDef="account">
-                <th mat-header-cell *matHeaderCellDef>{{ settings.labels().account }}</th>
-                <td mat-cell *matCellDef="let tx">{{ refData.getAccountLabel(tx.accountId) }}</td>
-              </ng-container>
-
-              <ng-container matColumnDef="bankDescription">
-                <th mat-header-cell *matHeaderCellDef>{{ settings.labels().notes }}</th>
-                <td mat-cell *matCellDef="let tx" class="description-cell"
-                    [matTooltip]="tx.bankDescription || ''">
-                  {{ tx.bankDescription || tx.detail || '—' }}
-                </td>
-              </ng-container>
-
-              <!-- Category column — with uncategorized handling -->
-              <ng-container matColumnDef="category">
-                <th mat-header-cell *matHeaderCellDef>{{ settings.labels().category }}</th>
-                <td mat-cell *matCellDef="let tx">
-                  @if (tx.isSplit) {
-                    <span class="split-label" role="button" tabindex="0"
-                          (click)="toggleSplitExpand(tx); $event.stopPropagation()"
-                          (keydown.enter)="toggleSplitExpand(tx); $event.stopPropagation()"
-                          (keydown.space)="toggleSplitExpand(tx); $event.stopPropagation(); $event.preventDefault()">
-                      {{ settings.labels().splitIndicator(tx.splitCount) }}
-                    </span>
-                  } @else if (tx.categoryId) {
-                    {{ refData.getCategoryName(tx.categoryId) }}
-                  } @else {
-                    <span class="uncategorized-label">{{ settings.labels().uncategorizedLabel }}</span>
-                    <button mat-icon-button class="categorize-btn"
-                            [matTooltip]="settings.labels().quickCategorize"
-                            (click)="openQuickCategorize(tx); $event.stopPropagation()">
-                      <mat-icon class="categorize-icon">label</mat-icon>
-                    </button>
-                  }
-                </td>
-              </ng-container>
-
-              <ng-container matColumnDef="subcategory">
-                <th mat-header-cell *matHeaderCellDef>{{ settings.labels().subcategory }}</th>
-                <td mat-cell *matCellDef="let tx">
-                  @if (tx.categoryId && tx.subcategoryId) {
-                    {{ refData.getSubcategoryName(tx.categoryId, tx.subcategoryId) }}
-                  } @else {
-                    —
-                  }
-                </td>
-              </ng-container>
-
-              <ng-container matColumnDef="tags">
-                <th mat-header-cell *matHeaderCellDef>{{ settings.labels().tags }}</th>
-                <td mat-cell *matCellDef="let tx">
-                  <div class="tag-list">
-                    @for (tagId of tx.tagIds; track tagId) {
-                      <span class="tag-pill"
-                            [style.background-color]="refData.getTagColor(tagId)"
-                            [style.color]="refData.getTagTextColor(tagId)">
-                        {{ refData.getTagName(tagId) }}
-                      </span>
-                    }
-                  </div>
-                </td>
-              </ng-container>
-
-              <ng-container matColumnDef="amount">
-                <th mat-header-cell *matHeaderCellDef class="text-right">{{ settings.labels().amount }}</th>
-                <td mat-cell *matCellDef="let tx" class="text-right"
-                    [class]="tx | typeColor">
-                  {{ tx.amount | currency: 'EUR':'symbol':'1.2-2' }}
-                </td>
-              </ng-container>
-
-              <!-- Status column — uses StatusBadgeComponent -->
-              <ng-container matColumnDef="status">
-                <th mat-header-cell *matHeaderCellDef class="col-status">{{ settings.labels().reviewStatus }}</th>
-                <td mat-cell *matCellDef="let tx" class="col-status">
-                  <div class="status-badges">
-                    <app-status-badge [status]="tx.reviewStatus" />
-                    @if (!tx.categoryId && !tx.isSplit) {
-                      <app-status-badge status="uncategorized" />
-                    }
-                  </div>
-                </td>
-              </ng-container>
-
-              <ng-container matColumnDef="actions">
-                <th mat-header-cell *matHeaderCellDef></th>
-                <td mat-cell *matCellDef="let tx">
-                  @if (authService.isAdmin()) {
-                    <button mat-icon-button
-                            [matTooltip]="tx.isSplit ? settings.labels().editSplit : settings.labels().splitTransaction"
-                            (click)="openSplitDialog(tx); $event.stopPropagation()">
-                      <mat-icon>call_split</mat-icon>
-                    </button>
-                  }
-                  <button mat-icon-button
-                          (click)="router.navigate(['/transactions', tx.id, 'edit'], { queryParams: { year: tx.year, month: tx.month } }); $event.stopPropagation()">
-                    <mat-icon>edit</mat-icon>
-                  </button>
-                  <button mat-icon-button color="warn"
-                          (click)="deleteTransaction(tx); $event.stopPropagation()">
-                    <mat-icon>delete</mat-icon>
-                  </button>
-                </td>
-              </ng-container>
-
-              <!-- Expansion row for split details (spans all columns) -->
-              <ng-container matColumnDef="splitDetail">
-                <td mat-cell *matCellDef="let tx" [attr.colspan]="displayedColumns.length">
-                  @if (tx.isSplit && expandedSplitIds().has(tx.id)) {
-                    <div class="split-detail-panel">
-                      <div class="split-detail-header">
-                        {{ tx.bankDescription || tx.detail || '—' }} — {{ settings.labels().splitIndicator(tx.splitCount) }}
-                      </div>
-                      @for (line of tx.splitLines; track line.id) {
-                        <div class="split-detail-line">
-                          <span class="sdl-indicator">├─</span>
-                          <span class="sdl-amount" [class.income-amount]="tx.amount > 0"
-                                [class.expense-amount]="tx.amount < 0">
-                            {{ line.amount | currency: 'EUR':'symbol':'1.2-2' }}
-                          </span>
-                          <span class="sdl-category">
-                            @if (line.categoryId) {
-                              {{ refData.getCategoryName(line.categoryId) }}
-                              @if (line.subcategoryId) {
-                                / {{ refData.getSubcategoryName(line.categoryId, line.subcategoryId) }}
-                              }
-                            } @else {
-                              —
-                            }
-                          </span>
-                          @if (line.detail) {
-                            <span class="sdl-detail">"{{ line.detail }}"</span>
-                          }
-                        </div>
+                      @if (tx.isSplit) {
+                        <mat-icon class="split-icon"
+                                  [matTooltip]="settings.labels().splitIndicator(tx.splitCount)">
+                          call_split
+                        </mat-icon>
                       }
                     </div>
-                  }
-                </td>
-              </ng-container>
+                  </td>
+                </ng-container>
 
-              <tr mat-header-row *matHeaderRowDef="displayedColumns; sticky: true"></tr>
-              <tr mat-row *matRowDef="let row; columns: displayedColumns"
-                  (click)="onRowClick(row)"></tr>
-              <tr mat-row *matRowDef="let row; columns: ['splitDetail']"
-                  class="split-detail-row"
-                  [class.expanded]="row.isSplit && expandedSplitIds().has(row.id)"></tr>
-            </table>
-          </div>
-          @if (loadingMore()) {
-            <div class="loading-more">Loading more…</div>
+                <ng-container matColumnDef="date">
+                  <th mat-header-cell *matHeaderCellDef>{{ settings.labels().date }}</th>
+                  <td mat-cell *matCellDef="let tx">{{ tx.date | date: 'dd/MM/yyyy' }}</td>
+                </ng-container>
+
+                <ng-container matColumnDef="account">
+                  <th mat-header-cell *matHeaderCellDef>{{ settings.labels().account }}</th>
+                  <td mat-cell *matCellDef="let tx">{{ refData.getAccountLabel(tx.accountId) }}</td>
+                </ng-container>
+
+                <ng-container matColumnDef="bankDescription">
+                  <th mat-header-cell *matHeaderCellDef>{{ settings.labels().notes }}</th>
+                  <td mat-cell *matCellDef="let tx" class="description-cell"
+                      [matTooltip]="buildTooltip(tx)"
+                      matTooltipClass="multiline-tooltip">
+                    {{ tx.bankDescription || tx.detail || '—' }}
+                  </td>
+                </ng-container>
+
+                <!-- Category column — with uncategorized handling -->
+                <ng-container matColumnDef="category">
+                  <th mat-header-cell *matHeaderCellDef>{{ settings.labels().category }}</th>
+                  <td mat-cell *matCellDef="let tx">
+                    @if (tx.isSplit) {
+                      <span class="split-label" role="button" tabindex="0"
+                            (click)="toggleSplitExpand(tx); $event.stopPropagation()"
+                            (keydown.enter)="toggleSplitExpand(tx); $event.stopPropagation()"
+                            (keydown.space)="toggleSplitExpand(tx); $event.stopPropagation(); $event.preventDefault()">
+                        {{ settings.labels().splitIndicator(tx.splitCount) }}
+                      </span>
+                    } @else if (tx.categoryId) {
+                      {{ refData.getCategoryName(tx.categoryId) }}
+                    } @else {
+                      <span class="uncategorized-label">{{ settings.labels().uncategorizedLabel }}</span>
+                      <button mat-icon-button class="categorize-btn"
+                              [matTooltip]="settings.labels().quickCategorize"
+                              (click)="openQuickCategorize(tx); $event.stopPropagation()">
+                        <mat-icon class="categorize-icon">label</mat-icon>
+                      </button>
+                    }
+                  </td>
+                </ng-container>
+
+                <ng-container matColumnDef="subcategory">
+                  <th mat-header-cell *matHeaderCellDef>{{ settings.labels().subcategory }}</th>
+                  <td mat-cell *matCellDef="let tx">
+                    @if (tx.categoryId && tx.subcategoryId) {
+                      {{ refData.getSubcategoryName(tx.categoryId, tx.subcategoryId) }}
+                    } @else {
+                      —
+                    }
+                  </td>
+                </ng-container>
+
+                <ng-container matColumnDef="tags">
+                  <th mat-header-cell *matHeaderCellDef>{{ settings.labels().tags }}</th>
+                  <td mat-cell *matCellDef="let tx">
+                    <div class="tag-list">
+                      @for (tagId of tx.tagIds; track tagId) {
+                        <span class="tag-pill"
+                              [style.background-color]="refData.getTagColor(tagId)"
+                              [style.color]="refData.getTagTextColor(tagId)">
+                          {{ refData.getTagName(tagId) }}
+                        </span>
+                      }
+                    </div>
+                  </td>
+                </ng-container>
+
+                <ng-container matColumnDef="amount">
+                  <th mat-header-cell *matHeaderCellDef class="text-right">{{ settings.labels().amount }}</th>
+                  <td mat-cell *matCellDef="let tx" class="text-right"
+                      [class]="tx | typeColor">
+                    {{ tx.amount | currency: 'EUR':'symbol':'1.2-2' }}
+                  </td>
+                </ng-container>
+
+                <!-- Status column — uses StatusBadgeComponent -->
+                <ng-container matColumnDef="status">
+                  <th mat-header-cell *matHeaderCellDef class="col-status">{{ settings.labels().reviewStatus }}</th>
+                  <td mat-cell *matCellDef="let tx" class="col-status">
+                    <div class="status-badges">
+                      <app-status-badge [status]="tx.reviewStatus" />
+                      @if (!tx.categoryId && !tx.isSplit) {
+                        <app-status-badge status="uncategorized" />
+                      }
+                    </div>
+                  </td>
+                </ng-container>
+
+                <ng-container matColumnDef="actions">
+                  <th mat-header-cell *matHeaderCellDef></th>
+                  <td mat-cell *matCellDef="let tx">
+                    @if (authService.isAdmin()) {
+                      <button mat-icon-button
+                              [matTooltip]="tx.isSplit ? settings.labels().editSplit : settings.labels().splitTransaction"
+                              (click)="openSplitDialog(tx); $event.stopPropagation()">
+                        <mat-icon>call_split</mat-icon>
+                      </button>
+                    }
+                    <button mat-icon-button
+                            (click)="router.navigate(['/transactions', tx.id, 'edit'], { queryParams: { year: tx.year, month: tx.month } }); $event.stopPropagation()">
+                      <mat-icon>edit</mat-icon>
+                    </button>
+                    <button mat-icon-button color="warn"
+                            (click)="deleteTransaction(tx); $event.stopPropagation()">
+                      <mat-icon>delete</mat-icon>
+                    </button>
+                  </td>
+                </ng-container>
+
+                <!-- Expansion row for split details (spans all columns) -->
+                <ng-container matColumnDef="splitDetail">
+                  <td mat-cell *matCellDef="let tx" [attr.colspan]="displayedColumns.length">
+                    @if (tx.isSplit && expandedSplitIds().has(tx.id)) {
+                      <div class="split-detail-panel">
+                        <div class="split-detail-header">
+                          {{ tx.bankDescription || tx.detail || '—' }} — {{ settings.labels().splitIndicator(tx.splitCount) }}
+                        </div>
+                        @for (line of tx.splitLines; track line.id) {
+                          <div class="split-detail-line">
+                            <span class="sdl-indicator">├─</span>
+                            <span class="sdl-amount" [class.income-amount]="tx.amount > 0"
+                                  [class.expense-amount]="tx.amount < 0">
+                              {{ line.amount | currency: 'EUR':'symbol':'1.2-2' }}
+                            </span>
+                            <span class="sdl-category">
+                              @if (line.categoryId) {
+                                {{ refData.getCategoryName(line.categoryId) }}
+                                @if (line.subcategoryId) {
+                                  / {{ refData.getSubcategoryName(line.categoryId, line.subcategoryId) }}
+                                }
+                              } @else {
+                                —
+                              }
+                            </span>
+                            @if (line.detail) {
+                              <span class="sdl-detail">"{{ line.detail }}"</span>
+                            }
+                          </div>
+                        }
+                      </div>
+                    }
+                  </td>
+                </ng-container>
+
+                <tr mat-header-row *matHeaderRowDef="displayedColumns; sticky: true"></tr>
+                <tr mat-row *matRowDef="let row; columns: displayedColumns"
+                    (click)="onRowClick(row)"></tr>
+                <tr mat-row *matRowDef="let row; columns: ['splitDetail']"
+                    class="split-detail-row"
+                    [class.expanded]="row.isSplit && expandedSplitIds().has(row.id)"></tr>
+              </table>
+            </div>
+            @if (loadingMore()) {
+              <div class="loading-more">Loading more…</div>
+            }
+          } @else {
+            <!-- Empty state: range selected but 0 results -->
+            <app-empty-state icon="search_off"
+                             [message]="settings.labels().noTransactionsInRange" />
           }
-        } @else {
-          <app-empty-state icon="receipt_long"
-                           [message]="settings.labels().noTransactionsThisMonth" />
-        }
-      </app-loading-container>
+        </app-loading-container>
+      }
       </div>
     </div>
   `,
@@ -268,6 +283,7 @@ import { SplitDialogComponent, SplitDialogData } from './split-dialog.component'
       flex: 1;
       overflow-y: auto;
       min-height: 0;
+      padding-bottom: var(--spc-24, 24px);
     }
     .table-wrapper {
       background: var(--clr-surface);
@@ -404,10 +420,36 @@ import { SplitDialogComponent, SplitDialogData } from './split-dialog.component'
     .split-detail-row.expanded td {
       padding: 0 var(--spc-16, 16px) var(--spc-8, 8px);
     }
+    .date-empty-state {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 300px;
+      padding: var(--spc-64) var(--spc-24);
+    }
+    .date-empty-icon {
+      font-size: 48px;
+      width: 48px;
+      height: 48px;
+      color: var(--clr-text-disabled);
+      margin-bottom: var(--spc-16);
+    }
+    .date-empty-headline {
+      font-size: var(--font-md);
+      color: var(--clr-text-muted);
+      margin: 0 0 var(--spc-16);
+      text-align: center;
+    }
+    .date-empty-shortcuts {
+      display: flex;
+      gap: var(--spc-8);
+    }
   `,
 })
 export class TransactionListComponent implements OnInit, OnDestroy {
   @ViewChild('scrollContainer', { static: true }) scrollContainer!: ElementRef<HTMLElement>;
+  @ViewChild('filterBar') filterBar!: TransactionFilterBarComponent;
 
   readonly router = inject(Router);
   readonly authService = inject(AuthService);
@@ -417,17 +459,19 @@ export class TransactionListComponent implements OnInit, OnDestroy {
   private readonly dialog = inject(MatDialog);
   private readonly destroy$ = new Subject<void>();
 
-  readonly loading = signal(true);
+  readonly loading = signal(false);
   readonly loadingMore = signal(false);
   readonly expandedSplitIds = signal<Set<string>>(new Set());
+  readonly rangeSelected = signal(false);
+  readonly allPartitionsLoading = signal(false);
   private allTransactions: Transaction[] = [];
   readonly transactions = signal<Transaction[]>([]);
 
-  // Paging state — unified for both single-month and full-year
+  // Partition walk state
+  private partitionList: { year: number; month: number }[] = [];
+  private partitionIndex = 0;
   private nextContinuationToken: string | null = null;
   private currentBaseParams: Record<string, unknown> | null = null;
-  private currentMonth = 0;   // month currently being paged (1-12)
-  private minMonth = 0;       // 1 for full year, same as currentMonth for single month
   private hasMore = false;
 
   private static readonly PAGE_SIZE = 100;
@@ -441,6 +485,7 @@ export class TransactionListComponent implements OnInit, OnDestroy {
 
   ngOnInit(): void {
     this.refData.load();
+    // Page starts empty — NO loadTransactions call here
 
     // Listen for scroll on the transaction scroll area
     const scrollEl = this.scrollContainer.nativeElement;
@@ -462,7 +507,29 @@ export class TransactionListComponent implements OnInit, OnDestroy {
 
   onFiltersChanged(filters: TransactionFilters): void {
     this.currentFilters = filters;
+
+    // If no date range set, show empty state — no API call
+    if (!filters.dateFrom || !filters.dateTo) {
+      this.rangeSelected.set(false);
+      this.allTransactions = [];
+      this.transactions.set([]);
+      this.loading.set(false);
+      // Reset paging state to prevent stale scroll-triggered fetches
+      this.hasMore = false;
+      this.partitionList = [];
+      this.partitionIndex = 0;
+      this.nextContinuationToken = null;
+      this.currentBaseParams = null;
+      this.allPartitionsLoading.set(false);
+      return;
+    }
+
+    this.rangeSelected.set(true);
     this.loadTransactions(filters);
+  }
+
+  applyPreset(key: string): void {
+    this.filterBar.applyPreset(key);
   }
 
   typeTooltip(tx: Transaction): string {
@@ -474,6 +541,15 @@ export class TransactionListComponent implements OnInit, OnDestroy {
       case 'refund':   return tx.amount >= 0 ? labels.refundReceivedOption : labels.refundGivenOption;
       default:         return '';
     }
+  }
+
+  buildTooltip(tx: Transaction): string {
+    const parts: string[] = [];
+    if (tx.bankDescription) parts.push(tx.bankDescription);
+    if (tx.detail) parts.push(tx.detail);
+    if (tx.counterpartyName) parts.push(tx.counterpartyName);
+    if (tx.sourceReference) parts.push(`Ref: ${tx.sourceReference}`);
+    return parts.join('\n');
   }
 
   openQuickCategorize(tx: Transaction): void {
@@ -541,13 +617,35 @@ export class TransactionListComponent implements OnInit, OnDestroy {
     }
   }
 
+  /** Compute overlapping YYYY-MM partitions from a date range, newest first. */
+  private computePartitions(dateFrom: string, dateTo: string): { year: number; month: number }[] {
+    const from = new Date(dateFrom + 'T00:00:00');
+    const to = new Date(dateTo + 'T00:00:00');
+    const partitions: { year: number; month: number }[] = [];
+
+    let y = to.getFullYear();
+    let m = to.getMonth() + 1; // 1-based
+    const fromY = from.getFullYear();
+    const fromM = from.getMonth() + 1;
+
+    while (y > fromY || (y === fromY && m >= fromM)) {
+      partitions.push({ year: y, month: m });
+      m--;
+      if (m < 1) {
+        m = 12;
+        y--;
+      }
+    }
+    return partitions;
+  }
+
   private loadTransactions(filters: TransactionFilters): void {
     this.loading.set(true);
+    this.allPartitionsLoading.set(true);
     this.allTransactions = [];
     this.nextContinuationToken = null;
 
     const baseParams = {
-      year: filters.year,
       accountId: filters.accountId || undefined,
       categoryId: filters.categoryId || undefined,
       subcategoryId: filters.subcategoryId || undefined,
@@ -558,31 +656,32 @@ export class TransactionListComponent implements OnInit, OnDestroy {
     };
 
     this.currentBaseParams = baseParams;
-
-    if (filters.month) {
-      // Single month: page through one month
-      this.currentMonth = filters.month;
-      this.minMonth = filters.month;
-    } else {
-      // Full year: start at month 12 (newest), walk down to 1
-      this.currentMonth = 12;
-      this.minMonth = 1;
-    }
-
-    this.hasMore = true;
+    this.partitionList = this.computePartitions(filters.dateFrom!, filters.dateTo!);
+    this.partitionIndex = 0;
+    this.hasMore = this.partitionList.length > 0;
     this.fetchPage(false);
   }
 
-  /** Fetch one page (100 items) for the current month, then render. */
+  /** Fetch one page (100 items) for the current partition, then render. */
   private fetchPage(append: boolean): void {
-    if (!this.currentBaseParams) return;
+    if (!this.currentBaseParams || this.partitionIndex >= this.partitionList.length) {
+      this.hasMore = false;
+      this.allPartitionsLoading.set(false);
+      if (!append) {
+        this.applyResults([]);
+      }
+      return;
+    }
+
     if (append) {
       this.loadingMore.set(true);
     }
 
+    const partition = this.partitionList[this.partitionIndex];
     const params: TransactionQueryParams = {
       ...this.currentBaseParams,
-      month: this.currentMonth,
+      year: partition.year,
+      month: partition.month,
       pageSize: TransactionListComponent.PAGE_SIZE,
       continuationToken: this.nextContinuationToken ?? undefined,
     } as TransactionQueryParams;
@@ -590,21 +689,22 @@ export class TransactionListComponent implements OnInit, OnDestroy {
     this.transactionService.list(params).pipe(takeUntil(this.destroy$)).subscribe({
       next: (res) => {
         if (res.continuationToken) {
-          // More pages in this month
+          // More pages in this partition
           this.nextContinuationToken = res.continuationToken;
           this.hasMore = true;
-        } else if (this.currentMonth > this.minMonth) {
-          // Month exhausted, advance to previous (older) month
-          this.currentMonth--;
+        } else if (this.partitionIndex < this.partitionList.length - 1) {
+          // Partition exhausted, advance to next (older) partition
+          this.partitionIndex++;
           this.nextContinuationToken = null;
           this.hasMore = true;
         } else {
-          // All months exhausted
+          // All partitions exhausted
           this.nextContinuationToken = null;
           this.hasMore = false;
+          this.allPartitionsLoading.set(false);
         }
 
-        // If empty result and more months remain, skip to next month automatically
+        // If empty result and more partitions remain, skip to next partition automatically
         if (res.items.length === 0 && this.hasMore) {
           this.fetchPage(append);
           return;
@@ -618,6 +718,7 @@ export class TransactionListComponent implements OnInit, OnDestroy {
       },
       error: () => {
         this.hasMore = false;
+        this.allPartitionsLoading.set(false);
         if (append) {
           this.loadingMore.set(false);
         } else {
@@ -635,16 +736,38 @@ export class TransactionListComponent implements OnInit, OnDestroy {
     this.allTransactions = items;
     this.applyClientFilters();
     this.loading.set(false);
+
+    // If client-side date trim filtered out ALL results but more pages exist,
+    // keep fetching (e.g., March 1-12 range, first page is March 20-31)
+    if (this.transactions().length === 0 && this.hasMore) {
+      this.fetchPage(true);
+    }
   }
 
   private appendResults(items: Transaction[]): void {
     this.allTransactions = [...this.allTransactions, ...items];
     this.applyClientFilters();
     this.loadingMore.set(false);
+
+    // Same: keep paging if all visible results are outside the date range
+    if (this.transactions().length === 0 && this.hasMore) {
+      this.fetchPage(true);
+    }
   }
 
   private applyClientFilters(): void {
     let filtered = this.allTransactions;
+
+    // Date boundary trim — filter transactions outside exact dateFrom/dateTo
+    const dateFrom = this.currentFilters?.dateFrom;
+    const dateTo = this.currentFilters?.dateTo;
+    if (dateFrom) {
+      filtered = filtered.filter(tx => tx.date >= dateFrom);
+    }
+    if (dateTo) {
+      filtered = filtered.filter(tx => tx.date <= dateTo);
+    }
+
     const search = this.currentFilters?.search?.toLowerCase().trim();
 
     if (search) {

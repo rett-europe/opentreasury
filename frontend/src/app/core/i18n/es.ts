@@ -269,4 +269,15 @@ export const ES_LABELS: AppLabels = {
   splitIndicator: (count: number) => `División (${count})`,
   splitDiscardConfirm: '¿Descartar cambios sin guardar?',
   splitLineAmountRequired: 'El importe es obligatorio',
+  // --- Date range filter ---
+  presetThisMonth: 'Este mes',
+  presetLastMonth: 'Mes anterior',
+  presetLast30Days: 'Últimos 30 días',
+  presetThisQuarter: 'Este trimestre',
+  presetLastQuarter: 'Trimestre anterior',
+  presetThisYear: 'Este año',
+  presetLastYear: 'Año anterior',
+  clearDateRange: 'Limpiar',
+  selectDateRange: 'Selecciona un rango de fechas para ver transacciones',
+  noTransactionsInRange: 'No se encontraron transacciones en este rango',
 };

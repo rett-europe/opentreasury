@@ -269,4 +269,15 @@ export const EN_LABELS: AppLabels = {
   splitIndicator: (count: number) => `Split (${count})`,
   splitDiscardConfirm: 'Discard unsaved changes?',
   splitLineAmountRequired: 'Amount is required',
+  // --- Date range filter ---
+  presetThisMonth: 'This month',
+  presetLastMonth: 'Last month',
+  presetLast30Days: 'Last 30 days',
+  presetThisQuarter: 'This quarter',
+  presetLastQuarter: 'Last quarter',
+  presetThisYear: 'This year',
+  presetLastYear: 'Last year',
+  clearDateRange: 'Clear',
+  selectDateRange: 'Select a date range to view transactions',
+  noTransactionsInRange: 'No transactions found in this range',
 };

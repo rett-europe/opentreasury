@@ -299,3 +299,10 @@ body.reduced-motion *::after {
 .type-expense  { color: var(--clr-expense); }
 .type-transfer { color: var(--clr-transfer); }
 .type-refund   { color: var(--clr-refund); }
+
+/* Multiline tooltip support */
+.multiline-tooltip .mdc-tooltip__surface {
+  white-space: pre-line;
+  max-width: 400px;
+  text-align: left;
+}

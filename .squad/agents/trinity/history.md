@@ -13,3 +13,8 @@
   - `mock-data.ts`: Added default split fields to mock transaction factory.
   - Key patterns: signals for reactive balance computation, `FormArray` + `FormGroup` per line, design tokens for all colors/spacing, accessibility (role="button", tabindex, keyboard events on interactive spans).
   - Budget warnings pre-existing (initial bundle 1.07MB vs 500KB budget) — not introduced by this change.
+- 2026-04-16: **Date range filter implemented.** Replaced year/month dropdowns with date range picker + preset button strip.
+  - `tx-filter-bar.component.ts`: Full rewrite — `TransactionFilters` interface changed from `year/month` to `dateFrom/dateTo` (ISO strings). Added `MatButtonToggleGroup` preset strip (7 presets), `MatDateRangeInput` picker, clear button. Pure helper functions (`getThisMonth()`, `getLastMonth()`, etc.) exported for testability. `applyPreset()` public method for cross-component shortcuts.
+  - `transaction-list.component.ts`: Page starts empty (no API call on init). Two distinct empty states: "no range selected" (calendar_today icon + shortcut chips) and "no results in range" (search_off icon). Partition walk from date range (`computePartitions()` generates YYYY-MM keys, newest first). Client-side date boundary trim in `applyClientFilters()`. Client-side summary computation via `computed()` signal using `TRANSACTION_TYPES` constants. Integrated `TransactionSummaryFooterComponent`.
+  - `labels.type.ts`, `en.ts`, `es.ts`: Added 12 date-range-related label keys (presets, clear, empty states).
+  - Key patterns: `MatDateRangeInput` + `MatDateRangePicker` for range selection, preset buttons deselect on manual date edit, `ViewChild` to call `filterBar.applyPreset()` from empty state chips, `MatChipsModule` for inline shortcuts.
