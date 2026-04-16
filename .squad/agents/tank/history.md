@@ -44,3 +44,14 @@
 - Regenerated `infra/main.json` via `az bicep build`
 - Bicep diagnostics: zero errors across all modules
 - Key SHAs: checkout@11bd7190 (v4.2.2), azure/login@a457da9e (v2.3.0), arm-deploy@a1361c2c (v2.0.0), static-web-apps-deploy@1a947af9 (v1.0.0), setup-python@a26af69b (v5.6.0)
+
+### 2026-04-16: Cosmos RBAC / COSMOS_KEY cleanup audit — product repo
+- Audited 7 files for stale COSMOS_KEY or key-based auth references. **All clean — no changes needed.**
+  1. `deploy-template/.github/workflows/deploy.yml` — No COSMOS_KEY or COSMOS_ENDPOINT. Uses OIDC federation.
+  2. `deploy-template/.github/workflows/deploy-infra.yml` — No COSMOS_KEY or COSMOS_ENDPOINT. Passes Bicep params only.
+  3. `deploy-template/README.md` — Secrets table: 1 secret (SWA token) + 11 variables. No COSMOS_KEY/COSMOS_ENDPOINT.
+  4. `infra/modules/app-service.bicep` — COSMOS_ENDPOINT via Key Vault ref. No COSMOS_KEY.
+  5. `infra/modules/cosmos-db.bicep` — `disableLocalAuth: true` confirmed.
+  6. `scripts/setup-azure.sh` — Summary table clean. No COSMOS_KEY output.
+  7. `scripts/setup-azure.ps1` — Summary table clean. Step 7b populates Key Vault with COSMOS_ENDPOINT correctly.
+- Bonus: `cosmos_client.py` uses dual-path (key vs DefaultAzureCredential). With `COSMOS_KEY=""` default in config.py, RBAC path is always used in prod. Key param only relevant for Cosmos emulator.

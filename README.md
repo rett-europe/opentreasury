@@ -146,7 +146,10 @@ And configure the MSAL settings with your Entra ID app registration.
 | `AZURE_TENANT_ID` | Entra ID tenant | `xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx` |
 | `AZURE_CLIENT_ID` | Backend app registration client ID | `xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx` |
 | `COSMOS_ENDPOINT` | Cosmos DB account endpoint | `https://cosmos-opentreasury.documents.azure.com:443/` |
-| `COSMOS_DATABASE_NAME` | Database name | `opentreasury` || `COSMOS_KEY` | Cosmos DB primary key (local dev only — Managed Identity in Azure) | `your-cosmos-key` || `CORS_ORIGINS` | Allowed frontend origins | `["http://localhost:4200"]` |
+| `COSMOS_DATABASE_NAME` | Database name | `opentreasury` |
+| `CORS_ORIGINS` | Allowed frontend origins | `["http://localhost:4200"]` |
+
+> **Database auth:** Cosmos DB uses Entra ID RBAC (`disableLocalAuth: true`) — no connection keys. In production, the App Service system-assigned managed identity authenticates via `DefaultAzureCredential`. For local development, run `az login` and ensure your account has a Cosmos DB data-plane role (e.g., *Cosmos DB Built-in Data Contributor*). See the [Azure Setup Guide](docs/guides/azure-setup.md) for details.
 
 ## Features
 
