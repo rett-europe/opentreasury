@@ -110,7 +110,8 @@ import { SplitDialogComponent, SplitDialogData } from './split-dialog.component'
                 <ng-container matColumnDef="bankDescription">
                   <th mat-header-cell *matHeaderCellDef>{{ settings.labels().notes }}</th>
                   <td mat-cell *matCellDef="let tx" class="description-cell"
-                      [matTooltip]="tx.bankDescription || ''">
+                      [matTooltip]="buildTooltip(tx)"
+                      matTooltipClass="multiline-tooltip">
                     {{ tx.bankDescription || tx.detail || '—' }}
                   </td>
                 </ng-container>
@@ -540,6 +541,15 @@ export class TransactionListComponent implements OnInit, OnDestroy {
       case 'refund':   return tx.amount >= 0 ? labels.refundReceivedOption : labels.refundGivenOption;
       default:         return '';
     }
+  }
+
+  buildTooltip(tx: Transaction): string {
+    const parts: string[] = [];
+    if (tx.bankDescription) parts.push(tx.bankDescription);
+    if (tx.detail) parts.push(tx.detail);
+    if (tx.counterpartyName) parts.push(tx.counterpartyName);
+    if (tx.sourceReference) parts.push(`Ref: ${tx.sourceReference}`);
+    return parts.join('\n');
   }
 
   openQuickCategorize(tx: Transaction): void {
