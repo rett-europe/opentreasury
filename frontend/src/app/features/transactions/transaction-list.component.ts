@@ -726,12 +726,23 @@ export class TransactionListComponent implements OnInit, OnDestroy {
     this.allTransactions = items;
     this.applyClientFilters();
     this.loading.set(false);
+
+    // If client-side date trim filtered out ALL results but more pages exist,
+    // keep fetching (e.g., March 1-12 range, first page is March 20-31)
+    if (this.transactions().length === 0 && this.hasMore) {
+      this.fetchPage(true);
+    }
   }
 
   private appendResults(items: Transaction[]): void {
     this.allTransactions = [...this.allTransactions, ...items];
     this.applyClientFilters();
     this.loadingMore.set(false);
+
+    // Same: keep paging if all visible results are outside the date range
+    if (this.transactions().length === 0 && this.hasMore) {
+      this.fetchPage(true);
+    }
   }
 
   private applyClientFilters(): void {
