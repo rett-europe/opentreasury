@@ -38,3 +38,12 @@
 - 7 open questions flagged for Pedro/Neo/Morpheus: max line limit, export format, pre-populate first line, split status filter, notes inheritance, duplicate-line shortcut, auto-fill remainder.
 - **Key decisions made:** (1) Minimum 2 lines per split. (2) Parent amount is the financial anchor — never modified by splits. (3) Split lines inherit parent's transactionType and currency implicitly. (4) Category reports use split line categories, not parent's. (5) Review status lives on parent only. (6) Parent amount change after split → warning badge, must rebalance.
 - **Lesson:** Split transactions are the intersection of bank-level truth (parent) and business-level truth (lines). The spec must clearly separate what the bank says (parent amount, description) from what the org needs (categorization, cost allocation). This duality drives most of the edge cases.
+
+### 2026-04-16: Date Range Filter — UX spec written
+- Wrote `docs/specs/date-range-filter-spec.md` — full UX spec for replacing year/month dropdowns with MatDateRangeInput + preset buttons.
+- Implements Alternative D (frontend-only smart routing, approved by Pedro). Zero API changes — frontend computes overlapping YYYY-MM partitions and fetches via existing endpoints.
+- Key UX decisions: (1) Page starts EMPTY — no auto-load. (2) 7 presets: This month, Last month, Last 30 days, This/Last quarter, This/Last year. (3) Presets on their own row above other filters for prominence. (4) Empty state shows calendar icon + localized message + 3 inline preset shortcuts as CTA. (5) Other filters always visible/enabled (no "disabled until date range" confusion). (6) Summary strip hidden when no range selected, client-computed when active. (7) "Clear" resets date range only, preserves other filters.
+- TransactionFilters interface changes: `year`+`month` → `dateFrom`+`dateTo` (ISO strings, nullable).
+- Edge cases covered: cross-year ranges, future dates (allowed), start > end (prevented by MatDateRangeInput), no max range cap (NGO volumes trivial), 0-result state distinct from initial empty state.
+- 16 acceptance criteria, all testable.
+- **Lesson:** The "empty state as default" pattern is cleaner than auto-loading for pages that serve as analysis views (vs. dashboards). The dashboard already shows latest movements — the transaction list is for targeted queries. Presets inline in the empty state serve dual purpose: they teach the UI and provide the fastest path to data.

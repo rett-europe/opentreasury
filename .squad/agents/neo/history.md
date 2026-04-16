@@ -34,3 +34,12 @@
 - **Key design constraint:** `splitLines[].amount` sum MUST equal parent `amount`. Validated on every write. No draft/partial splits.
 - **Open questions for Pedro:** Split line cap (recommended 20), unsplit behavior (recommended → uncategorized), transfers/refunds splittable.
 - **Open questions for Niobe:** Split dialog UX, list view indicator, re-categorization frequency (determines if PATCH endpoint needed).
+
+### 2026-04-16: Date range filter — architecture analysis
+- **Current paging architecture:** Frontend walks months 12→1 (or single month), PAGE_SIZE=100, using Cosmos continuation tokens per-partition. Aggregates computed server-side per-partition on first page.
+- **Partition key architecture:** `YYYY-MM` partition key is deeply embedded — `list_by_partition()` takes a single partition_key, `aggregate_filtered()` is partition-scoped. Cross-partition queries exist only in `query_for_export()` (no partition_key param, full container scan, higher RU).
+- **Recommended: Alternative D** — replace year/month dropdowns with `MatDateRangeInput`, frontend computes overlapping `YYYY-MM` partitions from the date range, fetches using existing API (zero backend changes). The `currentMonth`/`minMonth` waterfall adapts naturally.
+- **Key insight:** For 200–500 tx/year, client-side aggregation is trivial — no need for server-side cross-partition aggregate queries. Export already proves cross-partition date queries work, but that pattern (full container scan) shouldn't be used for interactive browsing.
+- **Material components:** `MatDateRangeInput` + `MatDatepicker` is the standard Angular Material approach. No custom slider needed. Preset buttons ("This month", "Last 30 days", "This quarter") complement the range picker.
+- **`TransactionFilters` interface change:** `year: number` + `month: number | null` → `dateFrom: string` + `dateTo: string`. Cascading change through `loadTransactions()` and `TransactionQueryParams`.
+- **Cross-year ranges:** Alternative D naturally supports "Dec 2025 – Jan 2026" by computing partitions `2025-12` + `2026-01`. Current year-dropdown can't do this.
