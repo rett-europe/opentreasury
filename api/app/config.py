@@ -6,7 +6,7 @@ class Settings(BaseSettings):
     ENTRA_API_CLIENT_ID: str
     COSMOS_ENDPOINT: str
     COSMOS_DATABASE_NAME: str = "opentreasury"
-    COSMOS_KEY: str = ""  # Optional: set for local dev. In Azure, Managed Identity is used instead.
+    COSMOS_KEY: str = ""  # Leave empty for Entra ID RBAC auth (production + local dev via az login)
     CORS_ORIGINS: str = "http://localhost:4200"  # Comma-separated or JSON array
 
     model_config = {"env_file": ".env", "case_sensitive": True}
