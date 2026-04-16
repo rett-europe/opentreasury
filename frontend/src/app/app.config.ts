@@ -12,7 +12,7 @@ import {
   HTTP_INTERCEPTORS,
 } from '@angular/common/http';
 import { provideAnimationsAsync } from '@angular/platform-browser/animations/async';
-import { provideNativeDateAdapter } from '@angular/material/core';
+import { provideNativeDateAdapter, MAT_DATE_LOCALE } from '@angular/material/core';
 import {
   MSAL_GUARD_CONFIG,
   MSAL_INSTANCE,
@@ -75,6 +75,7 @@ export const appConfig: ApplicationConfig = {
     ),
     provideAnimationsAsync(),
     provideNativeDateAdapter(),
+    { provide: MAT_DATE_LOCALE, useValue: 'es-ES' },
     ...(useMocks ? getMockAuthProviders() : getRealAuthProviders()),
   ],
 };

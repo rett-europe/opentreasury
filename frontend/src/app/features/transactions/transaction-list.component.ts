@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, computed, ElementRef, inject, OnDestroy, OnInit, signal, ViewChild } from '@angular/core';
+import { ChangeDetectionStrategy, Component, ElementRef, inject, OnDestroy, OnInit, signal, ViewChild } from '@angular/core';
 import { Router } from '@angular/router';
 import { fromEvent, Subject } from 'rxjs';
 import { filter, takeUntil } from 'rxjs/operators';
@@ -13,7 +13,7 @@ import { AuthService } from '@core/auth/auth.service';
 import { AppSettingsService } from '@core/services/app-settings.service';
 import { TransactionService } from '@core/services/transaction.service';
 import { ReferenceDataService } from '@core/services/reference-data.service';
-import { Transaction, TransactionType, TransactionQueryParams, ReviewStatus, CategorizationStatus, TRANSACTION_TYPES } from '@shared/models/transaction.model';
+import { Transaction, TransactionType, TransactionQueryParams, ReviewStatus, CategorizationStatus } from '@shared/models/transaction.model';
 import { PageHeaderComponent } from '@shared/components/page-header/page-header.component';
 import { LoadingContainerComponent } from '@shared/components/loading-container/loading-container.component';
 import { EmptyStateComponent } from '@shared/components/empty-state/empty-state.component';
@@ -21,7 +21,6 @@ import { StatusBadgeComponent } from '@shared/components/status-badge/status-bad
 import { TypeIconPipe } from '@shared/pipes/type-icon.pipe';
 import { TypeColorPipe } from '@shared/pipes/type-color.pipe';
 import { TransactionFilterBarComponent, TransactionFilters } from './tx-filter-bar.component';
-import { TransactionSummaryFooterComponent, TransactionSummaryData } from './tx-summary-footer.component';
 import { QuickCategorizeDialogComponent } from './quick-categorize-dialog.component';
 import { SplitDialogComponent, SplitDialogData } from './split-dialog.component';
 
@@ -45,7 +44,6 @@ import { SplitDialogComponent, SplitDialogData } from './split-dialog.component'
     TypeIconPipe,
     TypeColorPipe,
     TransactionFilterBarComponent,
-    TransactionSummaryFooterComponent,
   ],
   template: `
     <div class="page-container">
@@ -61,10 +59,6 @@ import { SplitDialogComponent, SplitDialogData } from './split-dialog.component'
         </app-page-header>
 
         <app-tx-filter-bar #filterBar (filtersChanged)="onFiltersChanged($event)" />
-
-        @if (rangeSelected() && transactions().length > 0) {
-          <app-tx-summary-footer [summary]="summaryData()" [loading]="allPartitionsLoading()" />
-        }
       </div>
 
       <div class="scroll-area" #scrollContainer>
@@ -475,36 +469,6 @@ export class TransactionListComponent implements OnInit, OnDestroy {
   readonly allPartitionsLoading = signal(false);
   private allTransactions: Transaction[] = [];
   readonly transactions = signal<Transaction[]>([]);
-
-  // Client-side summary computed from filtered transactions
-  readonly summaryData = computed<TransactionSummaryData>(() => {
-    const txs = this.transactions();
-    let totalIncome = 0;
-    let totalExpenses = 0;
-    let transfersTotal = 0;
-    let uncategorizedCount = 0;
-    for (const tx of txs) {
-      if (tx.transactionType === TRANSACTION_TYPES.INCOME) {
-        totalIncome += Number(tx.amount);
-      } else if (tx.transactionType === TRANSACTION_TYPES.EXPENSE) {
-        totalExpenses += Number(tx.amount);
-      } else if (tx.transactionType === TRANSACTION_TYPES.TRANSFER) {
-        transfersTotal += Number(tx.amount);
-      }
-      // Refunds are excluded from income/expense totals per spec
-      if (!tx.categoryId && !tx.isSplit) {
-        uncategorizedCount++;
-      }
-    }
-    return {
-      totalIncome,
-      totalExpenses,
-      net: totalIncome + totalExpenses,
-      transactionCount: txs.length,
-      uncategorizedCount,
-      transfersTotal,
-    };
-  });
 
   // Partition walk state
   private partitionList: { year: number; month: number }[] = [];
