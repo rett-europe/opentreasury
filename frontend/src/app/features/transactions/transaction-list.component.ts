@@ -292,6 +292,7 @@ import { SplitDialogComponent, SplitDialogData } from './split-dialog.component'
       flex: 1;
       overflow-y: auto;
       min-height: 0;
+      padding-bottom: var(--spc-24, 24px);
     }
     .table-wrapper {
       background: var(--clr-surface);
