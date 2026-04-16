@@ -375,10 +375,8 @@ export class TransactionFilterBarComponent implements OnInit {
     }
     // Deselect any preset when user manually edits
     this.activePreset.set(null);
-    // Only emit when both dates are set
-    if (this.dateFrom && this.dateTo) {
-      this.emitFilters();
-    }
+    // Emit when both dates are set, OR when a previously-complete range becomes incomplete
+    this.emitFilters();
   }
 
   clearDateRange(): void {

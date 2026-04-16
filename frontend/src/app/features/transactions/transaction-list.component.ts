@@ -7,7 +7,6 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatDialog, MatDialogModule } from '@angular/material/dialog';
-import { MatChipsModule } from '@angular/material/chips';
 import { CurrencyPipe, DatePipe } from '@angular/common';
 import { AuthService } from '@core/auth/auth.service';
 import { AppSettingsService } from '@core/services/app-settings.service';
@@ -34,7 +33,6 @@ import { SplitDialogComponent, SplitDialogData } from './split-dialog.component'
     MatIconModule,
     MatTooltipModule,
     MatDialogModule,
-    MatChipsModule,
     CurrencyPipe,
     DatePipe,
     PageHeaderComponent,
@@ -69,11 +67,9 @@ import { SplitDialogComponent, SplitDialogData } from './split-dialog.component'
           <mat-icon class="date-empty-icon">calendar_today</mat-icon>
           <p class="date-empty-headline">{{ settings.labels().selectDateRange }}</p>
           <div class="date-empty-shortcuts">
-            <mat-chip-set>
-              <mat-chip (click)="applyPreset('this-month')">{{ settings.labels().presetThisMonth }}</mat-chip>
-              <mat-chip (click)="applyPreset('last-30-days')">{{ settings.labels().presetLast30Days }}</mat-chip>
-              <mat-chip (click)="applyPreset('this-year')">{{ settings.labels().presetThisYear }}</mat-chip>
-            </mat-chip-set>
+            <button mat-stroked-button (click)="applyPreset('this-month')">{{ settings.labels().presetThisMonth }}</button>
+            <button mat-stroked-button (click)="applyPreset('last-30-days')">{{ settings.labels().presetLast30Days }}</button>
+            <button mat-stroked-button (click)="applyPreset('this-year')">{{ settings.labels().presetThisYear }}</button>
           </div>
         </div>
       } @else {
@@ -517,6 +513,13 @@ export class TransactionListComponent implements OnInit, OnDestroy {
       this.allTransactions = [];
       this.transactions.set([]);
       this.loading.set(false);
+      // Reset paging state to prevent stale scroll-triggered fetches
+      this.hasMore = false;
+      this.partitionList = [];
+      this.partitionIndex = 0;
+      this.nextContinuationToken = null;
+      this.currentBaseParams = null;
+      this.allPartitionsLoading.set(false);
       return;
     }
 
