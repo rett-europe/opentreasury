@@ -1,10 +1,13 @@
 from __future__ import annotations
 
+import logging
 from collections import defaultdict
 from decimal import Decimal
 from typing import TYPE_CHECKING
 
 from app.models.domain import TransactionType
+
+logger = logging.getLogger("opentreasury")
 
 _INCOME = TransactionType.INCOME.value
 _EXPENSE = TransactionType.EXPENSE.value
@@ -83,7 +86,7 @@ class ReportService:
         items = await self._txn.get_transactions_for_report(year=year)
 
         # Get all categories for name lookup
-        categories = await self._cat.get_categories()
+        categories = await self._cat.list_categories()
         category_map = {cat["id"]: cat["name"] for cat in categories}
         subcategory_map = {}
         for cat in categories:
@@ -126,10 +129,15 @@ class ReportService:
                 cat_id = key
                 subcat_id = None
 
+            category_name = category_map.get(cat_id)
+            if category_name is None:
+                logger.warning("Category '%s' not found in reference data — falling back to 'Uncategorized'", cat_id)
+                category_name = "Uncategorized"
+
             balance_items.append(
                 {
                     "category_id": cat_id,
-                    "category_name": category_map.get(cat_id, "Uncategorized"),
+                    "category_name": category_name,
                     "subcategory_id": subcat_id,
                     "subcategory_name": subcategory_map.get(subcat_id, "") if subcat_id else None,
                     "income": data["income"],

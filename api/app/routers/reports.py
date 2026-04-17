@@ -15,6 +15,8 @@ from app.models.schemas import (
 from app.services.dependencies import get_report_service
 from app.services.report_service import ReportService
 
+# Report read queries are not audited to avoid noise — only write operations
+# are audited.  All endpoints here are GET-only aggregations.
 router = APIRouter(
     prefix="/api/reports",
     tags=["Reports"],

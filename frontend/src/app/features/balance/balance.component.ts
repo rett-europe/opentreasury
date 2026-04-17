@@ -1,4 +1,5 @@
-import { ChangeDetectionStrategy, Component, computed, inject, OnInit, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, DestroyRef, inject, OnInit, signal } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { CommonModule } from '@angular/common';
 import { MatSelectModule } from '@angular/material/select';
 import { MatFormFieldModule } from '@angular/material/form-field';
@@ -519,6 +520,7 @@ export class BalanceComponent implements OnInit {
   public readonly settings = inject(AppSettingsService);
   private readonly reportService = inject(ReportService);
   private readonly referenceDataService = inject(ReferenceDataService);
+  private readonly destroyRef = inject(DestroyRef);
 
   selectedYear = new Date().getFullYear();
   availableYears = this.generateAvailableYears();
@@ -568,6 +570,7 @@ export class BalanceComponent implements OnInit {
 
     this.reportService.getBalance(this.selectedYear)
       .pipe(
+        takeUntilDestroyed(this.destroyRef),
         map((items: BalanceItem[]) => {
           return this.processBalanceItems(items);
         }),
@@ -600,7 +603,12 @@ export class BalanceComponent implements OnInit {
     totalIncome: number;
     totalExpense: number;
   } {
-    const incomeRows = items
+    const coerce = (items: BalanceItem[]): BalanceItem[] =>
+      items.map(i => ({ ...i, income: +i.income, expense: +i.expense, net: +i.net }));
+
+    const coerced = coerce(items);
+
+    const incomeRows = coerced
       .filter(item => item.income > 0)
       .sort((a, b) => {
         if (a.categoryName !== b.categoryName) {
@@ -609,7 +617,7 @@ export class BalanceComponent implements OnInit {
         return (a.subcategoryName || '').localeCompare(b.subcategoryName || '');
       });
 
-    const expenseRows = items
+    const expenseRows = coerced
       .filter(item => item.expense > 0)
       .sort((a, b) => {
         if (a.categoryName !== b.categoryName) {
@@ -779,7 +787,9 @@ export class BalanceComponent implements OnInit {
   }
 
   ngOnInit() {
-    // Ensure reference data is loaded
+    // Fire-and-forget: ReferenceDataService.load() is a no-op if already cached,
+    // and the balance API returns pre-resolved category names. Same pattern as
+    // transaction-list and other consumers — no await needed.
     this.referenceDataService.load();
     this.loadBalance();
   }

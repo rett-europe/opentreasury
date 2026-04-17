@@ -201,6 +201,34 @@ class TestGetBalance:
 
         assert response.status_code == 422
 
+    async def test_year_below_range_returns_422(self, admin_client, mock_report_svc):
+        app.dependency_overrides[get_report_service] = lambda: mock_report_svc
+
+        response = await admin_client.get("/api/reports/balance?year=1999")
+
+        assert response.status_code == 422
+
+    async def test_year_above_range_returns_422(self, admin_client, mock_report_svc):
+        app.dependency_overrides[get_report_service] = lambda: mock_report_svc
+
+        response = await admin_client.get("/api/reports/balance?year=2101")
+
+        assert response.status_code == 422
+
+    async def test_empty_balance_response(self, admin_client, mock_report_svc):
+        mock_report_svc.get_balance.return_value = {
+            "year": 2026,
+            "items": [],
+        }
+        app.dependency_overrides[get_report_service] = lambda: mock_report_svc
+
+        response = await admin_client.get("/api/reports/balance?year=2026")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["year"] == 2026
+        assert data["items"] == []
+
 
 # ---------------------------------------------------------------------------
 # GET /api/reports/monthly-trend
