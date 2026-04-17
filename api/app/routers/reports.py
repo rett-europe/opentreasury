@@ -4,6 +4,8 @@ from app.auth.dependencies import get_current_user
 from app.models.schemas import (
     AccountSummary,
     AccountSummaryItem,
+    BalanceBreakdown,
+    BalanceItem,
     CategoryBreakdown,
     CategoryBreakdownItem,
     MonthlyTrend,
@@ -52,6 +54,28 @@ async def get_by_category(
         for item in result["items"]
     ]
     return CategoryBreakdown(year=result["year"], month=result["month"], items=breakdown_items)
+
+
+@router.get("/balance", response_model=BalanceBreakdown)
+async def get_balance(
+    year: int = Query(..., ge=2020, le=2100),
+    current_user: dict = Depends(get_current_user),
+    service: ReportService = Depends(get_report_service),
+):
+    result = await service.get_balance(year=year)
+    balance_items = [
+        BalanceItem(
+            category_id=item["category_id"],
+            category_name=item["category_name"],
+            subcategory_id=item.get("subcategory_id"),
+            subcategory_name=item.get("subcategory_name"),
+            income=item["income"],
+            expense=item["expense"],
+            net=item["net"],
+        )
+        for item in result["items"]
+    ]
+    return BalanceBreakdown(year=result["year"], items=balance_items)
 
 
 @router.get("/monthly-trend", response_model=MonthlyTrend)

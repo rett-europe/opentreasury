@@ -11,6 +11,7 @@ import {
   MOCK_CATEGORIES,
   MOCK_REFERENCE_DATA,
   MOCK_REPORT_BY_ACCOUNT,
+  MOCK_REPORT_BALANCE,
   MOCK_REPORT_BY_CATEGORY,
   MOCK_REPORT_MONTHLY,
   MOCK_REPORT_SUMMARY,
@@ -281,18 +282,27 @@ export const mockApiInterceptor: HttpInterceptorFn = (req, next) => {
   }
 
   if (path === '/api/reports/by-category' && method === 'GET') {
+    const year = Number(req.params.get('year')) || 2026;
     log(method, path, 200);
-    return of(json({ year: 2026, items: MOCK_REPORT_BY_CATEGORY })).pipe(delay(randomDelay()));
+    return of(json({ year, items: MOCK_REPORT_BY_CATEGORY })).pipe(delay(randomDelay()));
+  }
+
+  if (path === '/api/reports/balance' && method === 'GET') {
+    const year = Number(req.params.get('year')) || 2026;
+    log(method, path, 200);
+    return of(json({ year, items: MOCK_REPORT_BALANCE })).pipe(delay(randomDelay()));
   }
 
   if (path === '/api/reports/monthly-trend' && method === 'GET') {
+    const year = Number(req.params.get('year')) || 2026;
     log(method, path, 200);
-    return of(json({ year: 2026, months: MOCK_REPORT_MONTHLY })).pipe(delay(randomDelay()));
+    return of(json({ year, months: MOCK_REPORT_MONTHLY })).pipe(delay(randomDelay()));
   }
 
   if (path === '/api/reports/by-account' && method === 'GET') {
+    const year = Number(req.params.get('year')) || 2026;
     log(method, path, 200);
-    return of(json({ year: 2026, items: MOCK_REPORT_BY_ACCOUNT })).pipe(delay(randomDelay()));
+    return of(json({ year, items: MOCK_REPORT_BY_ACCOUNT })).pipe(delay(randomDelay()));
   }
 
   // ---- Import ----

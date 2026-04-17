@@ -4,6 +4,7 @@ import { ApiService } from './api.service';
 import {
   TransactionSummary,
   CategorySummary,
+  BalanceItem,
   MonthlySummary,
   AccountSummary,
 } from '@shared/models/report.model';
@@ -24,6 +25,12 @@ export class ReportService {
     const params: Record<string, string | number | boolean | undefined> = { year };
     if (month) params['month'] = month;
     return this.api.get<{ items: CategorySummary[] }>('/reports/by-category', params).pipe(
+      map(r => r.items)
+    );
+  }
+
+  getBalance(year: number): Observable<BalanceItem[]> {
+    return this.api.get<{ items: BalanceItem[] }>('/reports/balance', { year }).pipe(
       map(r => r.items)
     );
   }

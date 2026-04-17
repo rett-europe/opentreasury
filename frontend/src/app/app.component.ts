@@ -82,6 +82,11 @@ import { ReferenceDataService } from './core/services/reference-data.service';
             <span>{{ settings.labels().transactions }}</span>
           </a>
 
+          <a class="nav-item" routerLink="/balance" routerLinkActive="active" (click)="closeMobileNav()">
+            <mat-icon>balance_scale</mat-icon>
+            <span>{{ settings.labels().balance }}</span>
+          </a>
+
           @if (authService.isAdmin()) {
             <div class="nav-section-label">{{ settings.labels().sectionConfig }}</div>
 

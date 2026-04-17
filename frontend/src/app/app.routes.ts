@@ -25,6 +25,14 @@ export const routes: Routes = [
     canActivate: [MsalGuard],
   },
   {
+    path: 'balance',
+    loadComponent: () =>
+      import('./features/balance/balance.component').then(
+        (m) => m.BalanceComponent,
+      ),
+    canActivate: [MsalGuard],
+  },
+  {
     path: 'transactions/new',
     loadComponent: () =>
       import('./features/transactions/transaction-form.component').then(

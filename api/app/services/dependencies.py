@@ -84,8 +84,9 @@ def get_import_service(
 
 def get_report_service(
     transaction_service: TransactionService = Depends(get_transaction_service),
+    category_service: CategoryService = Depends(get_category_service),
 ) -> ReportService:
-    return ReportService(transaction_service=transaction_service)
+    return ReportService(transaction_service=transaction_service, category_service=category_service)
 
 
 def get_reference_data_service(

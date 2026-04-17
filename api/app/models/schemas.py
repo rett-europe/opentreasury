@@ -366,6 +366,26 @@ class CategoryBreakdown(CamelModel):
     items: list[CategoryBreakdownItem]
 
 
+class BalanceItem(CamelModel):
+    category_id: str
+    category_name: str
+    subcategory_id: Optional[str] = None
+    subcategory_name: Optional[str] = None
+    income: Decimal
+    expense: Decimal
+    net: Decimal
+
+    @field_validator("income", "expense", "net", mode="before")
+    @classmethod
+    def round_balance_amount(cls, v):
+        return _round_decimal(v)
+
+
+class BalanceBreakdown(CamelModel):
+    year: int
+    items: list[BalanceItem]
+
+
 class MonthlyTrendItem(CamelModel):
     month: int
     income: Decimal

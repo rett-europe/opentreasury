@@ -3,6 +3,16 @@ export interface AppLabels {
   newTransaction: string;
   dashboard: string;
   transactions: string;
+  balance: string;
+  balanceSubtitle: string;
+  netBalance: string;
+  balanceVisibleRows: (n: number) => string;
+  balanceFilterCategoryPlaceholder: string;
+  balanceFilterSubcategoryPlaceholder: string;
+  balanceAmountPlaceholderIncome: string;
+  balanceAmountPlaceholderExpense: string;
+  balanceNoIncomeMatches: string;
+  balanceNoExpenseMatches: string;
   categories: string;
   tags: string;
   accounts: string;
@@ -32,7 +42,6 @@ export interface AppLabels {
   category: string;
   subcategory: string;
   amount: string;
-  balance: string;
   tag: string;
   detail: string;
   name: string;

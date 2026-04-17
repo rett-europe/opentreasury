@@ -80,3 +80,5 @@ npm-debug.log*
 .squad/sessions/
 # Squad: SubSquad activation file (local to this machine)
 .squad-workstream
+api/README-local.md
+api/start-local.sh

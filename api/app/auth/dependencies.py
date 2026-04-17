@@ -2,6 +2,8 @@ import time
 
 import httpx
 import jwt
+from typing import Optional
+
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from jwt import PyJWK
@@ -9,7 +11,7 @@ from jwt.exceptions import PyJWTError
 
 from app.config import settings
 
-security = HTTPBearer()
+security = HTTPBearer(auto_error=False)
 
 _jwks_cache: dict | None = None
 _jwks_cache_time: float = 0
@@ -115,8 +117,25 @@ def _resolve_role(payload: dict) -> str:
 
 
 async def get_current_user(
-    credentials: HTTPAuthorizationCredentials = Depends(security),
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(security),
 ) -> dict:
+    # In dev mode, return mock admin user without validating token
+    if settings.DEV_MODE:
+        dev_role = settings.DEV_USER_ROLE or "Admin"
+        return {
+            "oid": settings.DEV_USER_OID,
+            "name": settings.DEV_USER_NAME,
+            "email": settings.DEV_USER_EMAIL,
+            "roles": [dev_role],
+            "role": dev_role,
+        }
+
+    if not credentials:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Authorization header missing",
+        )
+
     payload = await _validate_token(credentials.credentials)
     return {
         "oid": payload.get("oid", ""),

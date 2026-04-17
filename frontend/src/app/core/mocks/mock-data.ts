@@ -11,6 +11,7 @@ import { ReferenceData } from '@shared/models/reference-data.model';
 import {
   TransactionSummary,
   CategorySummary,
+  BalanceItem,
   MonthlySummary,
   AccountSummary,
 } from '@shared/models/report.model';
@@ -243,12 +244,22 @@ export const MOCK_TAGS: Tag[] = [
 // ---------------------------------------------------------------------------
 // User
 // ---------------------------------------------------------------------------
-export const MOCK_USER: UserProfile = {
-  id: 'mock-oid-pedro',
-  displayName: 'Demo Admin',
-  email: 'demo@example.org',
-  role: 'Admin',
-};
+export const MOCK_USERS: UserProfile[] = [
+  {
+    id: 'mock-oid-pedro',
+    displayName: 'Pedro',
+    email: 'pedro@example.org',
+    role: 'Admin',
+  },
+  {
+    id: 'mock-oid-srivas',
+    displayName: 'Sergio Rivas',
+    email: 'srivas@example.org',
+    role: 'Admin',
+  },
+];
+
+export const MOCK_USER: UserProfile = MOCK_USERS[1];
 
 // ---------------------------------------------------------------------------
 // Reference Data (combined)
@@ -367,6 +378,27 @@ export const MOCK_REPORT_BY_CATEGORY: CategorySummary[] = [
   { categoryId: CAT_EVENTOS, categoryName: 'Eventos', totalIncome: 5150.00, totalExpenses: 0 },
   { categoryId: CAT_GASTOS, categoryName: 'Gastos', totalIncome: 0, totalExpenses: 2170.60 },
   { categoryId: CAT_SUBVENCIONES, categoryName: 'Subvenciones', totalIncome: 5500.00, totalExpenses: 0 },
+];
+
+export const MOCK_REPORT_BALANCE: BalanceItem[] = [
+  { categoryId: 'uncategorized', categoryName: 'Uncategorized', income: 120.00, expense: 45.00, net: 75.00 },
+  { categoryId: CAT_ACTIVIDADES, categoryName: 'Actividades', subcategoryId: 'sub-talleres', subcategoryName: 'Talleres', income: 0, expense: 220.00, net: -220.00 },
+  { categoryId: CAT_ACTIVIDADES, categoryName: 'Actividades', subcategoryId: 'sub-terapias', subcategoryName: 'Terapias', income: 0, expense: 660.00, net: -660.00 },
+  { categoryId: CAT_ADMIN, categoryName: 'Administrativo', subcategoryId: 'sub-material', subcategoryName: 'Material oficina', income: 0, expense: 125.50, net: -125.50 },
+  { categoryId: CAT_ADMIN, categoryName: 'Administrativo', subcategoryId: 'sub-profesionales', subcategoryName: 'Servicios profesionales', income: 0, expense: 450.00, net: -450.00 },
+  { categoryId: CAT_ADMIN, categoryName: 'Administrativo', subcategoryId: 'sub-seguros', subcategoryName: 'Seguros', income: 0, expense: 1500.00, net: -1500.00 },
+  { categoryId: CAT_CUOTAS, categoryName: 'Cuotas', subcategoryId: 'sub-cuota-familias', subcategoryName: 'Cuota familias', income: 75.00, expense: 0, net: 75.00 },
+  { categoryId: CAT_CUOTAS, categoryName: 'Cuotas', subcategoryId: 'sub-cuota-socios', subcategoryName: 'Cuota socios', income: 100.00, expense: 0, net: 100.00 },
+  { categoryId: CAT_DONACIONES, categoryName: 'Donaciones', subcategoryId: 'sub-don-anonima', subcategoryName: 'Donaciones anónimas', income: 150.00, expense: 0, net: 150.00 },
+  { categoryId: CAT_DONACIONES, categoryName: 'Donaciones', subcategoryId: 'sub-don-empresa', subcategoryName: 'Donaciones empresas', income: 2500.00, expense: 0, net: 2500.00 },
+  { categoryId: CAT_DONACIONES, categoryName: 'Donaciones', subcategoryId: 'sub-don-individual', subcategoryName: 'Donaciones individuales', income: 285.00, expense: 0, net: 285.00 },
+  { categoryId: CAT_EVENTOS, categoryName: 'Eventos', subcategoryId: 'sub-charlas', subcategoryName: 'Charlas', income: 1950.00, expense: 0, net: 1950.00 },
+  { categoryId: CAT_EVENTOS, categoryName: 'Eventos', subcategoryId: 'sub-galas', subcategoryName: 'Galas benéficas', income: 3200.00, expense: 0, net: 3200.00 },
+  { categoryId: CAT_GASTOS, categoryName: 'Gastos', subcategoryId: 'sub-alquiler', subcategoryName: 'Alquiler', income: 0, expense: 1700.00, net: -1700.00 },
+  { categoryId: CAT_GASTOS, categoryName: 'Gastos', subcategoryId: 'sub-comunicacion', subcategoryName: 'Comunicación', income: 0, expense: 182.30, net: -182.30 },
+  { categoryId: CAT_GASTOS, categoryName: 'Gastos', subcategoryId: 'sub-suministros', subcategoryName: 'Suministros', income: 0, expense: 178.30, net: -178.30 },
+  { categoryId: CAT_GASTOS, categoryName: 'Gastos', subcategoryId: 'sub-transporte', subcategoryName: 'Transporte', income: 0, expense: 110.00, net: -110.00 },
+  { categoryId: CAT_SUBVENCIONES, categoryName: 'Subvenciones', subcategoryId: 'sub-subv-publica', subcategoryName: 'Subvenciones públicas', income: 5500.00, expense: 0, net: 5500.00 },
 ];
 
 export const MOCK_REPORT_MONTHLY: MonthlySummary[] = [

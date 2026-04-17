@@ -20,28 +20,33 @@ import {
 } from '@azure/msal-angular';
 import { Observable, of, Subject, BehaviorSubject } from 'rxjs';
 import { InteractionStatus, AccountInfo, IPublicClientApplication } from '@azure/msal-browser';
+import { MOCK_USERS } from './mock-data';
 
 // ---------------------------------------------------------------------------
 // Mock account that all MSAL stubs return
 // ---------------------------------------------------------------------------
-const MOCK_ACCOUNT: AccountInfo = {
-  homeAccountId: 'mock-home-id',
-  localAccountId: 'mock-oid-pedro',
+const MOCK_ACCOUNTS: AccountInfo[] = MOCK_USERS.map((user, index) => ({
+  homeAccountId: `mock-home-id-${index + 1}`,
+  localAccountId: user.id,
   environment: 'mock',
   tenantId: 'mock-tenant',
-  username: 'demo@example.org',
-  name: 'Demo Admin',
-};
+  username: user.email,
+  name: user.displayName,
+}));
 
 // ---------------------------------------------------------------------------
 // Stub MsalService
 // ---------------------------------------------------------------------------
 @Injectable()
 class MockMsalService {
+  private activeAccount: AccountInfo | null = MOCK_ACCOUNTS[1] ?? MOCK_ACCOUNTS[0] ?? null;
+
   instance = {
-    getAllAccounts: () => [MOCK_ACCOUNT],
-    getActiveAccount: () => MOCK_ACCOUNT,
-    setActiveAccount: () => { /* no-op in mock */ },
+    getAllAccounts: () => MOCK_ACCOUNTS,
+    getActiveAccount: () => this.activeAccount,
+    setActiveAccount: (account: AccountInfo | null) => {
+      this.activeAccount = account;
+    },
     acquireTokenSilent: () => Promise.resolve({ accessToken: 'mock-token' }),
   } as unknown as IPublicClientApplication;
 
