@@ -205,6 +205,7 @@ export const EN_LABELS: AppLabels = {
   importPickSheetFirst: 'Preview the selected sheet to continue.',
   importDuplicateDetails: (n: number) => `Duplicates to skip (${n}) — click to inspect`,
   importDuplicateRow: 'Row',
+  importIncludeDuplicates: 'Import these duplicates anyway',
   // --- Phase 1: Transaction Type ---
   transactionType: 'Transaction type',
   incomeOption: 'Income',

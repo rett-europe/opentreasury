@@ -206,6 +206,7 @@ export interface AppLabels {
   importPickSheetFirst: string;
   importDuplicateDetails: (n: number) => string;
   importDuplicateRow: string;
+  importIncludeDuplicates: string;
   // --- Phase 1: Transaction Type ---
   transactionType: string;
   incomeOption: string;

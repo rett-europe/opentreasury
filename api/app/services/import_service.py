@@ -67,6 +67,7 @@ class ImportService:
         *,
         account_id: str,
         sheet: str | None = None,
+        skip_duplicates: bool = True,
     ) -> dict:
         """Validate workbook without writing. Returns preview with valid flag, errors, and counts.
 
@@ -315,7 +316,7 @@ class ImportService:
         duplicate_rows: list[dict] = []
         transactions_to_import = 0
 
-        if valid_dates and account_info.get("id"):
+        if skip_duplicates and valid_dates and account_info.get("id"):
             existing_txns = await self._transactions.get_transactions_for_export(
                 date_from=min(valid_dates).isoformat(),
                 date_to=max(valid_dates).isoformat(),
@@ -513,6 +514,7 @@ class ImportService:
         user_id: str,
         user_name: str,
         sheet: str | None = None,
+        skip_duplicates: bool = True,
     ) -> dict:
         workbook = self._load_workbook(workbook_bytes)
 
@@ -580,6 +582,7 @@ class ImportService:
             user_id=user_id,
             user_name=user_name,
             summary=summary,
+            skip_duplicates=skip_duplicates,
         )
 
         return {
@@ -1030,6 +1033,7 @@ class ImportService:
         user_id: str,
         user_name: str,
         summary: ImportSummary,
+        skip_duplicates: bool = True,
     ) -> None:
         raw_rows = list(sheet.iter_rows(min_row=header_row + 1, values_only=True))
         rows = [r for r in raw_rows if any(v not in (None, "") for v in r)]
@@ -1109,7 +1113,7 @@ class ImportService:
                 detail,
                 amount,
             )
-            if identity in imported_keys:
+            if identity in imported_keys and skip_duplicates:
                 summary.duplicates_skipped += 1
                 continue
 

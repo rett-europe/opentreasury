@@ -7,11 +7,12 @@ import { ExcelImportSummary, ImportPreview } from '@shared/models/import.model';
 export class ImportService {
   private readonly api = inject(ApiService);
 
-  preview(file: File, accountId: string, sheet?: string): Observable<ImportPreview> {
+  preview(file: File, accountId: string, sheet?: string, skipDuplicates = true): Observable<ImportPreview> {
     const formData = new FormData();
     formData.append('file', file);
     const params: Record<string, string | undefined> = { accountId };
     if (sheet) params['sheet'] = sheet;
+    if (!skipDuplicates) params['skipDuplicates'] = 'false';
     return this.api.post<ImportPreview>('/imports/preview', formData, params);
   }
 
@@ -20,6 +21,7 @@ export class ImportService {
     accountId: string,
     categoryTypeOverrides?: Record<string, string>,
     sheet?: string,
+    skipDuplicates = true,
   ): Observable<ExcelImportSummary> {
     const formData = new FormData();
     formData.append('file', file);
@@ -28,6 +30,7 @@ export class ImportService {
     }
     const params: Record<string, string | undefined> = { accountId };
     if (sheet) params['sheet'] = sheet;
+    if (!skipDuplicates) params['skipDuplicates'] = 'false';
     return this.api.post<ExcelImportSummary>('/imports/workbook', formData, params);
   }
 }

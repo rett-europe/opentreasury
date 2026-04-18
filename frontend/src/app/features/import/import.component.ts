@@ -2,6 +2,7 @@ import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@a
 import { MatButtonModule } from '@angular/material/button';
 import { MatButtonToggleModule } from '@angular/material/button-toggle';
 import { MatCardModule } from '@angular/material/card';
+import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatChipsModule } from '@angular/material/chips';
 import { MatExpansionModule } from '@angular/material/expansion';
 import { MatFormFieldModule } from '@angular/material/form-field';
@@ -25,6 +26,7 @@ import { PageHeaderComponent } from '@shared/components/page-header/page-header.
     MatButtonModule,
     MatButtonToggleModule,
     MatCardModule,
+    MatCheckboxModule,
     MatChipsModule,
     MatExpansionModule,
     MatFormFieldModule,
@@ -282,12 +284,20 @@ import { PageHeaderComponent } from '@shared/components/page-header/page-header.
                       <tr>
                         <td>{{ dup.row }}</td>
                         <td>{{ dup.date ?? '—' }}</td>
-                        <td>{{ dup.amount != null ? dup.amount : '—' }}</td>
+                        <td>{{ dup.amount !== null ? dup.amount : '—' }}</td>
                         <td class="dup-desc">{{ dup.description ?? '—' }}</td>
                       </tr>
                     }
                   </tbody>
                 </table>
+                <div class="include-duplicates-row">
+                  <mat-checkbox
+                    [checked]="includeDuplicates()"
+                    (change)="onIncludeDuplicatesToggle($event.checked)"
+                  >
+                    {{ settings.labels().importIncludeDuplicates }}
+                  </mat-checkbox>
+                </div>
               </mat-expansion-panel>
             }
 
@@ -698,6 +708,12 @@ import { PageHeaderComponent } from '@shared/components/page-header/page-header.
       white-space: nowrap;
     }
 
+    .include-duplicates-row {
+      margin-top: var(--spc-12);
+      padding-top: var(--spc-8);
+      border-top: 1px solid var(--clr-border-light, #f0f0f0);
+    }
+
     .sheet-radio-group {
       display: flex;
       flex-direction: column;
@@ -782,6 +798,8 @@ export class ImportComponent {
    * preview"). Cleared whenever the file/account selection is reset.
    */
   readonly discovery = signal<{ candidates: CandidateSheet[]; ignored: IgnoredSheet[] } | null>(null);
+  /** When true, duplicate detection is skipped — all rows are imported. */
+  readonly includeDuplicates = signal(false);
 
   readonly activeAccounts = computed(() => this.refData.accounts().filter(a => a.isActive));
   readonly categoryCount = computed(() => this.refData.categories().length);
@@ -860,6 +878,12 @@ export class ImportComponent {
     }
   }
 
+  onIncludeDuplicatesToggle(checked: boolean): void {
+    this.includeDuplicates.set(checked);
+    // Re-run preview with the new flag so counts update immediately
+    this.runPreview();
+  }
+
   ignoredReasonLabel(ig: IgnoredSheet): string {
     if (ig.reason === 'empty') return this.settings.labels().importSheetReasonEmpty;
     if (ig.reason === 'missing_required_headers') {
@@ -892,7 +916,7 @@ export class ImportComponent {
     this.error.set(null);
     this.categoryTypeSelections.set({});
 
-    this.importService.preview(file, accountId, pickerSheet ?? undefined).subscribe({
+    this.importService.preview(file, accountId, pickerSheet ?? undefined, !this.includeDuplicates()).subscribe({
       next: (result) => {
         this.preview.set(result);
         // Capture the discovery payload the first time the backend offers one
@@ -943,7 +967,7 @@ export class ImportComponent {
     this.error.set(null);
 
     const overrides = this.buildCategoryTypeOverrides();
-    this.importService.importWorkbook(file, accountId, overrides, validatedSheet).subscribe({
+    this.importService.importWorkbook(file, accountId, overrides, validatedSheet, !this.includeDuplicates()).subscribe({
       next: (result) => {
         this.summary.set(result);
         this.preview.set(null);
@@ -1002,6 +1026,7 @@ export class ImportComponent {
     this.categoryTypeSelections.set({});
     this.selectedSheetForPicker.set(null);
     this.discovery.set(null);
+    this.includeDuplicates.set(false);
   }
 
   maskIban(iban: string): string {

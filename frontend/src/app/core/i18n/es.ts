@@ -205,6 +205,7 @@ export const ES_LABELS: AppLabels = {
   importPickSheetFirst: 'Previsualiza la hoja seleccionada para continuar.',
   importDuplicateDetails: (n: number) => `Duplicados a omitir (${n}) — clic para inspeccionar`,
   importDuplicateRow: 'Fila',
+  importIncludeDuplicates: 'Importar estos duplicados de todas formas',
   // --- Phase 1: Transaction Type ---
   transactionType: 'Tipo de movimiento',
   incomeOption: 'Ingreso',
