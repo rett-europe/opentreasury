@@ -28,6 +28,13 @@ export interface IgnoredSheet {
   missing?: string[];
 }
 
+export interface DuplicateRow {
+  row: number;
+  date: string | null;
+  amount: number | null;
+  description: string | null;
+}
+
 /**
  * Discovery payload returned by /imports/preview when the workbook has 2+
  * candidate movement sheets and no `sheet` query param was provided.
@@ -47,6 +54,7 @@ export interface ImportPreview {
   newSubcategories: NewSubcategoryPreview[];
   transactionsToImport: number;
   duplicatesToSkip: number;
+  duplicateRows: DuplicateRow[];
   requiresSheetSelection: boolean;
   selectedSheet: string | null;
   availableSheets: string[];

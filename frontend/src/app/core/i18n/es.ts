@@ -203,6 +203,8 @@ export const ES_LABELS: AppLabels = {
   importSheetReasonEmpty: 'la hoja está vacía',
   importSheetSelectionRequired: 'Selecciona una hoja',
   importPickSheetFirst: 'Previsualiza la hoja seleccionada para continuar.',
+  importDuplicateDetails: (n: number) => `Duplicados a omitir (${n}) — clic para inspeccionar`,
+  importDuplicateRow: 'Fila',
   // --- Phase 1: Transaction Type ---
   transactionType: 'Tipo de movimiento',
   incomeOption: 'Ingreso',

@@ -476,6 +476,13 @@ class CandidateSheet(CamelModel):
     header_row: int = 0
 
 
+class DuplicateRow(CamelModel):
+    row: int
+    date: Optional[str] = None
+    amount: Optional[float] = None
+    description: Optional[str] = None
+
+
 class ImportPreview(CamelModel):
     valid: bool
     import_mode: str = "full"
@@ -488,6 +495,7 @@ class ImportPreview(CamelModel):
     new_subcategories: list[NewSubcategoryPreview] = []
     transactions_to_import: int = 0
     duplicates_to_skip: int = 0
+    duplicate_rows: list[DuplicateRow] = []
     requires_sheet_selection: bool = False
     selected_sheet: Optional[str] = None
     available_sheets: list[str] = []

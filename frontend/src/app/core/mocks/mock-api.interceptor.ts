@@ -338,6 +338,7 @@ export const mockApiInterceptor: HttpInterceptorFn = (req, next) => {
         newSubcategories: [],
         transactionsToImport: 0,
         duplicatesToSkip: 0,
+        duplicateRows: [],
         selectedSheet: null,
         availableSheets: ['Movimientos 2026', 'Movimientos 2025'],
       };
@@ -364,6 +365,11 @@ export const mockApiInterceptor: HttpInterceptorFn = (req, next) => {
       newSubcategories: [{ categoryName: 'Donaciones', name: 'Donación Particular' }],
       transactionsToImport: 22,
       duplicatesToSkip: 3,
+      duplicateRows: [
+        { row: 5, date: '2026-01-15', amount: -45.00, description: 'RECIBO LUZ ENDESA' },
+        { row: 12, date: '2026-02-01', amount: -120.50, description: 'TRANSFERENCIA ALQUILER' },
+        { row: 18, date: '2026-02-15', amount: 1500.00, description: 'NOMINA EMPRESA XYZ' },
+      ],
       requiresSheetSelection: false,
       selectedSheet: sheet,
       availableSheets: ['Movimientos 2026', 'Movimientos 2025'],

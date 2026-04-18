@@ -312,6 +312,7 @@ class ImportService:
         ]
 
         duplicates_to_skip = 0
+        duplicate_rows: list[dict] = []
         transactions_to_import = 0
 
         if valid_dates and account_info.get("id"):
@@ -330,7 +331,7 @@ class ImportService:
                 for item in existing_txns
             }
             seen_keys = set(existing_keys)
-            for row in rows:
+            for row_offset, row in enumerate(rows, start=header_row + 1):
                 tx_date = self._to_date(self._cell(row, headers.get("date")))
                 amount = self._to_decimal(self._cell(row, headers.get("amount")))
                 desc = self._string_value(self._cell(row, headers.get("description")))
@@ -343,6 +344,14 @@ class ImportService:
                 )
                 if identity in seen_keys:
                     duplicates_to_skip += 1
+                    duplicate_rows.append(
+                        {
+                            "row": row_offset,
+                            "date": tx_date.isoformat() if tx_date else None,
+                            "amount": float(amount) if amount is not None else None,
+                            "description": self._truncate(desc, 120),
+                        }
+                    )
                 else:
                     transactions_to_import += 1
                     seen_keys.add(identity)
@@ -360,6 +369,7 @@ class ImportService:
             new_subcategories=new_subcategories,
             transactions_to_import=transactions_to_import,
             duplicates_to_skip=duplicates_to_skip,
+            duplicate_rows=duplicate_rows,
             **sheet_meta,
         )
 
@@ -377,6 +387,7 @@ class ImportService:
         new_subcategories: list[dict] | None = None,
         transactions_to_import: int = 0,
         duplicates_to_skip: int = 0,
+        duplicate_rows: list[dict] | None = None,
         selected_sheet: str | None = None,
         available_sheets: list[str] | None = None,
         ignored_sheets: list[dict] | None = None,
@@ -393,6 +404,7 @@ class ImportService:
             "newSubcategories": new_subcategories or [],
             "transactionsToImport": transactions_to_import,
             "duplicatesToSkip": duplicates_to_skip,
+            "duplicateRows": duplicate_rows or [],
             "requiresSheetSelection": False,
             "selectedSheet": selected_sheet,
             "availableSheets": available_sheets or [],
@@ -431,6 +443,7 @@ class ImportService:
             "newSubcategories": [],
             "transactionsToImport": 0,
             "duplicatesToSkip": 0,
+            "duplicateRows": [],
             "selectedSheet": None,
             "availableSheets": [c["name"] for c in candidates],
         }

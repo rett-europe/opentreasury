@@ -204,6 +204,8 @@ export interface AppLabels {
   importSheetReasonEmpty: string;
   importSheetSelectionRequired: string;
   importPickSheetFirst: string;
+  importDuplicateDetails: (n: number) => string;
+  importDuplicateRow: string;
   // --- Phase 1: Transaction Type ---
   transactionType: string;
   incomeOption: string;

@@ -260,6 +260,37 @@ import { PageHeaderComponent } from '@shared/components/page-header/page-header.
               </div>
             </div>
 
+            @if (preview()!.duplicateRows.length) {
+              <mat-expansion-panel class="duplicates-panel">
+                <mat-expansion-panel-header>
+                  <mat-panel-title>
+                    <mat-icon class="inline-icon">content_copy</mat-icon>
+                    {{ settings.labels().importDuplicateDetails(preview()!.duplicateRows.length) }}
+                  </mat-panel-title>
+                </mat-expansion-panel-header>
+                <table class="duplicates-table">
+                  <thead>
+                    <tr>
+                      <th>{{ settings.labels().importDuplicateRow }}</th>
+                      <th>{{ settings.labels().date }}</th>
+                      <th>{{ settings.labels().amount }}</th>
+                      <th>{{ settings.labels().description }}</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    @for (dup of preview()!.duplicateRows; track dup.row) {
+                      <tr>
+                        <td>{{ dup.row }}</td>
+                        <td>{{ dup.date ?? '—' }}</td>
+                        <td>{{ dup.amount != null ? dup.amount : '—' }}</td>
+                        <td class="dup-desc">{{ dup.description ?? '—' }}</td>
+                      </tr>
+                    }
+                  </tbody>
+                </table>
+              </mat-expansion-panel>
+            }
+
             @if (preview()!.importMode !== 'bank' && preview()!.newCategories.length) {
               <!-- Full mode: categories from sheet -->
               @if (preview()!.importMode === 'full') {
@@ -632,6 +663,39 @@ import { PageHeaderComponent } from '@shared/components/page-header/page-header.
     .sheet-selector-card {
       border-left: 4px solid var(--brand-primary);
       margin-bottom: var(--spc-16);
+    }
+
+    .duplicates-panel {
+      margin-top: var(--spc-8);
+      margin-bottom: var(--spc-8);
+      box-shadow: none;
+      background: var(--brand-surface);
+    }
+
+    .duplicates-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: var(--font-sm);
+    }
+
+    .duplicates-table th {
+      text-align: left;
+      font-weight: var(--fw-semibold);
+      padding: var(--spc-4) var(--spc-8);
+      border-bottom: 1px solid var(--clr-border, #e0e0e0);
+      color: var(--clr-text-muted);
+    }
+
+    .duplicates-table td {
+      padding: var(--spc-4) var(--spc-8);
+      border-bottom: 1px solid var(--clr-border-light, #f0f0f0);
+    }
+
+    .dup-desc {
+      max-width: 300px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
     }
 
     .sheet-radio-group {
