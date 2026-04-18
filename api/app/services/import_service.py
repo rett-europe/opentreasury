@@ -763,13 +763,35 @@ class ImportService:
 
     @staticmethod
     def _sheet_is_empty(sheet) -> bool:
-        """Return True if the sheet has no non-empty cell value."""
-        for row in sheet.iter_rows(values_only=True):
+        """Return True if the sheet has no non-empty cell value.
+
+        The check is intentionally bounded so sheet discovery stays cheap even
+        for worksheets with very large used ranges. We scan only an initial
+        window of cells; if the worksheet fits entirely inside that window and
+        no values are found, it is empty. For larger worksheets, absence of a
+        value in the sampled region is treated conservatively as non-empty.
+        """
+        max_row = sheet.max_row or 0
+        max_col = sheet.max_column or 0
+
+        if max_row == 0 or max_col == 0:
+            return True
+
+        row_limit = min(max_row, 50)
+        col_limit = min(max_col, 20)
+
+        for row in sheet.iter_rows(
+            min_row=1,
+            max_row=row_limit,
+            min_col=1,
+            max_col=col_limit,
+            values_only=True,
+        ):
             for value in row:
                 if value not in (None, ""):
                     return False
-        return True
 
+        return max_row <= row_limit and max_col <= col_limit
     def _collect_known_headers(self, sheet) -> set[str]:
         """Return the set of canonical header keys found in the first 12 rows.
 
