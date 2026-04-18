@@ -136,7 +136,11 @@ class TestProtocolConformance:
 
 
 class TestSqliteSkeletonsRaiseNotImplemented:
-    """Phase A skeletons must raise NotImplementedError, not silently no-op."""
+    """Phase A skeletons must raise NotImplementedError, not silently no-op.
+
+    As Phase B implements each repo, the corresponding assertion is removed.
+    Anything still listed here is provably unimplemented.
+    """
 
     @pytest.mark.asyncio
     async def test_transaction_methods_raise(self):
@@ -151,15 +155,3 @@ class TestSqliteSkeletonsRaiseNotImplemented:
         repo = SqliteCategoryRepository()
         with pytest.raises(NotImplementedError):
             await repo.list_all()
-
-    @pytest.mark.asyncio
-    async def test_audit_methods_raise(self):
-        repo = SqliteAuditRepository()
-        with pytest.raises(NotImplementedError):
-            await repo.create({})
-
-    @pytest.mark.asyncio
-    async def test_user_preferences_methods_raise(self):
-        repo = SqliteUserPreferencesRepository()
-        with pytest.raises(NotImplementedError):
-            await repo.get("oid")
