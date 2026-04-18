@@ -5,7 +5,18 @@
 **Date:** 2026-04-17
 **Issue:** [#12](https://github.com/rett-europe/opentreasury/issues/12) — Add configuration feature to the application
 **Branch:** `copilot/issue-12-create-new-spec`
-**Status:** Draft — pending Pedro's approval
+**Status:** **Approved** — 2026-04-18 by Pedro, with amendments A1 + A2 (see §13). Architecturally signed off by Neo.
+
+### Resolved Open Questions (2026-04-18)
+
+Pedro accepted Neo's recommendations on all six open questions from §14:
+
+- **OQ-1:** New page is **"Settings"**; existing right-drawer is renamed to **"Preferences"**.
+- **OQ-2:** Ship V1 with the 4-currency short list (`EUR`, `USD`, `GBP`, `CHF`). Easy to extend later.
+- **OQ-3:** Include **Fiscal year start month** in V1 even though no consumer uses it yet (avoids a later schema migration).
+- **OQ-4:** `organizationName` surfaces in **browser tab title + export filenames only**. Not added to the toolbar.
+- **OQ-5:** No external compliance need for an audit log. `updatedAt` + `updatedBy` on the document is sufficient for V1.
+- **OQ-6:** No additional settings for V1 beyond the 6 listed in §3.
 
 ---
 
@@ -418,6 +429,13 @@ Existing drawer label copy:
 ## 13. Implementation Notes (for Morpheus / Neo / Trinity)
 
 Not binding — Niobe's cheat sheet for the implementers.
+
+### Approved amendments (Neo, 2026-04-18)
+
+These two amendments were added at spec-approval time and **are binding**:
+
+- **A1 — Server-authoritative `updatedAt` / `updatedBy`.** The `PUT /api/settings` handler must set `updatedAt` from the server clock (UTC, ISO 8601) and `updatedBy` from the authenticated principal — never trust client-supplied values. Both fields are returned in the `PUT` and `GET` responses so the UI shows the canonical timestamp and last editor without a follow-up read. Even though §11 defers ETag/optimistic concurrency, this keeps the door open for adding `If-Match` later without a data-shape change.
+- **A2 — Bootstrap ordering: settings load before first format-sensitive render.** `SystemSettingsService.load()` must complete (success or fall-back to defaults) **before** the first transaction list / dashboard / KPI strip render. Otherwise users will see a flash of `€` followed by a swap to `$` (or `DD/MM/YYYY` → `YYYY-MM-DD`). Trinity picks the mechanism — either gate the router outlet on a "core data loaded" signal, or have the affected pipes render an empty placeholder until `currencyCode()` / `dateFormatToken()` are non-null. The `GET /api/settings` failure path (§11 row 2) still applies — fall back to defaults rather than blocking the app indefinitely.
 
 ### Backend (Morpheus)
 - New module `api/app/models/system_settings.py` — pydantic schema with enums for currency/dateFormat/numberFormat.

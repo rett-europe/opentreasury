@@ -2,6 +2,20 @@
 
 ## Active Decisions
 
+### 2026-04-18: System Settings spec approved (Issue #12)
+**By:** Pedro (approval) + Neo (architectural review)
+**What:** `docs/specs/system-settings-spec.md` is **Approved**. V1 ships 6 settings (Currency, Date format, Number format, Fiscal year start, Default language, Organization name) stored as a singleton `id="system"` document in the existing `reference_data` Cosmos container (pk `/type`). New `GET`/`PUT /api/settings` endpoints; PUT is admin-only. New left-menu **Settings** entry behind `adminGuard`. Existing right-side drawer is renamed to **Preferences** (label change only).
+
+Two binding amendments folded into spec §13:
+- **A1:** `PUT /api/settings` writes `updatedAt` (server clock, UTC ISO 8601) and `updatedBy` (authenticated principal) server-side — never trust client values. Both fields are returned in `GET` and `PUT` responses. Keeps the door open for ETag/optimistic concurrency later without a data-shape change.
+- **A2:** `SystemSettingsService.load()` must complete (or fall back to defaults) before the first format-sensitive render (transactions list, dashboard, KPI strip). Avoids flash-of-wrong-currency / wrong-date-format. Trinity picks the mechanism (router-outlet gate or pipe-level placeholder).
+
+Open questions OQ-1…OQ-6 all resolved per Neo's recommendations: page="Settings"/drawer="Preferences"; 4-currency short list (EUR/USD/GBP/CHF); fiscal year stored now to avoid migration; org name surfaces in browser tab title + export filenames only; `updatedAt`+`updatedBy` is sufficient audit for V1; no extra V1 settings.
+
+**Why:** Reuses existing infrastructure (no Bicep / `CosmosService` / new container), preserves Single Responsibility between per-org `SystemSettingsService` and per-user `AppSettingsService`, ships smallest useful set without forcing a follow-up spec.
+
+**Routing on approval:** Morpheus (backend), Trinity (frontend), Cypher (tests for AC-1…AC-15) in parallel; Switch courtesy review of the admin-only PUT; Neo reviews implementation PRs against the spec before merge.
+
 ### 2026-04-10: Project kickoff
 **By:** Pedro (user)
 **What:** OpenTreasury — open-source bank transaction management for NGOs. Angular frontend, Microsoft Entra ID auth (configurable tenant), Python FastAPI backend with Cosmos DB. Transaction tracking with categories/subcategories.
@@ -246,6 +260,33 @@
 **What:** The setup scripts (`setup-azure.sh` and `setup-azure.ps1`) still print a legacy GitHub Secrets table that includes `AZURE_CREDENTIALS` and doesn't distinguish Secrets vs Variables. The deploy-template README documents the spec's correct classification: 1 GitHub Secret (`AZURE_STATIC_WEB_APPS_API_TOKEN`) + 8 GitHub Variables. The scripts need updating so their output matches the README 1:1.
 **Why:** Adopter UX — script output is the single source of truth during provisioning. Mismatch causes confusion.
 **Action needed:** Update Step 9 output in both scripts to print two separate tables (Secrets and Variables), matching the exact names documented in the README.
+
+### 2026-04-18: System Settings (Issue #12) — main-alignment decisions
+
+**By:** Neo (Lead / Architect)
+**What:** Implementation of the approved System Settings spec needs three precision amendments to land cleanly on main as it stands today (Balance section, Date range filter, Split transactions, and auth refactor `cab41d5` all merged after spec approval). Spec core is intact — these clarify rendering rules.
+- **A3 — Date format token mapping table.** Persisted tokens (`DD/MM/YYYY`, `MM/DD/YYYY`, `YYYY-MM-DD`, `DD MMM YYYY`) → Angular `DatePipe` patterns (`dd/MM/yyyy`, `MM/dd/yyyy`, `yyyy-MM-dd`, `dd MMM yyyy`). Centralised in a single `DateFormatPipe` in `core/pipes/`. Owners: Trinity, Cypher.
+- **A4 — Export filenames always ISO `YYYY-MM-DD`** regardless of the `dateFormat` setting. The display preference must not bleed into filenames (avoids `/` and spaces breaking Windows/macOS). Owners: Trinity (frontend), Morpheus (any backend-built filenames).
+- **A5 — Currency pipe call shape standard.** All Angular currency pipes use `currency : codeSignal() : 'symbol' : '1.2-2'` (four arguments). Owners: Trinity, Cypher.
+
+**Bootstrap mechanism for A2:** `APP_INITIALIZER` in `app.config.ts`, with a 1.5 s timeout inside `SystemSettingsService.load()` to fall back to defaults rather than stall app boot.
+
+**Cosmos container:** Reuse existing `reference_data` container with `id="system"`, `partitionKey="system_settings"`. Saves RU floor cost vs a new `system_config` container; consistent with `accounts`/`tags` precedent.
+
+**Affects:** Trinity, Morpheus, Cypher, Switch.
+**Companion docs:** `docs/specs/system-settings-main-alignment-delta.md`, `docs/specs/system-settings-frontend-scoping.md`, `docs/specs/system-settings-backend-scoping.md`, `docs/specs/system-settings-security-review.md`.
+
+### 2026-04-18: System Settings — admin-only PUT enforcement (security)
+
+**By:** Switch (Security Engineer)
+**What:**
+- `PUT /api/settings` MUST use `Depends(get_current_admin)`; `GET /api/settings` MUST use `Depends(get_current_user)` (any authenticated user — viewers need currency/date format to render the app).
+- `updatedBy` MUST be the JWT `oid` claim, never client-supplied. `updatedAt` MUST be the server clock in UTC ISO 8601, never client-supplied.
+- The Pydantic update DTO MUST use `model_config = ConfigDict(extra="forbid")` to reject any client-supplied audit fields with HTTP 422 (defense-in-depth layer 1). The service MUST also overwrite `updated_at` and `updated_by` from server-supplied parameters (defense-in-depth layer 2).
+
+**Why:** Frontend `adminGuard` is a UX convenience; the backend is the enforcement boundary. A1 requires server-authoritative audit fields; the two-layer defense ensures the audit trail cannot be poisoned even if the schema were ever loosened. Auth refactor `cab41d5` is security-positive (removed dev-mode mock); no regression to existing admin model.
+**Sign-off conditions:** the 10 MUSTs in `docs/specs/system-settings-security-review.md` §6, with corresponding tests, plus clean lint/format.
+**Affects:** Morpheus (backend implementation + tests), Trinity (frontend route + sidenav guard), Cypher (test coverage).
 
 ## Governance
 
