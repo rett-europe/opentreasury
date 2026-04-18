@@ -720,13 +720,16 @@ class ImportService:
                     # Compute which required headers were not seen anywhere in the
                     # candidate header zone (first 12 rows), so the UI can tell the
                     # user *which* columns to add — not just that some are missing.
+                    # (`missing` cannot be empty here: if both required headers were
+                    # present in any of the first 12 rows, `_find_header_row` would
+                    # have succeeded and we wouldn't be in this branch.)
                     found = self._collect_known_headers(sheet)
                     missing = sorted(REQUIRED_HEADERS - found)
                     ignored.append(
                         {
                             "name": sheet.title,
                             "reason": "missing_required_headers",
-                            "missing": missing or sorted(REQUIRED_HEADERS),
+                            "missing": missing,
                         }
                     )
                 continue
