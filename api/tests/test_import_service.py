@@ -1079,9 +1079,7 @@ class TestMultiSheetSelection:
     async def test_multi_candidate_workbook_order_preserved(self):
         """Pedro's archive: candidates appear in workbook order (newest year first)."""
         service, _, _, _ = await build_service()
-        wb_bytes = make_multi_sheet_bytes(
-            [("Movimientos 2026", 1), ("Movimientos 2025", 1), ("Movimientos 2024", 1)]
-        )
+        wb_bytes = make_multi_sheet_bytes([("Movimientos 2026", 1), ("Movimientos 2025", 1), ("Movimientos 2024", 1)])
         result = await service.preview_workbook(wb_bytes, account_id="acc-1")
 
         names = [c["name"] for c in result["candidateSheets"]]
@@ -1226,9 +1224,7 @@ class TestMultiSheetSelection:
         txn_svc.create_transaction.return_value = {"id": "tx-1"}
 
         wb_bytes = make_multi_sheet_bytes([("First", 2), ("Second", 5)])
-        result = await service.import_workbook(
-            wb_bytes, account_id="acc-1", user_id=USER_ID, user_name=USER_NAME
-        )
+        result = await service.import_workbook(wb_bytes, account_id="acc-1", user_id=USER_ID, user_name=USER_NAME)
 
         assert result["selectedSheet"] == "First"
         assert result["transactionsImported"] == 2
