@@ -23,9 +23,7 @@ class SqliteTransactionRepository:
         page_size: int = 50,
         continuation_token: str | None = None,
     ) -> tuple[list[dict], str | None]:
-        raise NotImplementedError(
-            "SqliteTransactionRepository.list_by_partition — Phase B"
-        )
+        raise NotImplementedError("SqliteTransactionRepository.list_by_partition — Phase B")
 
     async def get_by_id(self, item_id: str, partition_key: str) -> dict | None:
         raise NotImplementedError("SqliteTransactionRepository.get_by_id — Phase B")
@@ -42,9 +40,7 @@ class SqliteTransactionRepository:
         month: int | None = None,
         account_id: str | None = None,
     ) -> list[dict]:
-        raise NotImplementedError(
-            "SqliteTransactionRepository.query_for_report — Phase B"
-        )
+        raise NotImplementedError("SqliteTransactionRepository.query_for_report — Phase B")
 
     async def query_for_export(
         self,
@@ -53,24 +49,16 @@ class SqliteTransactionRepository:
         account_id: str | None = None,
         category_id: str | None = None,
     ) -> list[dict]:
-        raise NotImplementedError(
-            "SqliteTransactionRepository.query_for_export — Phase B"
-        )
+        raise NotImplementedError("SqliteTransactionRepository.query_for_export — Phase B")
 
     async def count_by_account(self, account_id: str) -> int:
-        raise NotImplementedError(
-            "SqliteTransactionRepository.count_by_account — Phase B"
-        )
+        raise NotImplementedError("SqliteTransactionRepository.count_by_account — Phase B")
 
     async def count_by_category(self, category_id: str) -> int:
-        raise NotImplementedError(
-            "SqliteTransactionRepository.count_by_category — Phase B"
-        )
+        raise NotImplementedError("SqliteTransactionRepository.count_by_category — Phase B")
 
     async def count_by_subcategory(self, category_id: str, subcategory_id: str) -> int:
-        raise NotImplementedError(
-            "SqliteTransactionRepository.count_by_subcategory — Phase B"
-        )
+        raise NotImplementedError("SqliteTransactionRepository.count_by_subcategory — Phase B")
 
     async def count_by_tag(self, tag_id: str) -> int:
         raise NotImplementedError("SqliteTransactionRepository.count_by_tag — Phase B")
@@ -82,6 +70,4 @@ class SqliteTransactionRepository:
         filters: dict | None = None,
         include_deleted: bool = False,
     ) -> dict:
-        raise NotImplementedError(
-            "SqliteTransactionRepository.aggregate_filtered — Phase B"
-        )
+        raise NotImplementedError("SqliteTransactionRepository.aggregate_filtered — Phase B")

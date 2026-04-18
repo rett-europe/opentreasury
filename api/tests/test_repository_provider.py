@@ -60,9 +60,7 @@ class TestDefaultBackendIsCosmos:
         assert isinstance(deps.get_reference_item_repo(), CosmosReferenceItemRepository)
         assert isinstance(deps.get_category_repo(), CosmosCategoryRepository)
         assert isinstance(deps.get_audit_repo(), CosmosAuditRepository)
-        assert isinstance(
-            deps.get_user_preferences_repo(), CosmosUserPreferencesRepository
-        )
+        assert isinstance(deps.get_user_preferences_repo(), CosmosUserPreferencesRepository)
 
 
 class TestSqliteBackendSelection:
@@ -74,9 +72,7 @@ class TestSqliteBackendSelection:
         assert isinstance(deps.get_reference_item_repo(), SqliteReferenceItemRepository)
         assert isinstance(deps.get_category_repo(), SqliteCategoryRepository)
         assert isinstance(deps.get_audit_repo(), SqliteAuditRepository)
-        assert isinstance(
-            deps.get_user_preferences_repo(), SqliteUserPreferencesRepository
-        )
+        assert isinstance(deps.get_user_preferences_repo(), SqliteUserPreferencesRepository)
 
 
 class TestSingletonStability:
@@ -103,12 +99,9 @@ class TestProtocolConformance:
             if name.startswith("_") or not callable(member):
                 continue
             attr = getattr(instance, name, None)
-            assert (
-                attr is not None
-            ), f"{instance.__class__.__name__} missing method {name}"
+            assert attr is not None, f"{instance.__class__.__name__} missing method {name}"
             assert iscoroutinefunction(attr), (
-                f"{instance.__class__.__name__}.{name} must be async to satisfy "
-                f"{protocol_cls.__name__}"
+                f"{instance.__class__.__name__}.{name} must be async to satisfy " f"{protocol_cls.__name__}"
             )
 
     def test_cosmos_transaction_repo_satisfies_protocol(self):
@@ -124,14 +117,10 @@ class TestProtocolConformance:
         self._assert_implements(SqliteCategoryRepository(), CategoryRepository)
 
     def test_cosmos_reference_item_repo_satisfies_protocol(self):
-        self._assert_implements(
-            CosmosReferenceItemRepository(), ReferenceItemRepository
-        )
+        self._assert_implements(CosmosReferenceItemRepository(), ReferenceItemRepository)
 
     def test_sqlite_reference_item_repo_satisfies_protocol(self):
-        self._assert_implements(
-            SqliteReferenceItemRepository(), ReferenceItemRepository
-        )
+        self._assert_implements(SqliteReferenceItemRepository(), ReferenceItemRepository)
 
     def test_cosmos_audit_repo_satisfies_protocol(self):
         self._assert_implements(CosmosAuditRepository(), AuditRepository)
@@ -140,14 +129,10 @@ class TestProtocolConformance:
         self._assert_implements(SqliteAuditRepository(), AuditRepository)
 
     def test_cosmos_user_preferences_repo_satisfies_protocol(self):
-        self._assert_implements(
-            CosmosUserPreferencesRepository(), UserPreferencesRepository
-        )
+        self._assert_implements(CosmosUserPreferencesRepository(), UserPreferencesRepository)
 
     def test_sqlite_user_preferences_repo_satisfies_protocol(self):
-        self._assert_implements(
-            SqliteUserPreferencesRepository(), UserPreferencesRepository
-        )
+        self._assert_implements(SqliteUserPreferencesRepository(), UserPreferencesRepository)
 
 
 class TestSqliteSkeletonsRaiseNotImplemented:

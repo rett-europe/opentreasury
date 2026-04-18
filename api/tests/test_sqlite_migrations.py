@@ -32,7 +32,6 @@ from app.repositories.sqlite.migrations.runner import (
     upgrade_to_head,
 )
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
@@ -47,9 +46,7 @@ def fresh_db_path(tmp_path: Path) -> str:
 def _table_names(db_path: str) -> set[str]:
     conn = sqlite3.connect(db_path)
     try:
-        rows = conn.execute(
-            "SELECT name FROM sqlite_master WHERE type='table'"
-        ).fetchall()
+        rows = conn.execute("SELECT name FROM sqlite_master WHERE type='table'").fetchall()
         return {r[0] for r in rows}
     finally:
         conn.close()
@@ -60,10 +57,7 @@ def _columns(db_path: str, table: str) -> dict[str, dict]:
     try:
         # PRAGMA table_info returns: cid, name, type, notnull, dflt_value, pk
         rows = conn.execute(f"PRAGMA table_info({table})").fetchall()
-        return {
-            r[1]: {"type": r[2], "notnull": r[3], "default": r[4], "pk": r[5]}
-            for r in rows
-        }
+        return {r[1]: {"type": r[2], "notnull": r[3], "default": r[4], "pk": r[5]} for r in rows}
     finally:
         conn.close()
 
@@ -83,9 +77,7 @@ class TestMigrationsApplyCleanly:
         actual.discard("alembic_version")
 
         expected = schema.expected_table_names()
-        assert (
-            actual == expected
-        ), f"Schema drift. Missing: {expected - actual}. Extra: {actual - expected}"
+        assert actual == expected, f"Schema drift. Missing: {expected - actual}. Extra: {actual - expected}"
 
     def test_required_tables_per_spec_exist(self, fresh_db_path):
         upgrade_to_head(f"sqlite:///{fresh_db_path}")
@@ -101,9 +93,7 @@ class TestMigrationsApplyCleanly:
             "user_preferences",
         }
         present = _table_names(fresh_db_path)
-        assert required.issubset(
-            present
-        ), f"Missing required tables: {required - present}"
+        assert required.issubset(present), f"Missing required tables: {required - present}"
 
     def test_downgrade_to_base_drops_all_tables(self, fresh_db_path):
         url = f"sqlite:///{fresh_db_path}"
@@ -149,9 +139,7 @@ class TestActorSourceDiscriminator:
         "actor_source",
         ["os_username", "app_prompt", "microsoft_account", "entra_id"],
     )
-    def test_actor_source_accepts_each_documented_tier(
-        self, fresh_db_path, actor_source
-    ):
+    def test_actor_source_accepts_each_documented_tier(self, fresh_db_path, actor_source):
         upgrade_to_head(f"sqlite:///{fresh_db_path}")
         conn = sqlite3.connect(fresh_db_path)
         try:
@@ -329,8 +317,7 @@ class TestSchemaIsWritable:
                 (ts,),
             )
             conn.execute(
-                "INSERT INTO user_preferences (user_oid, preferences) "
-                "VALUES ('u1', '{}')",
+                "INSERT INTO user_preferences (user_oid, preferences) " "VALUES ('u1', '{}')",
             )
             conn.commit()
         finally:
