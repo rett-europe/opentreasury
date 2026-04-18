@@ -821,10 +821,14 @@ class ImportService:
 
         Used by ``_enumerate_sheets`` to report which *specific* required
         headers are missing on a non-candidate sheet.
+        Uses ``iter_rows`` instead of ``sheet[row_idx]`` for read-only compatibility.
         """
         found: set[str] = set()
-        for row_idx in range(1, min(sheet.max_row or 0, 12) + 1):
-            for cell in sheet[row_idx]:
+        scan_limit = min(sheet.max_row or 0, 12)
+        if scan_limit <= 0:
+            return found
+        for row in sheet.iter_rows(min_row=1, max_row=scan_limit):
+            for cell in row:
                 if cell.value is None:
                     continue
                 canonical = self._resolve_alias(cell.value)
@@ -840,10 +844,16 @@ class ImportService:
         return None
 
     def _find_header_row(self, sheet) -> int | None:
-        """Scan the first 12 rows for one that contains all required canonical headers."""
-        for row_idx in range(1, min(sheet.max_row, 12) + 1):
+        """Scan the first 12 rows for one that contains all required canonical headers.
+
+        Uses ``iter_rows`` instead of ``sheet[row_idx]`` for read-only compatibility.
+        """
+        scan_limit = min(sheet.max_row or 0, 12)
+        if scan_limit <= 0:
+            return None
+        for row_idx, row in enumerate(sheet.iter_rows(min_row=1, max_row=scan_limit), start=1):
             found_keys: set[str] = set()
-            for cell in sheet[row_idx]:
+            for cell in row:
                 if cell.value is None:
                     continue
                 canonical = self._resolve_alias(cell.value)
@@ -861,17 +871,18 @@ class ImportService:
         can be captured into the detail field by _build_detail.
         """
         result: dict[str, int] = {}
-        for idx, cell in enumerate(sheet[header_row]):
-            if cell.value is None:
-                continue
-            canonical = self._resolve_alias(cell.value)
-            if canonical and canonical not in result:
-                result[canonical] = idx
-            elif not canonical:
-                # Unrecognized column — normalize and keep for detail capture
-                raw = self._normalize_header(cell.value)
-                if raw and raw not in result:
-                    result[raw] = idx
+        for row in sheet.iter_rows(min_row=header_row, max_row=header_row):
+            for idx, cell in enumerate(row):
+                if cell.value is None:
+                    continue
+                canonical = self._resolve_alias(cell.value)
+                if canonical and canonical not in result:
+                    result[canonical] = idx
+                elif not canonical:
+                    # Unrecognized column — normalize and keep for detail capture
+                    raw = self._normalize_header(cell.value)
+                    if raw and raw not in result:
+                        result[raw] = idx
         return result
 
     def _resolve_alias(self, value) -> str | None:
