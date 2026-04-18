@@ -1,3 +1,5 @@
+from typing import Literal
+
 from pydantic_settings import BaseSettings
 
 
@@ -8,6 +10,20 @@ class Settings(BaseSettings):
     COSMOS_DATABASE_NAME: str = "opentreasury"
     COSMOS_KEY: str = ""  # Optional: set for local dev. In Azure, Managed Identity is used instead.
     CORS_ORIGINS: str = "http://localhost:4200"  # Comma-separated or JSON array
+
+    # ------------------------------------------------------------------
+    # Repository backend selector (Phase A — Electron + SQLite spec §4.2).
+    # `cosmos` keeps existing cloud behavior. `sqlite` activates the desktop
+    # repository implementations (skeletons in Phase A; complete in Phase B).
+    # Default MUST remain `cosmos` so existing deployments are unaffected.
+    # ------------------------------------------------------------------
+    DATA_BACKEND: Literal["cosmos", "sqlite"] = "cosmos"
+
+    # SQLite-specific settings (only consulted when DATA_BACKEND=sqlite).
+    # Path may be a local filesystem path (Local mode) or a OneDrive-synced
+    # path (Team mode). The application does not infer mode from the path —
+    # mode is set explicitly per spec §6.3.
+    SQLITE_DB_PATH: str = "opentreasury.db"
 
     model_config = {"env_file": ".env", "case_sensitive": True}
 

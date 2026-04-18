@@ -29,6 +29,11 @@ httpx>=0.28,<1.0
 # Excel export
 openpyxl>=3.1,<4.0
 
+# SQLite desktop mode (Phase A — Electron + SQLite spec §9)
+SQLAlchemy[asyncio]>=2.0,<3.0
+aiosqlite>=0.20,<1.0
+alembic>=1.13,<2.0
+
 # Dev/test (don't include in production image)
 # pytest>=8.3,<9.0
 # pytest-asyncio>=0.25,<1.0

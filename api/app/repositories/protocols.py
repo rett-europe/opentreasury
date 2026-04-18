@@ -88,3 +88,9 @@ class AuditRepository(Protocol):
         page_size: int = 20,
         continuation_token: str | None = None,
     ) -> tuple[list[dict], str | None]: ...
+
+
+class UserPreferencesRepository(Protocol):
+    async def get(self, user_oid: str) -> dict | None: ...
+
+    async def upsert(self, user_oid: str, prefs: dict) -> dict: ...
