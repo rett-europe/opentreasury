@@ -717,11 +717,16 @@ class ImportService:
                 if sheet.max_row is None or sheet.max_row <= 0 or self._sheet_is_empty(sheet):
                     ignored.append({"name": sheet.title, "reason": "empty"})
                 else:
+                    # Compute which required headers were not seen anywhere in the
+                    # candidate header zone (first 12 rows), so the UI can tell the
+                    # user *which* columns to add — not just that some are missing.
+                    found = self._collect_known_headers(sheet)
+                    missing = sorted(REQUIRED_HEADERS - found)
                     ignored.append(
                         {
                             "name": sheet.title,
                             "reason": "missing_required_headers",
-                            "missing": sorted(REQUIRED_HEADERS),
+                            "missing": missing or sorted(REQUIRED_HEADERS),
                         }
                     )
                 continue
@@ -761,6 +766,22 @@ class ImportService:
                 if value not in (None, ""):
                     return False
         return True
+
+    def _collect_known_headers(self, sheet) -> set[str]:
+        """Return the set of canonical header keys found in the first 12 rows.
+
+        Used by ``_enumerate_sheets`` to report which *specific* required
+        headers are missing on a non-candidate sheet.
+        """
+        found: set[str] = set()
+        for row_idx in range(1, min(sheet.max_row or 0, 12) + 1):
+            for cell in sheet[row_idx]:
+                if cell.value is None:
+                    continue
+                canonical = self._resolve_alias(cell.value)
+                if canonical:
+                    found.add(canonical)
+        return found
 
     def _find_categories_sheet(self, workbook):
         """Find the categories sheet by name. Returns sheet or None."""

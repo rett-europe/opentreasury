@@ -157,7 +157,9 @@ import { PageHeaderComponent } from '@shared/components/page-header/page-header.
         </mat-card>
       }
 
-      <!-- Validation errors -->
+      <!-- Validation errors. The "no sheet selection" guard avoids stacking the error
+           card under the sheet picker on the discovery response (where valid is
+           also false but the user simply hasn't picked a sheet yet — not an error). -->
       @if (preview()?.valid === false && !sheetSelection()) {
         <mat-card class="status-card error-card">
           <mat-card-header>
