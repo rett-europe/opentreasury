@@ -975,6 +975,233 @@ class TestCategorizeTransaction:
 
 
 # ---------------------------------------------------------------------------
+# Bulk categorize (spec `docs/specs/bulk-category-update-spec.md` v1.1)
+# ---------------------------------------------------------------------------
+
+
+class TestBulkCategorize:
+    """§15 / A-1..A-4, AC-17, AC-18, AC-24: bulk categorize service behaviour."""
+
+    async def _existing(self, **overrides):
+        base = make_transaction(
+            id="tx-001",
+            categoryId=None,
+            subcategoryId=None,
+            categorizationStatus="uncategorized",
+            isDeleted=False,
+        )
+        base.update(overrides)
+        return base
+
+    async def test_apply_sets_manually_categorized_and_returns_batch_id(
+        self, service, mock_repo, mock_audit, mock_category_repo
+    ):
+        """AC-18: apply mode sets categoryId/subcategoryId/manually_categorized and returns a UUID batch id."""
+        rows = {
+            "tx-1": make_transaction(id="tx-1", categorizationStatus="uncategorized", isDeleted=False),
+            "tx-2": make_transaction(id="tx-2", categorizationStatus="manually_categorized", isDeleted=False),
+        }
+        mock_repo.get_by_id.side_effect = lambda tx_id, _pk: rows[tx_id]
+        mock_repo.replace.side_effect = lambda tx_id, doc: doc
+        mock_category_repo.get_by_id.return_value = {
+            "id": "cat-001",
+            "isActive": True,
+            "subcategories": [{"id": "subcat-001", "isActive": True}],
+        }
+
+        items = [
+            {"id": "tx-1", "year": 2026, "month": 4},
+            {"id": "tx-2", "year": 2026, "month": 3},
+        ]
+        batch_id, succeeded, failed = await service.bulk_categorize(
+            items=items,
+            action="apply",
+            category_id="cat-001",
+            subcategory_id="subcat-001",
+            user_id=USER_ID,
+            user_name=USER_NAME,
+        )
+
+        assert succeeded == ["tx-1", "tx-2"]
+        assert failed == []
+        assert isinstance(batch_id, str) and len(batch_id) >= 32
+        # Both replaced docs must have the manual status
+        for call in mock_repo.replace.call_args_list:
+            doc = call.args[1]
+            assert doc["categoryId"] == "cat-001"
+            assert doc["subcategoryId"] == "subcat-001"
+            assert doc["categorizationStatus"] == "manually_categorized"
+            assert doc["updatedBy"] == USER_ID
+        # Audit: one per row, all sharing the same batchCorrelationId (A-4)
+        assert mock_audit.log.await_count == 2
+        correlation_ids = {c.kwargs["batch_correlation_id"] for c in mock_audit.log.await_args_list}
+        assert correlation_ids == {batch_id}
+        for c in mock_audit.log.await_args_list:
+            assert c.kwargs["action"] == AuditAction.UPDATE
+
+    async def test_clear_sets_uncategorized_and_ignores_client_category_ids(
+        self, service, mock_repo, mock_audit, mock_category_repo
+    ):
+        """AC-17: clear mode sets categoryId/subcategoryId = None and categorizationStatus = uncategorized."""
+        existing = make_transaction(
+            id="tx-9",
+            categoryId="cat-999",
+            subcategoryId="subcat-999",
+            categorizationStatus="manually_categorized",
+            isDeleted=False,
+        )
+        mock_repo.get_by_id.return_value = existing
+        mock_repo.replace.side_effect = lambda tx_id, doc: doc
+
+        _, succeeded, failed = await service.bulk_categorize(
+            items=[{"id": "tx-9", "year": 2026, "month": 4}],
+            action="clear",
+            category_id="cat-ignored",  # must be ignored in clear mode
+            subcategory_id="subcat-ignored",
+            user_id=USER_ID,
+            user_name=USER_NAME,
+        )
+
+        assert succeeded == ["tx-9"]
+        assert failed == []
+        # Clear mode must not touch the category repo at all
+        mock_category_repo.get_by_id.assert_not_awaited()
+        doc = mock_repo.replace.call_args.args[1]
+        assert doc["categoryId"] is None
+        assert doc["subcategoryId"] is None
+        assert doc["categorizationStatus"] == "uncategorized"
+
+    async def test_split_parent_is_rejected_per_row(self, service, mock_repo, mock_audit, mock_category_repo):
+        """AC-24: split parents are rejected with stable code SPLIT_PARENT_NOT_BULK_UPDATABLE."""
+        rows = {
+            "tx-ok": make_transaction(id="tx-ok", categorizationStatus="uncategorized", isDeleted=False),
+            "tx-split": make_transaction(
+                id="tx-split", categorizationStatus="uncategorized", isDeleted=False, isSplit=True
+            ),
+        }
+        mock_repo.get_by_id.side_effect = lambda tx_id, _pk: rows[tx_id]
+        mock_repo.replace.side_effect = lambda tx_id, doc: doc
+        mock_category_repo.get_by_id.return_value = {"id": "cat-001", "isActive": True, "subcategories": []}
+
+        _, succeeded, failed = await service.bulk_categorize(
+            items=[
+                {"id": "tx-ok", "year": 2026, "month": 4},
+                {"id": "tx-split", "year": 2026, "month": 4},
+            ],
+            action="apply",
+            category_id="cat-001",
+            subcategory_id=None,
+            user_id=USER_ID,
+            user_name=USER_NAME,
+        )
+
+        assert succeeded == ["tx-ok"]
+        assert len(failed) == 1
+        assert failed[0]["id"] == "tx-split"
+        assert failed[0]["code"] == "SPLIT_PARENT_NOT_BULK_UPDATABLE"
+        # Split parent must not be written or audited
+        assert mock_repo.replace.await_count == 1
+        assert mock_audit.log.await_count == 1
+
+    async def test_missing_or_soft_deleted_row_is_not_found(self, service, mock_repo, mock_audit, mock_category_repo):
+        """Missing and soft-deleted rows surface as NOT_FOUND per-row failures."""
+
+        def _get(tx_id, _pk):
+            if tx_id == "tx-missing":
+                return None
+            if tx_id == "tx-deleted":
+                return make_transaction(id="tx-deleted", isDeleted=True)
+            return make_transaction(id=tx_id, categorizationStatus="uncategorized", isDeleted=False)
+
+        mock_repo.get_by_id.side_effect = _get
+        mock_repo.replace.side_effect = lambda tx_id, doc: doc
+        mock_category_repo.get_by_id.return_value = {"id": "cat-001", "isActive": True, "subcategories": []}
+
+        _, succeeded, failed = await service.bulk_categorize(
+            items=[
+                {"id": "tx-ok", "year": 2026, "month": 4},
+                {"id": "tx-missing", "year": 2026, "month": 4},
+                {"id": "tx-deleted", "year": 2026, "month": 4},
+            ],
+            action="apply",
+            category_id="cat-001",
+            subcategory_id=None,
+            user_id=USER_ID,
+            user_name=USER_NAME,
+        )
+
+        assert succeeded == ["tx-ok"]
+        assert {f["id"]: f["code"] for f in failed} == {
+            "tx-missing": "NOT_FOUND",
+            "tx-deleted": "NOT_FOUND",
+        }
+
+    async def test_repo_replace_exception_maps_to_concurrency_conflict(
+        self, service, mock_repo, mock_audit, mock_category_repo
+    ):
+        """Backend write failure surfaces as per-row CONCURRENCY_CONFLICT, not as total failure."""
+        mock_repo.get_by_id.return_value = make_transaction(
+            id="tx-conflict", categorizationStatus="uncategorized", isDeleted=False
+        )
+        mock_repo.replace.side_effect = RuntimeError("etag mismatch")
+        mock_category_repo.get_by_id.return_value = {"id": "cat-001", "isActive": True, "subcategories": []}
+
+        _, succeeded, failed = await service.bulk_categorize(
+            items=[{"id": "tx-conflict", "year": 2026, "month": 4}],
+            action="apply",
+            category_id="cat-001",
+            subcategory_id=None,
+            user_id=USER_ID,
+            user_name=USER_NAME,
+        )
+
+        assert succeeded == []
+        assert len(failed) == 1
+        assert failed[0]["code"] == "CONCURRENCY_CONFLICT"
+        # No audit entry should be written for a failed replace.
+        mock_audit.log.assert_not_awaited()
+
+    async def test_invalid_category_raises_before_touching_rows(
+        self, service, mock_repo, mock_audit, mock_category_repo
+    ):
+        """Apply mode: an inactive/unknown category fails the whole request (-> 422 in router)."""
+        mock_category_repo.get_by_id.return_value = None  # unknown category
+
+        with pytest.raises(ValueError):
+            await service.bulk_categorize(
+                items=[{"id": "tx-1", "year": 2026, "month": 4}],
+                action="apply",
+                category_id="cat-bogus",
+                subcategory_id=None,
+                user_id=USER_ID,
+                user_name=USER_NAME,
+            )
+        mock_repo.get_by_id.assert_not_awaited()
+        mock_repo.replace.assert_not_awaited()
+        mock_audit.log.assert_not_awaited()
+
+    async def test_clear_mode_does_not_validate_category(self, service, mock_repo, mock_audit, mock_category_repo):
+        """Clear mode must not call the category repo even when a cat id is passed (and is ignored)."""
+        mock_repo.get_by_id.return_value = make_transaction(
+            id="tx-1", categorizationStatus="manually_categorized", isDeleted=False
+        )
+        mock_repo.replace.side_effect = lambda tx_id, doc: doc
+
+        _, succeeded, failed = await service.bulk_categorize(
+            items=[{"id": "tx-1", "year": 2026, "month": 4}],
+            action="clear",
+            category_id=None,
+            subcategory_id=None,
+            user_id=USER_ID,
+            user_name=USER_NAME,
+        )
+
+        assert succeeded == ["tx-1"]
+        assert failed == []
+        mock_category_repo.get_by_id.assert_not_awaited()
+
+
+# ---------------------------------------------------------------------------
 # FR-030-034: Review workflow
 # ---------------------------------------------------------------------------
 

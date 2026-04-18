@@ -25,6 +25,7 @@ class AuditService:
         changed_by_name: str = "",
         old_values: dict | None = None,
         new_values: dict | None = None,
+        batch_correlation_id: str | None = None,
     ):
         entry = {
             "id": str(uuid4()),
@@ -38,6 +39,8 @@ class AuditService:
             "newValues": new_values or {},
             "ttl": _AUDIT_TTL,
         }
+        if batch_correlation_id is not None:
+            entry["batchCorrelationId"] = batch_correlation_id
         await self._repo.create(entry)
 
     async def query_trail(

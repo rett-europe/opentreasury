@@ -84,6 +84,31 @@ class TestLog:
         assert entry["action"] == "Update"
         assert isinstance(entry["action"], str)
 
+    async def test_batch_correlation_id_is_stored_when_provided(self, service, mock_repo):
+        """Spec §9.6 / A-4: per-row audit entries for a bulk op share a batchCorrelationId."""
+        await service.log(
+            entity_type="Transaction",
+            entity_id="tx-007",
+            action=AuditAction.UPDATE,
+            changed_by=USER_ID,
+            batch_correlation_id="abc-123",
+        )
+
+        entry = mock_repo.create.call_args[0][0]
+        assert entry["batchCorrelationId"] == "abc-123"
+
+    async def test_batch_correlation_id_absent_when_not_provided(self, service, mock_repo):
+        """Single-row audit entries must not carry the batch field at all."""
+        await service.log(
+            entity_type="Transaction",
+            entity_id="tx-008",
+            action=AuditAction.UPDATE,
+            changed_by=USER_ID,
+        )
+
+        entry = mock_repo.create.call_args[0][0]
+        assert "batchCorrelationId" not in entry
+
 
 # ---------------------------------------------------------------------------
 # query_trail

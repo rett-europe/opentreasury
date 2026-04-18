@@ -5,6 +5,9 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from app.auth.dependencies import get_current_admin, get_current_user
 from app.models.domain import CategorizationStatus, ReviewStatus, TransactionType
 from app.models.schemas import (
+    BulkCategorizeFailure,
+    BulkCategorizeRequest,
+    BulkCategorizeResponse,
     CategorizeRequest,
     NoteCreate,
     ReviewStatusUpdate,
@@ -193,6 +196,43 @@ async def review_transaction(
             detail="Transaction not found",
         )
     return TransactionResponse.model_validate(result)
+
+
+@router.post(
+    "/bulk-categorize",
+    response_model=BulkCategorizeResponse,
+)
+async def bulk_categorize_transactions(
+    data: BulkCategorizeRequest,
+    current_user: dict = Depends(get_current_admin),
+    service: TransactionService = Depends(get_transaction_service),
+):
+    """Apply or clear category + subcategory on up to 200 transactions at once.
+
+    See `docs/specs/bulk-category-update-spec.md` v1.1 §15 / A-1..A-4.
+    Admin-only. Request-level errors (invalid/inactive category, over the
+    batch cap of 200 enforced by the request schema) surface as HTTP 422.
+    Per-row errors are returned in the `failed[]` list with stable codes.
+    """
+    try:
+        batch_id, succeeded, failed = await service.bulk_categorize(
+            items=[item.model_dump() for item in data.items],
+            action=data.action,
+            category_id=data.category_id,
+            subcategory_id=data.subcategory_id,
+            user_id=current_user["oid"],
+            user_name=current_user["name"],
+        )
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=str(exc),
+        )
+    return BulkCategorizeResponse(
+        batch_correlation_id=batch_id,
+        succeeded=succeeded,
+        failed=[BulkCategorizeFailure(**f) for f in failed],
+    )
 
 
 @router.patch("/{transaction_id}/categorize", response_model=TransactionResponse)

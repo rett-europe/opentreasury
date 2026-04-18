@@ -70,6 +70,7 @@ def mock_txn_svc():
     svc.soft_delete_transaction.return_value = True
     svc.review_transaction.return_value = SAMPLE_TX
     svc.categorize_transaction.return_value = SAMPLE_TX
+    svc.bulk_categorize.return_value = ("batch-default", [SAMPLE_TX["id"]], [])
     svc.add_note.return_value = SAMPLE_TX
     return svc
 
@@ -266,6 +267,163 @@ class TestCategorizeTransaction:
         )
 
         assert response.status_code == 422
+
+
+# ---------------------------------------------------------------------------
+# POST /api/transactions/bulk-categorize (spec §15 / A-1..A-4, AC-21, AC-24)
+# ---------------------------------------------------------------------------
+
+
+class TestBulkCategorizeRoute:
+    async def test_apply_returns_200_with_batch_correlation_id(self, admin_client, mock_txn_svc):
+        mock_txn_svc.bulk_categorize.return_value = ("batch-abc-123", ["tx-1", "tx-2"], [])
+        app.dependency_overrides[get_transaction_service] = lambda: mock_txn_svc
+
+        response = await admin_client.post(
+            "/api/transactions/bulk-categorize",
+            json={
+                "items": [
+                    {"id": "tx-1", "year": 2026, "month": 4},
+                    {"id": "tx-2", "year": 2026, "month": 3},
+                ],
+                "action": "apply",
+                "categoryId": "cat-001",
+                "subcategoryId": "subcat-001",
+            },
+        )
+
+        assert response.status_code == 200
+        body = response.json()
+        assert body["batchCorrelationId"] == "batch-abc-123"
+        assert body["succeeded"] == ["tx-1", "tx-2"]
+        assert body["failed"] == []
+
+        call = mock_txn_svc.bulk_categorize.await_args.kwargs
+        assert call["action"] == "apply"
+        assert call["category_id"] == "cat-001"
+        assert call["subcategory_id"] == "subcat-001"
+        assert call["user_id"] == "test-user-oid-abc123"
+
+    async def test_clear_returns_200_without_category_ids(self, admin_client, mock_txn_svc):
+        mock_txn_svc.bulk_categorize.return_value = ("batch-xyz", ["tx-9"], [])
+        app.dependency_overrides[get_transaction_service] = lambda: mock_txn_svc
+
+        response = await admin_client.post(
+            "/api/transactions/bulk-categorize",
+            json={
+                "items": [{"id": "tx-9", "year": 2026, "month": 4}],
+                "action": "clear",
+            },
+        )
+
+        assert response.status_code == 200
+        call = mock_txn_svc.bulk_categorize.await_args.kwargs
+        assert call["action"] == "clear"
+        assert call["category_id"] is None
+        assert call["subcategory_id"] is None
+
+    async def test_partial_failures_are_returned_with_stable_codes(self, admin_client, mock_txn_svc):
+        """Response body surfaces per-row failures verbatim (§15 / A-2)."""
+        mock_txn_svc.bulk_categorize.return_value = (
+            "batch-p1",
+            ["tx-ok"],
+            [
+                {"id": "tx-split", "code": "SPLIT_PARENT_NOT_BULK_UPDATABLE", "message": "skipped"},
+                {"id": "tx-gone", "code": "NOT_FOUND", "message": "missing"},
+            ],
+        )
+        app.dependency_overrides[get_transaction_service] = lambda: mock_txn_svc
+
+        response = await admin_client.post(
+            "/api/transactions/bulk-categorize",
+            json={
+                "items": [
+                    {"id": "tx-ok", "year": 2026, "month": 4},
+                    {"id": "tx-split", "year": 2026, "month": 4},
+                    {"id": "tx-gone", "year": 2026, "month": 4},
+                ],
+                "action": "apply",
+                "categoryId": "cat-001",
+            },
+        )
+
+        assert response.status_code == 200
+        body = response.json()
+        codes = {f["id"]: f["code"] for f in body["failed"]}
+        assert codes == {
+            "tx-split": "SPLIT_PARENT_NOT_BULK_UPDATABLE",
+            "tx-gone": "NOT_FOUND",
+        }
+
+    async def test_apply_without_category_id_returns_422(self, admin_client, mock_txn_svc):
+        """Schema enforces categoryId is required when action == 'apply'."""
+        app.dependency_overrides[get_transaction_service] = lambda: mock_txn_svc
+
+        response = await admin_client.post(
+            "/api/transactions/bulk-categorize",
+            json={
+                "items": [{"id": "tx-1", "year": 2026, "month": 4}],
+                "action": "apply",
+            },
+        )
+
+        assert response.status_code == 422
+        mock_txn_svc.bulk_categorize.assert_not_awaited()
+
+    async def test_invalid_category_raises_422(self, admin_client, mock_txn_svc):
+        """Request-level invalid category → ValueError → HTTP 422 (spec §15 / A-2)."""
+        mock_txn_svc.bulk_categorize.side_effect = ValueError("Category 'cat-bogus' not found or inactive")
+        app.dependency_overrides[get_transaction_service] = lambda: mock_txn_svc
+
+        response = await admin_client.post(
+            "/api/transactions/bulk-categorize",
+            json={
+                "items": [{"id": "tx-1", "year": 2026, "month": 4}],
+                "action": "apply",
+                "categoryId": "cat-bogus",
+            },
+        )
+
+        assert response.status_code == 422
+
+    async def test_batch_too_large_returns_422(self, admin_client, mock_txn_svc):
+        """More than 200 items in a single request is rejected at the schema level (§15 / A-3)."""
+        app.dependency_overrides[get_transaction_service] = lambda: mock_txn_svc
+
+        items = [{"id": f"tx-{i}", "year": 2026, "month": 4} for i in range(201)]
+        response = await admin_client.post(
+            "/api/transactions/bulk-categorize",
+            json={"items": items, "action": "apply", "categoryId": "cat-001"},
+        )
+
+        assert response.status_code == 422
+        mock_txn_svc.bulk_categorize.assert_not_awaited()
+
+    async def test_empty_items_returns_422(self, admin_client, mock_txn_svc):
+        app.dependency_overrides[get_transaction_service] = lambda: mock_txn_svc
+
+        response = await admin_client.post(
+            "/api/transactions/bulk-categorize",
+            json={"items": [], "action": "apply", "categoryId": "cat-001"},
+        )
+
+        assert response.status_code == 422
+
+    async def test_viewer_is_forbidden(self, viewer_client, mock_txn_svc):
+        """AC-21: viewer role cannot bulk-categorize even with a valid payload."""
+        app.dependency_overrides[get_transaction_service] = lambda: mock_txn_svc
+
+        response = await viewer_client.post(
+            "/api/transactions/bulk-categorize",
+            json={
+                "items": [{"id": "tx-1", "year": 2026, "month": 4}],
+                "action": "apply",
+                "categoryId": "cat-001",
+            },
+        )
+
+        assert response.status_code == 403
+        mock_txn_svc.bulk_categorize.assert_not_awaited()
 
 
 # ---------------------------------------------------------------------------

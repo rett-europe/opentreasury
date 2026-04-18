@@ -1,8 +1,8 @@
 from datetime import date, datetime
 from decimal import Decimal, ROUND_HALF_UP
-from typing import Optional
+from typing import Literal, Optional
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 from pydantic.alias_generators import to_camel
 
 from app.models.domain import AuditAction, CategoryType, ReviewStatus, TransactionType
@@ -179,6 +179,47 @@ class ReviewStatusUpdate(CamelModel):
 class CategorizeRequest(CamelModel):
     category_id: Optional[str] = None
     subcategory_id: Optional[str] = None
+
+
+# --- Bulk categorize (spec §15 / A-1..A-4) ---
+
+
+class BulkCategorizeItem(CamelModel):
+    id: str = Field(min_length=1)
+    year: int = Field(ge=2020, le=2100)
+    month: int = Field(ge=1, le=12)
+
+
+class BulkCategorizeRequest(CamelModel):
+    items: list[BulkCategorizeItem] = Field(min_length=1, max_length=200)
+    action: Literal["apply", "clear"]
+    category_id: Optional[str] = None
+    subcategory_id: Optional[str] = None
+
+    @model_validator(mode="after")
+    def _check_action_payload(self):
+        if self.action == "apply":
+            if not self.category_id:
+                raise ValueError("categoryId is required when action is 'apply'")
+            # Mirror the per-row rule from TransactionService._validate_category.
+            if self.subcategory_id is not None and self.category_id is None:
+                raise ValueError("subcategoryId can only be set when categoryId is also set")
+        else:  # clear: ignore client-supplied ids — they are meaningless in this mode.
+            self.category_id = None
+            self.subcategory_id = None
+        return self
+
+
+class BulkCategorizeFailure(CamelModel):
+    id: str
+    code: str
+    message: str
+
+
+class BulkCategorizeResponse(CamelModel):
+    batch_correlation_id: str
+    succeeded: list[str]
+    failed: list[BulkCategorizeFailure]
 
 
 class NoteCreate(CamelModel):

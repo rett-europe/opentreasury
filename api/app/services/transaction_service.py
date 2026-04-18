@@ -498,6 +498,134 @@ class TransactionService:
 
         return replaced
 
+    async def bulk_categorize(
+        self,
+        items: list[dict],
+        action: str,
+        category_id: str | None,
+        subcategory_id: str | None,
+        user_id: str,
+        user_name: str,
+    ) -> tuple[str, list[str], list[dict]]:
+        """Apply or clear category+subcategory on a batch of transactions.
+
+        Per spec `docs/specs/bulk-category-update-spec.md` v1.1 (§15 / A-1..A-4, AC-24):
+          - action == "apply":   set categoryId + optional subcategoryId,
+                                 categorizationStatus = manually_categorized.
+          - action == "clear":   set categoryId = subcategoryId = null,
+                                 categorizationStatus = uncategorized.
+
+        Request-level validation (raises ValueError -> 422 in the router):
+          - action == "apply" requires a valid, active categoryId and, if given,
+            a valid active subcategoryId under that category.
+
+        Per-row outcomes are returned in (succeeded, failed) with stable error codes:
+          - NOT_FOUND                       -- transaction missing or soft-deleted
+          - SPLIT_PARENT_NOT_BULK_UPDATABLE -- transaction has isSplit == True
+          - CONCURRENCY_CONFLICT            -- repo.replace raised
+
+        One audit entry is written per affected row, all sharing the same
+        batchCorrelationId (returned to the caller).
+        """
+        action_norm = action.lower() if isinstance(action, str) else action
+        if action_norm not in ("apply", "clear"):
+            raise ValueError("action must be 'apply' or 'clear'")
+
+        if action_norm == "clear":
+            category_id = None
+            subcategory_id = None
+
+        # Request-level category validation (apply mode only). Failures here
+        # fail the whole request with HTTP 422 — per spec §15 / A-2.
+        if action_norm == "apply":
+            # Pass any transaction_type; _validate_category uses it only for
+            # CategoryType guidance which it no longer enforces.
+            await self._validate_category(category_id, subcategory_id, TransactionType.EXPENSE.value)
+
+        batch_correlation_id = str(uuid4())
+        now = datetime.now(timezone.utc).isoformat()
+
+        if action_norm == "apply":
+            new_status = CategorizationStatus.MANUALLY_CATEGORIZED.value
+        else:
+            new_status = CategorizationStatus.UNCATEGORIZED.value
+
+        succeeded: list[str] = []
+        failed: list[dict] = []
+
+        for item in items:
+            tx_id = item["id"]
+            year = item["year"]
+            month = item["month"]
+            partition_key = f"{year:04d}-{month:02d}"
+
+            existing = await self._repo.get_by_id(tx_id, partition_key)
+            if not existing or existing.get("isDeleted"):
+                failed.append(
+                    {
+                        "id": tx_id,
+                        "code": "NOT_FOUND",
+                        "message": "Transaction not found",
+                    }
+                )
+                continue
+
+            # AC-24: split parents must be rejected in bulk even if selected.
+            if existing.get("isSplit"):
+                failed.append(
+                    {
+                        "id": tx_id,
+                        "code": "SPLIT_PARENT_NOT_BULK_UPDATABLE",
+                        "message": "Split transactions cannot be bulk re-categorized",
+                    }
+                )
+                continue
+
+            old_values = {
+                "categoryId": existing.get("categoryId"),
+                "subcategoryId": existing.get("subcategoryId"),
+                "categorizationStatus": existing.get("categorizationStatus"),
+            }
+
+            existing["categoryId"] = category_id
+            existing["subcategoryId"] = subcategory_id
+            existing["categorizationStatus"] = new_status
+            existing["updatedBy"] = user_id
+            existing["updatedByName"] = user_name
+            existing["updatedAt"] = now
+
+            new_values = {
+                "categoryId": category_id,
+                "subcategoryId": subcategory_id,
+                "categorizationStatus": new_status,
+            }
+
+            try:
+                await self._repo.replace(tx_id, existing)
+            except Exception as exc:  # noqa: BLE001 -- surfaced as per-row CONCURRENCY_CONFLICT
+                failed.append(
+                    {
+                        "id": tx_id,
+                        "code": "CONCURRENCY_CONFLICT",
+                        "message": str(exc) or "Concurrency conflict while updating transaction",
+                    }
+                )
+                continue
+
+            await self._audit.log(
+                entity_type="Transaction",
+                entity_id=tx_id,
+                action=AuditAction.UPDATE,
+                changed_by=user_id,
+                changed_by_name=user_name,
+                old_values=old_values,
+                new_values=new_values,
+                batch_correlation_id=batch_correlation_id,
+            )
+            succeeded.append(tx_id)
+
+        return batch_correlation_id, succeeded, failed
+
     async def add_note(
         self,
         transaction_id: str,
