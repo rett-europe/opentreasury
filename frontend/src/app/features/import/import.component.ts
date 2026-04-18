@@ -14,7 +14,7 @@ import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { AppSettingsService } from '@core/services/app-settings.service';
 import { ReferenceDataService } from '@core/services/reference-data.service';
 import { ImportService } from '@core/services/import.service';
-import { ExcelImportSummary, IgnoredSheet, ImportPreview } from '@shared/models/import.model';
+import { CandidateSheet, ExcelImportSummary, IgnoredSheet, ImportPreview } from '@shared/models/import.model';
 import { PageHeaderComponent } from '@shared/components/page-header/page-header.component';
 
 @Component({
@@ -157,10 +157,11 @@ import { PageHeaderComponent } from '@shared/components/page-header/page-header.
         </mat-card>
       }
 
-      <!-- Validation errors. The "no sheet selection" guard avoids stacking the error
-           card under the sheet picker on the discovery response (where valid is
-           also false but the user simply hasn't picked a sheet yet — not an error). -->
-      @if (preview()?.valid === false && !sheetSelection()) {
+      <!-- Validation errors. The "requiresSheetSelection" guard avoids stacking
+           the error card under the sheet picker on the discovery response
+           (where valid is also false but the user simply hasn't picked a
+           sheet yet — not an error). -->
+      @if (preview()?.valid === false && !preview()?.requiresSheetSelection) {
         <mat-card class="status-card error-card">
           <mat-card-header>
             <mat-card-title>
@@ -704,6 +705,14 @@ export class ImportComponent {
    * (`preview().selectedSheet`) until the user re-runs preview.
    */
   readonly selectedSheetForPicker = signal<string | null>(null);
+  /**
+   * Discovered candidate/ignored sheets for the current workbook. Captured
+   * from the first preview response that returns a discovery payload and kept
+   * across subsequent previews so the selector stays visible after a
+   * successful validation (spec: "selector remains visible after a successful
+   * preview"). Cleared whenever the file/account selection is reset.
+   */
+  readonly discovery = signal<{ candidates: CandidateSheet[]; ignored: IgnoredSheet[] } | null>(null);
 
   readonly activeAccounts = computed(() => this.refData.accounts().filter(a => a.isActive));
   readonly categoryCount = computed(() => this.refData.categories().length);
@@ -713,14 +722,11 @@ export class ImportComponent {
   });
 
   /**
-   * Discovery payload extracted from the latest preview response when the
-   * workbook requires sheet selection. Returns null otherwise.
+   * Discovery payload to render the sheet selector. Sourced from the
+   * `discovery` signal so the picker stays visible across re-previews of
+   * different sheets — not just on the initial discovery response.
    */
-  readonly sheetSelection = computed(() => {
-    const p = this.preview();
-    if (!p?.requiresSheetSelection) return null;
-    return { candidates: p.candidateSheets, ignored: p.ignoredSheets };
-  });
+  readonly sheetSelection = computed(() => this.discovery());
 
   /**
    * True when the user has changed the picker selection after a successful
@@ -808,7 +814,9 @@ export class ImportComponent {
     if (!file || !accountId) return;
 
     this.previewing.set(true);
-    // Preserve the picker selection across preview reloads so the radio stays put.
+    // Preserve the picker selection and the cached discovery payload across
+    // preview reloads: the radio stays on the user's choice, and the selector
+    // remains rendered while we clear the previous validation result.
     const pickerSheet = this.selectedSheetForPicker();
     this.preview.set(null);
     this.summary.set(null);
@@ -818,6 +826,17 @@ export class ImportComponent {
     this.importService.preview(file, accountId, pickerSheet ?? undefined).subscribe({
       next: (result) => {
         this.preview.set(result);
+        // Capture the discovery payload the first time the backend offers one
+        // so the sheet selector remains visible across subsequent re-previews
+        // of different sheets (per spec). Don't overwrite it on later previews
+        // — those responses carry an empty `candidateSheets` because the user
+        // already passed an explicit `sheet` param.
+        if (result.requiresSheetSelection && result.candidateSheets.length) {
+          this.discovery.set({
+            candidates: result.candidateSheets,
+            ignored: result.ignoredSheets,
+          });
+        }
         // Default the picker to the first candidate when discovery returns one,
         // or to the validated sheet when the response is a normal preview.
         if (result.requiresSheetSelection && result.candidateSheets.length) {
@@ -877,6 +896,7 @@ export class ImportComponent {
   cancelPreview(): void {
     this.preview.set(null);
     this.selectedSheetForPicker.set(null);
+    this.discovery.set(null);
   }
 
   private initCategoryTypeSelections(result: ImportPreview): void {
@@ -912,5 +932,6 @@ export class ImportComponent {
     this.error.set(null);
     this.categoryTypeSelections.set({});
     this.selectedSheetForPicker.set(null);
+    this.discovery.set(null);
   }
 }
