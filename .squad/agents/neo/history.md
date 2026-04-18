@@ -35,6 +35,14 @@
 - **Open questions for Pedro:** Split line cap (recommended 20), unsplit behavior (recommended → uncategorized), transfers/refunds splittable.
 - **Open questions for Niobe:** Split dialog UX, list view indicator, re-categorization frequency (determines if PATCH endpoint needed).
 
+### 2026-04-18: System Settings spec (Issue #12) approved
+- Niobe's `docs/specs/system-settings-spec.md` cleared architectural review. Reuses existing `reference_data` Cosmos container (pk `/type`) with a singleton `id="system"` doc — no new container, no Bicep change, no `CosmosService` edits.
+- Two binding amendments folded into §13: **A1** server-authoritative `updatedAt`/`updatedBy` on `PUT /api/settings` (keeps door open for ETag later); **A2** `SystemSettingsService.load()` must complete before the first format-sensitive render to avoid flash-of-wrong-currency.
+- All six open questions resolved per recommendation. Drawer ("Preferences") and page ("Settings") naming locked in.
+- Hard-coded format surface audited and small: `MAT_DATE_LOCALE: 'es-ES'` in `app.config.ts`, `€` in `kpi-card.component.spec.ts` and `amountEur` label. Refactor footprint is hours, not days.
+- Kept `SystemSettingsService` separate from `AppSettingsService` — different sources of truth (server config vs user profile), don't merge them.
+- Routing on approval: Morpheus (backend), Trinity (frontend), Cypher (tests) in parallel; Switch courtesy review on the admin-only PUT.
+
 ### 2026-04-16: Date range filter — architecture analysis
 - **Current paging architecture:** Frontend walks months 12→1 (or single month), PAGE_SIZE=100, using Cosmos continuation tokens per-partition. Aggregates computed server-side per-partition on first page.
 - **Partition key architecture:** `YYYY-MM` partition key is deeply embedded — `list_by_partition()` takes a single partition_key, `aggregate_filtered()` is partition-scoped. Cross-partition queries exist only in `query_for_export()` (no partition_key param, full container scan, higher RU).
