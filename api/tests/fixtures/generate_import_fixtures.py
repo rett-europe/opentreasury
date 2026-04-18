@@ -18,7 +18,7 @@ OUTPUT_DIR = Path(__file__).parent
 def _save(wb: Workbook, name: str) -> None:
     path = OUTPUT_DIR / name
     wb.save(path)
-    print(f"  ✔ {name}")
+    print(f"  [ok] {name}")
 
 
 def _add_metadata(ws, *, iban: str = "IBAN: ES00 0049 0001 0000 0000 1234", swift: str = "UCJAES2MXXX"):
@@ -468,4 +468,4 @@ if __name__ == "__main__":
     gen_missing_headers()
     gen_empty_rows()
     gen_new_account()
-    print(f"\nDone — {len(list(OUTPUT_DIR.glob('*.xlsx')))} fixtures in {OUTPUT_DIR}")
+    print(f"\nDone - {len(list(OUTPUT_DIR.glob('*.xlsx')))} fixtures in {OUTPUT_DIR}")

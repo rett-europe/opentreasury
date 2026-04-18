@@ -152,6 +152,85 @@ class TestGetByCategory:
 
 
 # ---------------------------------------------------------------------------
+# GET /api/reports/balance
+# ---------------------------------------------------------------------------
+
+
+class TestGetBalance:
+    async def test_returns_balance_breakdown(self, admin_client, mock_report_svc):
+        mock_report_svc.get_balance.return_value = {
+            "year": 2026,
+            "items": [
+                {
+                    "category_id": "cat-income",
+                    "category_name": "Donations",
+                    "subcategory_id": "subcat-001",
+                    "subcategory_name": "Individuals",
+                    "income": Decimal("500"),
+                    "expense": Decimal("0"),
+                    "net": Decimal("500"),
+                },
+                {
+                    "category_id": "cat-expense",
+                    "category_name": "Operations",
+                    "subcategory_id": "subcat-002",
+                    "subcategory_name": "Rent",
+                    "income": Decimal("0"),
+                    "expense": Decimal("200"),
+                    "net": Decimal("-200"),
+                },
+            ],
+        }
+        app.dependency_overrides[get_report_service] = lambda: mock_report_svc
+
+        response = await admin_client.get("/api/reports/balance?year=2026")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["year"] == 2026
+        assert len(data["items"]) == 2
+        assert data["items"][0]["categoryId"] == "cat-income"
+        assert data["items"][0]["subcategoryName"] == "Individuals"
+        assert Decimal(str(data["items"][0]["income"])) == Decimal("500")
+        assert Decimal(str(data["items"][1]["expense"])) == Decimal("200")
+
+    async def test_missing_year_returns_422(self, admin_client, mock_report_svc):
+        app.dependency_overrides[get_report_service] = lambda: mock_report_svc
+
+        response = await admin_client.get("/api/reports/balance")
+
+        assert response.status_code == 422
+
+    async def test_year_below_range_returns_422(self, admin_client, mock_report_svc):
+        app.dependency_overrides[get_report_service] = lambda: mock_report_svc
+
+        response = await admin_client.get("/api/reports/balance?year=1999")
+
+        assert response.status_code == 422
+
+    async def test_year_above_range_returns_422(self, admin_client, mock_report_svc):
+        app.dependency_overrides[get_report_service] = lambda: mock_report_svc
+
+        response = await admin_client.get("/api/reports/balance?year=2101")
+
+        assert response.status_code == 422
+
+    async def test_empty_balance_response(self, admin_client, mock_report_svc):
+        mock_report_svc.get_balance.return_value = {
+            "year": 2026,
+            "items": [],
+        }
+        app.dependency_overrides[get_report_service] = lambda: mock_report_svc
+
+        response = await admin_client.get("/api/reports/balance?year=2026")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["year"] == 2026
+        assert data["items"] == []
+
+
+# ---------------------------------------------------------------------------
 # GET /api/reports/monthly-trend
 # ---------------------------------------------------------------------------
 

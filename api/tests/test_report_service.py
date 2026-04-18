@@ -18,8 +18,28 @@ def mock_txn_svc():
 
 
 @pytest.fixture
-def service(mock_txn_svc):
-    return ReportService(transaction_service=mock_txn_svc)
+def mock_cat_svc():
+    svc = AsyncMock()
+    svc.list_categories.return_value = [
+        {
+            "id": "cat-donations",
+            "name": "Donations",
+            "subcategories": [
+                {"id": "subcat-individual", "name": "Individual"},
+            ],
+        },
+        {
+            "id": "cat-supplies",
+            "name": "Supplies",
+            "subcategories": [],
+        },
+    ]
+    return svc
+
+
+@pytest.fixture
+def service(mock_txn_svc, mock_cat_svc):
+    return ReportService(transaction_service=mock_txn_svc, category_service=mock_cat_svc)
 
 
 # ---------------------------------------------------------------------------
@@ -28,6 +48,7 @@ def service(mock_txn_svc):
 
 INCOME_TX = {
     "categoryId": "cat-donations",
+    "subcategoryId": "subcat-individual",
     "accountId": "acc-001",
     "amount": 500.0,
     "month": 4,
@@ -36,6 +57,7 @@ INCOME_TX = {
 
 EXPENSE_TX = {
     "categoryId": "cat-supplies",
+    "subcategoryId": None,
     "accountId": "acc-001",
     "amount": -200.0,
     "month": 4,
@@ -303,6 +325,66 @@ class TestGetByAccount:
         assert items["acc-002"]["transaction_count"] == 1
         assert items["acc-002"]["total_income"] == Decimal("0")
         assert items["acc-002"]["total_expense"] == Decimal("0")
+
+
+# ---------------------------------------------------------------------------
+# GET /balance — category + subcategory grouping
+# ---------------------------------------------------------------------------
+
+
+class TestGetBalance:
+    async def test_groups_by_category_and_subcategory(self, service, mock_txn_svc):
+        mock_txn_svc.get_transactions_for_report.return_value = [
+            {
+                "categoryId": "cat-donations",
+                "subcategoryId": "subcat-individual",
+                "accountId": "acc-001",
+                "amount": 500.0,
+                "month": 4,
+                "transactionType": "income",
+            },
+            {
+                "categoryId": "cat-supplies",
+                "subcategoryId": None,
+                "accountId": "acc-001",
+                "amount": -200.0,
+                "month": 4,
+                "transactionType": "expense",
+            },
+        ]
+
+        result = await service.get_balance(year=2026)
+
+        items = {(item["category_id"], item["subcategory_id"]): item for item in result["items"]}
+        assert items[("cat-donations", "subcat-individual")]["category_name"] == "Donations"
+        assert items[("cat-donations", "subcat-individual")]["subcategory_name"] == "Individual"
+        assert items[("cat-donations", "subcat-individual")]["income"] == Decimal("500")
+        assert items[("cat-supplies", None)]["category_name"] == "Supplies"
+        assert items[("cat-supplies", None)]["expense"] == Decimal("200")
+
+    async def test_balance_empty_year(self, service, mock_txn_svc):
+        """Balance for a year with no transactions returns empty items list."""
+        mock_txn_svc.get_transactions_for_report.return_value = []
+
+        result = await service.get_balance(year=2025)
+
+        assert result["year"] == 2025
+        assert result["items"] == []
+
+    async def test_balance_includes_subcategory_from_fixtures(self, service, mock_txn_svc):
+        """Transactions with subcategoryId are grouped and named correctly."""
+        mock_txn_svc.get_transactions_for_report.return_value = [INCOME_TX]
+
+        result = await service.get_balance(year=2026)
+
+        assert len(result["items"]) == 1
+        item = result["items"][0]
+        assert item["category_id"] == "cat-donations"
+        assert item["subcategory_id"] == "subcat-individual"
+        assert item["subcategory_name"] == "Individual"
+        assert item["income"] == Decimal("500")
+        assert item["expense"] == Decimal("0")
+        assert item["net"] == Decimal("500")
 
 
 # ---------------------------------------------------------------------------

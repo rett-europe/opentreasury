@@ -118,7 +118,7 @@ class CosmosTransactionRepository:
 
             where = " AND ".join(conditions)
             query = (
-                "SELECT c.categoryId, c.accountId, c.amount, c.month,"
+                "SELECT c.categoryId, c.subcategoryId, c.accountId, c.amount, c.month,"
                 " c.transactionType, c.isSplit, c.splitLines"
                 f" FROM c WHERE {where}"
             )
@@ -137,7 +137,7 @@ class CosmosTransactionRepository:
 
             where = " AND ".join(conditions)
             query = (
-                "SELECT c.categoryId, c.accountId, c.amount, c.month,"
+                "SELECT c.categoryId, c.subcategoryId, c.accountId, c.amount, c.month,"
                 " c.transactionType, c.isSplit, c.splitLines"
                 f" FROM c WHERE {where}"
             )

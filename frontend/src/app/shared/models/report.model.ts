@@ -13,6 +13,16 @@ export interface CategorySummary {
   totalExpenses: number;
 }
 
+export interface BalanceItem {
+  categoryId: string;
+  categoryName: string;
+  subcategoryId?: string;
+  subcategoryName?: string;
+  income: number;
+  expense: number;
+  net: number;
+}
+
 export interface MonthlySummary {
   year: number;
   month: number;

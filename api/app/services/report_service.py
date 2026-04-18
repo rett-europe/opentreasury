@@ -1,22 +1,27 @@
 from __future__ import annotations
 
+import logging
 from collections import defaultdict
 from decimal import Decimal
 from typing import TYPE_CHECKING
 
 from app.models.domain import TransactionType
 
-if TYPE_CHECKING:
-    from app.services.transaction_service import TransactionService
+logger = logging.getLogger("opentreasury")
 
 _INCOME = TransactionType.INCOME.value
 _EXPENSE = TransactionType.EXPENSE.value
-_INCOME_EXPENSE = (_INCOME, _EXPENSE)
+_INCOME_EXPENSE = {_INCOME, _EXPENSE}
+
+if TYPE_CHECKING:
+    from app.services.category_service import CategoryService
+    from app.services.transaction_service import TransactionService
 
 
 class ReportService:
-    def __init__(self, *, transaction_service: TransactionService):
+    def __init__(self, *, transaction_service: TransactionService, category_service: CategoryService):
         self._txn = transaction_service
+        self._cat = category_service
 
     async def get_summary(self, year: int) -> dict:
         items = await self._txn.get_transactions_for_report(year=year)
@@ -76,6 +81,77 @@ class ReportService:
         ]
 
         return {"year": year, "month": month, "items": breakdown_items}
+
+    async def get_balance(self, year: int) -> dict:
+        items = await self._txn.get_transactions_for_report(year=year)
+
+        # Get all categories for name lookup
+        categories = await self._cat.list_categories()
+        category_map = {cat["id"]: cat["name"] for cat in categories}
+        subcategory_map = {}
+        for cat in categories:
+            for sub in cat.get("subcategories", []):
+                subcategory_map[sub["id"]] = sub["name"]
+
+        buckets: dict[str, dict[str, Decimal]] = defaultdict(lambda: {"income": Decimal("0"), "expense": Decimal("0")})
+
+        for item in items:
+            txn_type = item.get("transactionType")
+            if txn_type not in _INCOME_EXPENSE:
+                continue  # transfer and refund: excluded from balance
+
+            if item.get("isSplit") and item.get("splitLines"):
+                # Aggregate at split-line level
+                for line in item["splitLines"]:
+                    cat_id = line.get("categoryId") or "uncategorized"
+                    subcat_id = line.get("subcategoryId")
+                    key = f"{cat_id}:{subcat_id}" if subcat_id else cat_id
+                    amount = abs(Decimal(str(line["amount"])))
+                    if txn_type == _INCOME:
+                        buckets[key]["income"] += amount
+                    else:
+                        buckets[key]["expense"] += amount
+            else:
+                cat_id = item.get("categoryId") or "uncategorized"
+                subcat_id = item.get("subcategoryId")
+                key = f"{cat_id}:{subcat_id}" if subcat_id else cat_id
+                amount = abs(Decimal(str(item["amount"])))
+                if txn_type == _INCOME:
+                    buckets[key]["income"] += amount
+                else:
+                    buckets[key]["expense"] += amount
+
+        balance_items = []
+        for key, data in buckets.items():
+            if ":" in key:
+                cat_id, subcat_id = key.split(":", 1)
+            else:
+                cat_id = key
+                subcat_id = None
+
+            if cat_id == "uncategorized":
+                category_name = "Uncategorized"
+            else:
+                category_name = category_map.get(cat_id)
+                if category_name is None:
+                    logger.warning(
+                        "Category '%s' not found in reference data — falling back to 'Uncategorized'", cat_id
+                    )
+                    category_name = "Uncategorized"
+
+            balance_items.append(
+                {
+                    "category_id": cat_id,
+                    "category_name": category_name,
+                    "subcategory_id": subcat_id,
+                    "subcategory_name": subcategory_map.get(subcat_id, "") if subcat_id else None,
+                    "income": data["income"],
+                    "expense": data["expense"],
+                    "net": data["income"] - data["expense"],
+                }
+            )
+
+        return {"year": year, "items": balance_items}
 
     async def get_monthly_trend(self, year: int) -> dict:
         items = await self._txn.get_transactions_for_report(year=year)
