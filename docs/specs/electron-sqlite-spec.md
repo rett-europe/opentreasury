@@ -44,7 +44,7 @@ Deliver a desktop deployment mode that:
 
 ## 4. Architecture Alignment
 
-## 4.1 Layering Rule (Must Keep)
+### 4.1 Layering Rule (Must Keep)
 
 Existing layering remains authoritative:
 
@@ -54,7 +54,7 @@ Existing layering remains authoritative:
 
 Desktop mode introduces a storage adapter, not a domain rewrite.
 
-## 4.2 Proposed Runtime Topology
+### 4.2 Proposed Runtime Topology
 
 1. Electron launches:
    - Angular UI (renderer process).
@@ -63,7 +63,7 @@ Desktop mode introduces a storage adapter, not a domain rewrite.
 3. Repository provider resolves to SQLite implementations when `DATA_BACKEND=sqlite`.
 4. SQLite file location is configured per environment (`local` or `onedrive-shared` path).
 
-## 4.3 Data Mapping
+### 4.3 Data Mapping
 
 Create SQLite-backed repositories for:
 
@@ -99,26 +99,26 @@ No feature may regress due to storage backend switch.
 
 ## 6. Authentication & Authorization
 
-## 6.1 Identity Source
+### 6.1 Identity Source
 
 - Keep Microsoft Entra ID as identity provider.
 - Desktop app authenticates users with OAuth2 Authorization Code + PKCE.
 - Access token and ID token validated by local FastAPI auth dependencies (same claim semantics as cloud).
 
-## 6.2 Session Handling
+### 6.2 Session Handling
 
 - Tokens stored only in OS secure credential storage (Keychain/Credential Manager/libsecret).
 - No plaintext refresh tokens in SQLite.
 - Session renewal follows existing token expiry logic.
 
-## 6.3 RBAC
+### 6.3 RBAC
 
 - Admin/Viewer role extraction must remain claim-driven.
 - All write endpoints stay protected by existing admin dependency checks.
 
 ## 7. OneDrive Shared SQLite Mode
 
-## 7.1 Support Model
+### 7.1 Support Model
 
 OneDrive-shared SQLite is supported with strict constraints:
 
@@ -129,7 +129,7 @@ OneDrive-shared SQLite is supported with strict constraints:
 5. Conflict detector using row version fields (`updated_at`, `version`) for optimistic concurrency in update paths.
 6. Scheduled SQLite backup snapshots before schema migrations.
 
-## 7.2 Operational Limits
+### 7.2 Operational Limits
 
 - Supported for small teams with low simultaneous write volume.
 - Not suitable for heavy concurrent editing.
