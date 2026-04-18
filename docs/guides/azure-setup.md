@@ -328,6 +328,66 @@ The script will:
 
 ---
 
+## 4.1 Local Development — Cosmos DB RBAC Setup
+
+Cosmos DB has local authorization disabled (`disableLocalAuth: true`). Connection keys **do not work**. All access uses Entra ID RBAC.
+
+### How it works
+
+| Environment | Auth method | How |
+|-------------|-------------|-----|
+| Production | App Service system-assigned managed identity | Bicep creates RBAC assignment automatically |
+| Local dev | `az login` → `DefaultAzureCredential` | Developer must have RBAC role + `COSMOS_KEY=` empty in `.env` |
+| Cosmos Emulator | Key-based auth | Emulator doesn't support RBAC; use the emulator key |
+
+### One-time setup for each developer
+
+1. **Find your Entra ID object ID:**
+
+```bash
+az ad signed-in-user show --query id -o tsv
+```
+
+2. **Assign the Cosmos DB Built-in Data Contributor role:**
+
+```bash
+az cosmosdb sql role assignment create \
+  --account-name <cosmos-account-name> \
+  --resource-group <resource-group> \
+  --role-definition-id 00000000-0000-0000-0000-000000000002 \
+  --principal-id <your-entra-object-id> \
+  --scope /subscriptions/<sub-id>/resourceGroups/<rg>/providers/Microsoft.DocumentDB/databaseAccounts/<cosmos-account>
+```
+
+> **Note:** This is a Cosmos DB data-plane role, not an ARM role. It cannot be assigned through the Azure Portal's IAM blade — it requires `az cosmosdb sql role assignment create` or Bicep `Microsoft.DocumentDB/databaseAccounts/sqlRoleAssignments`.
+
+3. **Ensure `.env` has an empty `COSMOS_KEY`:**
+
+```
+COSMOS_KEY=
+```
+
+If `COSMOS_KEY` has any value, the app uses key-based auth which will fail with 401.
+
+4. **Verify access:**
+
+```bash
+az login  # ensure you're logged in
+cd api
+uvicorn app.main:app --reload --port 8000
+# Visit http://localhost:8000/api/health
+```
+
+### Troubleshooting local Cosmos access
+
+| Symptom | Cause | Fix |
+|---------|-------|-----|
+| `401 Unauthorized` on every API call | `COSMOS_KEY` is set in `.env` | Set `COSMOS_KEY=` (empty) |
+| `403 Forbidden` from Cosmos | Your Entra ID lacks the data-plane RBAC role | Run the `az cosmosdb sql role assignment create` command above |
+| `DefaultAzureCredential` error | Not logged in to Azure CLI | Run `az login` |
+
+---
+
 ## 5. Troubleshooting
 
 ### Wrong subscription
