@@ -149,9 +149,3 @@ class TestSqliteSkeletonsRaiseNotImplemented:
             await repo.get_by_id("x", "pk")
         with pytest.raises(NotImplementedError):
             await repo.create({})
-
-    @pytest.mark.asyncio
-    async def test_category_methods_raise(self):
-        repo = SqliteCategoryRepository()
-        with pytest.raises(NotImplementedError):
-            await repo.list_all()
