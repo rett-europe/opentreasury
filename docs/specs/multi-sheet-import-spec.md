@@ -137,7 +137,7 @@ This is a small, low-cost improvement and avoids a "the file looks fine, why won
 
 ### 5.4 i18n
 
-New label keys (added to all five locales — ES/EN/PT/FR/DE — following the existing `import.*` group):
+New label keys (added to the currently supported locales — ES/EN — following the existing `import.*` group):
 
 | Key | EN (canonical) |
 |-----|----------------|
