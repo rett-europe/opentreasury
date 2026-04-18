@@ -53,7 +53,7 @@ import { PageHeaderComponent } from '@shared/components/page-header/page-header.
               <mat-label>{{ settings.labels().importSelectAccountPlaceholder }}</mat-label>
               <mat-select [value]="selectedAccountId()" (selectionChange)="onAccountSelected($event.value)">
                 @for (acc of activeAccounts(); track acc.id) {
-                  <mat-option [value]="acc.id">{{ acc.accountLabel }}{{ acc.iban ? ' (' + acc.iban + ')' : '' }}</mat-option>
+                  <mat-option [value]="acc.id">{{ acc.accountLabel }}{{ acc.iban ? ' (' + maskIban(acc.iban) + ')' : '' }}</mat-option>
                 }
               </mat-select>
             </mat-form-field>
@@ -938,5 +938,15 @@ export class ImportComponent {
     this.categoryTypeSelections.set({});
     this.selectedSheetForPicker.set(null);
     this.discovery.set(null);
+  }
+
+  maskIban(iban: string): string {
+    const clean = iban.replace(/\s/g, '');
+    if (clean.length <= 8) return clean;
+    const first = clean.slice(0, 4);
+    const last = clean.slice(-4);
+    const masked = '*'.repeat(clean.length - 8);
+    const full = first + masked + last;
+    return full.replace(/(.{4})/g, '$1 ').trim();
   }
 }
