@@ -34,13 +34,14 @@ async def _read_upload(file: UploadFile) -> bytes:
 async def preview_import(
     file: UploadFile = File(...),
     account_id: str = Query(..., alias="accountId", min_length=1),
+    sheet: Optional[str] = Query(None, min_length=1, max_length=200),
     current_user: dict = Depends(get_current_admin),
     service: ImportService = Depends(get_import_service),
 ):
     body = await _read_upload(file)
 
     try:
-        preview = await service.preview_workbook(body, account_id=account_id)
+        preview = await service.preview_workbook(body, account_id=account_id, sheet=sheet)
     except ValueError as exc:
         detail = str(exc)
         if "not found or inactive" in detail:
@@ -55,6 +56,7 @@ async def import_workbook(
     file: UploadFile = File(...),
     metadata: Optional[str] = Form(None),
     account_id: str = Query(..., alias="accountId", min_length=1),
+    sheet: Optional[str] = Query(None, min_length=1, max_length=200),
     current_user: dict = Depends(get_current_admin),
     service: ImportService = Depends(get_import_service),
 ):
@@ -84,6 +86,7 @@ async def import_workbook(
             category_type_overrides=category_type_overrides,
             user_id=current_user["oid"],
             user_name=current_user["name"],
+            sheet=sheet,
         )
     except ValueError as exc:
         detail = str(exc)

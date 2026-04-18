@@ -58,8 +58,19 @@ class ImportService:
     # Preview (dry-run validation)
     # ------------------------------------------------------------------
 
-    async def preview_workbook(self, workbook_bytes: bytes, *, account_id: str) -> dict:
-        """Validate workbook without writing. Returns preview with valid flag, errors, and counts."""
+    async def preview_workbook(
+        self,
+        workbook_bytes: bytes,
+        *,
+        account_id: str,
+        sheet: str | None = None,
+    ) -> dict:
+        """Validate workbook without writing. Returns preview with valid flag, errors, and counts.
+
+        When ``sheet`` is None and the workbook contains 2+ candidate movement sheets,
+        a *sheet-selection-required* payload is returned so the caller can prompt the
+        user to pick one. When ``sheet`` is provided, that specific sheet is validated.
+        """
         errors: list[str] = []
         warnings: list[str] = []
 
@@ -76,22 +87,50 @@ class ImportService:
                 account=account_info,
             )
 
-        # 3. Find movement sheet
-        movement_sheet, header_row = self._find_movements_sheet(workbook)
-        if movement_sheet is None:
-            required = ", ".join(sorted(REQUIRED_HEADERS))
-            return self._preview_result(
-                valid=False,
-                errors=[f"No sheet found with required column headers: {required}"],
+        # 3. Enumerate sheets — split into candidates and ignored
+        candidates, ignored = self._enumerate_sheets(workbook)
+
+        # 3a. If no sheet was requested and we have 2+ candidates → ask the user to pick one.
+        if sheet is None and len(candidates) >= 2:
+            return self._sheet_selection_result(
+                candidates=candidates,
+                ignored=ignored,
                 account=account_info,
             )
+
+        # 3b. Resolve the movement sheet:
+        #     - If `sheet` is given, it must match an existing sheet (raise ValueError → 400 in router).
+        #     - Otherwise pick the single candidate (or fall back to None for the zero-candidate error path).
+        if sheet is not None:
+            movement_sheet, header_row = self._select_sheet_by_name(workbook, sheet, candidates)
+        elif candidates:
+            movement_sheet = candidates[0]["sheet"]
+            header_row = candidates[0]["header_row"]
+        else:
+            movement_sheet, header_row = None, None
+
+        if movement_sheet is None:
+            required = ", ".join(sorted(REQUIRED_HEADERS))
+            error_msg = f"No sheet found with required column headers: {required}"
+            return self._preview_result(
+                valid=False,
+                errors=[error_msg],
+                account=account_info,
+                ignored_sheets=ignored if not candidates else [],
+                available_sheets=[c["name"] for c in candidates],
+            )
+
+        sheet_meta = {
+            "selected_sheet": movement_sheet.title,
+            "available_sheets": [c["name"] for c in candidates],
+        }
 
         # 4. Build header map and validate required columns
         headers = self._build_header_map(movement_sheet, header_row)
         missing = REQUIRED_HEADERS - set(headers.keys())
         if missing:
             errors.append(f"Required columns not found: {', '.join(sorted(missing))}")
-            return self._preview_result(valid=False, errors=errors, account=account_info)
+            return self._preview_result(valid=False, errors=errors, account=account_info, **sheet_meta)
 
         # 6. Detect import mode
         import_mode = self._detect_import_mode(workbook, headers)
@@ -105,6 +144,7 @@ class ImportService:
                 import_mode=import_mode,
                 errors=["No data rows found below the header row"],
                 account=account_info,
+                **sheet_meta,
             )
 
         empty_dates: list[int] = []
@@ -182,6 +222,7 @@ class ImportService:
                 total_rows=total_rows,
                 rows_with_errors=rows_with_errors,
                 account=account_info,
+                **sheet_meta,
             )
 
         # 8. Category / subcategory diff (mode-specific)
@@ -205,6 +246,8 @@ class ImportService:
                     valid=False,
                     import_mode=import_mode,
                     errors=[f"No categories sheet found. Expected a sheet named: {names}"],
+                    account=account_info,
+                    **sheet_meta,
                 )
             parsed_categories = self._parse_category_sheet(category_sheet)
             new_categories, new_subcategories, resolvable, cat_warnings = self._compute_category_diff(
@@ -252,6 +295,7 @@ class ImportService:
                 account=account_info,
                 new_categories=new_categories,
                 new_subcategories=new_subcategories,
+                **sheet_meta,
             )
 
         # 10. Count transactions and duplicates
@@ -310,6 +354,7 @@ class ImportService:
             new_subcategories=new_subcategories,
             transactions_to_import=transactions_to_import,
             duplicates_to_skip=duplicates_to_skip,
+            **sheet_meta,
         )
 
     def _preview_result(
@@ -326,6 +371,9 @@ class ImportService:
         new_subcategories: list[dict] | None = None,
         transactions_to_import: int = 0,
         duplicates_to_skip: int = 0,
+        selected_sheet: str | None = None,
+        available_sheets: list[str] | None = None,
+        ignored_sheets: list[dict] | None = None,
     ) -> dict:
         return {
             "valid": valid,
@@ -339,6 +387,46 @@ class ImportService:
             "newSubcategories": new_subcategories or [],
             "transactionsToImport": transactions_to_import,
             "duplicatesToSkip": duplicates_to_skip,
+            "requiresSheetSelection": False,
+            "selectedSheet": selected_sheet,
+            "availableSheets": available_sheets or [],
+            "ignoredSheets": ignored_sheets or [],
+        }
+
+    def _sheet_selection_result(
+        self,
+        *,
+        candidates: list[dict],
+        ignored: list[dict],
+        account: dict,
+    ) -> dict:
+        """Return the discovery payload that asks the UI to prompt for a sheet."""
+        return {
+            "requiresSheetSelection": True,
+            "candidateSheets": [
+                {
+                    "name": c["name"],
+                    "dataRowCount": c["data_row_count"],
+                    "headerRow": c["header_row"],
+                }
+                for c in candidates
+            ],
+            "ignoredSheets": ignored,
+            "account": account,
+            # Echo today's preview shape fields with safe defaults so callers that
+            # branch on `requiresSheetSelection` still get well-formed JSON.
+            "valid": False,
+            "importMode": "full",
+            "errors": [],
+            "warnings": [],
+            "totalRows": 0,
+            "rowsWithErrors": 0,
+            "newCategories": [],
+            "newSubcategories": [],
+            "transactionsToImport": 0,
+            "duplicatesToSkip": 0,
+            "selectedSheet": None,
+            "availableSheets": [c["name"] for c in candidates],
         }
 
     async def _validate_account(self, account_id: str) -> dict:
@@ -405,10 +493,20 @@ class ImportService:
         category_type_overrides: dict[str, str] | None = None,
         user_id: str,
         user_name: str,
+        sheet: str | None = None,
     ) -> dict:
         workbook = load_workbook(BytesIO(workbook_bytes), data_only=True)
 
-        movement_sheet, header_row = self._find_movements_sheet(workbook)
+        candidates, _ = self._enumerate_sheets(workbook)
+        if sheet is not None:
+            movement_sheet, header_row = self._select_sheet_by_name(workbook, sheet, candidates)
+        elif candidates:
+            # Backwards compatibility: omit `sheet` → first-candidate-wins (today's behavior).
+            movement_sheet = candidates[0]["sheet"]
+            header_row = candidates[0]["header_row"]
+        else:
+            movement_sheet, header_row = None, None
+
         if movement_sheet is None:
             raise ValueError("No movement sheet found in workbook")
 
@@ -470,6 +568,7 @@ class ImportService:
             "importSource": import_source,
             "accountId": summary.account_id,
             "accountLabel": summary.account_label,
+            "selectedSheet": movement_sheet.title,
             "categoriesCreated": summary.categories_created,
             "subcategoriesAdded": summary.subcategories_added,
             "transactionsImported": summary.transactions_imported,
@@ -590,12 +689,78 @@ class ImportService:
     # ------------------------------------------------------------------
 
     def _find_movements_sheet(self, workbook):
-        """Find the first sheet with required headers. Returns (sheet, header_row) or (None, None)."""
+        """Find the first sheet with required headers. Returns (sheet, header_row) or (None, None).
+
+        Kept for backward compatibility with any external callers; new code paths use
+        ``_enumerate_sheets`` + ``_select_sheet_by_name`` so they can offer the user a choice.
+        """
         for sheet in workbook.worksheets:
             header_row = self._find_header_row(sheet)
             if header_row is not None:
                 return sheet, header_row
         return None, None
+
+    def _enumerate_sheets(self, workbook) -> tuple[list[dict], list[dict]]:
+        """Return ``(candidates, ignored)`` for every worksheet in the workbook.
+
+        Each candidate dict contains: ``name``, ``sheet``, ``header_row``, ``data_row_count``.
+        Each ignored dict contains: ``name``, ``reason``, and (when applicable) ``missing``.
+        Order is preserved from workbook order — the caller can rely on it for default selection.
+        """
+        candidates: list[dict] = []
+        ignored: list[dict] = []
+        for sheet in workbook.worksheets:
+            header_row = self._find_header_row(sheet)
+            if header_row is None:
+                # Distinguish "empty sheet" from "has rows but missing headers" so we can
+                # show a useful reason in the UI without needing to compute the full diff.
+                if sheet.max_row is None or sheet.max_row <= 0 or self._sheet_is_empty(sheet):
+                    ignored.append({"name": sheet.title, "reason": "empty"})
+                else:
+                    ignored.append(
+                        {
+                            "name": sheet.title,
+                            "reason": "missing_required_headers",
+                            "missing": sorted(REQUIRED_HEADERS),
+                        }
+                    )
+                continue
+
+            # Cheap data-row count: max_row minus header_row (clamped at zero).
+            # openpyxl's max_row is already cached, so this is O(1).
+            data_row_count = max(0, (sheet.max_row or 0) - header_row)
+            candidates.append(
+                {
+                    "name": sheet.title,
+                    "sheet": sheet,
+                    "header_row": header_row,
+                    "data_row_count": data_row_count,
+                }
+            )
+        return candidates, ignored
+
+    def _select_sheet_by_name(self, workbook, name: str, candidates: list[dict]):
+        """Resolve a user-selected sheet name to ``(sheet, header_row)``.
+
+        Raises ValueError (mapped to HTTP 400 by the router) when:
+          - the sheet name does not exist in the workbook, or
+          - the sheet exists but is not a valid movements candidate.
+        """
+        if name not in workbook.sheetnames:
+            raise ValueError(f"Sheet '{name}' not found in workbook")
+        for candidate in candidates:
+            if candidate["name"] == name:
+                return candidate["sheet"], candidate["header_row"]
+        raise ValueError(f"Sheet '{name}' is not importable: missing required headers")
+
+    @staticmethod
+    def _sheet_is_empty(sheet) -> bool:
+        """Return True if the sheet has no non-empty cell value."""
+        for row in sheet.iter_rows(values_only=True):
+            for value in row:
+                if value not in (None, ""):
+                    return False
+        return True
 
     def _find_categories_sheet(self, workbook):
         """Find the categories sheet by name. Returns sheet or None."""
