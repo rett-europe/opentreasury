@@ -201,4 +201,5 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for development setup, code style, and PR
 
 - [Architecture overview](docs/architecture.md)
 - [Feature catalog](docs/features.md)
+- [Electron + SQLite desktop spec](docs/specs/electron-sqlite-spec.md)
 - [Security reviews](docs/security/)
