@@ -128,7 +128,7 @@ export interface TransactionFilters {
           </button>
         }
 
-        <button mat-flat-button color="accent" class="uncat-preset-btn" (click)="showUncategorized.emit()">
+        <button mat-stroked-button class="uncat-preset-btn" (click)="showUncategorized.emit()">
           <mat-icon>label_off</mat-icon>
           {{ settings.labels().showAllUncategorized }}
         </button>
@@ -300,7 +300,13 @@ export interface TransactionFilters {
       margin-left: auto;
       white-space: nowrap;
       font-size: var(--font-sm);
-      font-weight: var(--fw-semibold);
+      font-weight: var(--fw-medium);
+      color: var(--clr-text-secondary);
+      border-color: var(--clr-border);
+    }
+    .uncat-preset-btn:hover {
+      background: var(--brand-surface-hover, rgba(0, 0, 0, 0.04));
+      color: var(--clr-text-primary);
     }
     .filter-row {
       display: flex;
