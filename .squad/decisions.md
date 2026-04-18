@@ -2,6 +2,20 @@
 
 ## Active Decisions
 
+### 2026-04-18: System Settings spec approved (Issue #12)
+**By:** Pedro (approval) + Neo (architectural review)
+**What:** `docs/specs/system-settings-spec.md` is **Approved**. V1 ships 6 settings (Currency, Date format, Number format, Fiscal year start, Default language, Organization name) stored as a singleton `id="system"` document in the existing `reference_data` Cosmos container (pk `/type`). New `GET`/`PUT /api/settings` endpoints; PUT is admin-only. New left-menu **Settings** entry behind `adminGuard`. Existing right-side drawer is renamed to **Preferences** (label change only).
+
+Two binding amendments folded into spec §13:
+- **A1:** `PUT /api/settings` writes `updatedAt` (server clock, UTC ISO 8601) and `updatedBy` (authenticated principal) server-side — never trust client values. Both fields are returned in `GET` and `PUT` responses. Keeps the door open for ETag/optimistic concurrency later without a data-shape change.
+- **A2:** `SystemSettingsService.load()` must complete (or fall back to defaults) before the first format-sensitive render (transactions list, dashboard, KPI strip). Avoids flash-of-wrong-currency / wrong-date-format. Trinity picks the mechanism (router-outlet gate or pipe-level placeholder).
+
+Open questions OQ-1…OQ-6 all resolved per Neo's recommendations: page="Settings"/drawer="Preferences"; 4-currency short list (EUR/USD/GBP/CHF); fiscal year stored now to avoid migration; org name surfaces in browser tab title + export filenames only; `updatedAt`+`updatedBy` is sufficient audit for V1; no extra V1 settings.
+
+**Why:** Reuses existing infrastructure (no Bicep / `CosmosService` / new container), preserves Single Responsibility between per-org `SystemSettingsService` and per-user `AppSettingsService`, ships smallest useful set without forcing a follow-up spec.
+
+**Routing on approval:** Morpheus (backend), Trinity (frontend), Cypher (tests for AC-1…AC-15) in parallel; Switch courtesy review of the admin-only PUT; Neo reviews implementation PRs against the spec before merge.
+
 ### 2026-04-10: Project kickoff
 **By:** Pedro (user)
 **What:** OpenTreasury — open-source bank transaction management for NGOs. Angular frontend, Microsoft Entra ID auth (configurable tenant), Python FastAPI backend with Cosmos DB. Transaction tracking with categories/subcategories.
