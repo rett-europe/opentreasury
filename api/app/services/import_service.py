@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass, field
 from datetime import date, datetime
 from decimal import Decimal
@@ -26,6 +27,8 @@ if TYPE_CHECKING:
     from app.services.account_service import AccountService
     from app.services.category_service import CategoryService
     from app.services.transaction_service import TransactionService
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -58,8 +61,20 @@ class ImportService:
     # Preview (dry-run validation)
     # ------------------------------------------------------------------
 
-    async def preview_workbook(self, workbook_bytes: bytes, *, account_id: str) -> dict:
-        """Validate workbook without writing. Returns preview with valid flag, errors, and counts."""
+    async def preview_workbook(
+        self,
+        workbook_bytes: bytes,
+        *,
+        account_id: str,
+        sheet: str | None = None,
+        skip_duplicates: bool = True,
+    ) -> dict:
+        """Validate workbook without writing. Returns preview with valid flag, errors, and counts.
+
+        When ``sheet`` is None and the workbook contains 2+ candidate movement sheets,
+        a *sheet-selection-required* payload is returned so the caller can prompt the
+        user to pick one. When ``sheet`` is provided, that specific sheet is validated.
+        """
         errors: list[str] = []
         warnings: list[str] = []
 
@@ -68,7 +83,7 @@ class ImportService:
 
         # 2. Open workbook
         try:
-            workbook = load_workbook(BytesIO(workbook_bytes), data_only=True)
+            workbook = self._load_workbook(workbook_bytes)
         except Exception:
             return self._preview_result(
                 valid=False,
@@ -76,28 +91,59 @@ class ImportService:
                 account=account_info,
             )
 
-        # 3. Find movement sheet
-        movement_sheet, header_row = self._find_movements_sheet(workbook)
-        if movement_sheet is None:
-            required = ", ".join(sorted(REQUIRED_HEADERS))
-            return self._preview_result(
-                valid=False,
-                errors=[f"No sheet found with required column headers: {required}"],
+        # 3. Enumerate sheets — split into candidates and ignored
+        candidates, ignored = self._enumerate_sheets(workbook)
+
+        # 3a. If no sheet was requested and we have 2+ candidates → ask the user to pick one.
+        if sheet is None and len(candidates) >= 2:
+            return self._sheet_selection_result(
+                candidates=candidates,
+                ignored=ignored,
                 account=account_info,
             )
+
+        # 3b. Resolve the movement sheet:
+        #     - If `sheet` is given, it must match an existing sheet (raise ValueError → 400 in router).
+        #     - Otherwise pick the single candidate (or fall back to None for the zero-candidate error path).
+        if sheet is not None:
+            movement_sheet, header_row = self._select_sheet_by_name(workbook, sheet, candidates)
+        elif candidates:
+            movement_sheet = candidates[0]["sheet"]
+            header_row = candidates[0]["header_row"]
+        else:
+            movement_sheet, header_row = None, None
+
+        if movement_sheet is None:
+            required = ", ".join(sorted(REQUIRED_HEADERS))
+            error_msg = f"No sheet found with required column headers: {required}"
+            return self._preview_result(
+                valid=False,
+                errors=[error_msg],
+                account=account_info,
+                ignored_sheets=ignored if not candidates else [],
+                available_sheets=[c["name"] for c in candidates],
+            )
+
+        sheet_meta = {
+            "selected_sheet": movement_sheet.title,
+            "available_sheets": [c["name"] for c in candidates],
+        }
 
         # 4. Build header map and validate required columns
         headers = self._build_header_map(movement_sheet, header_row)
         missing = REQUIRED_HEADERS - set(headers.keys())
         if missing:
             errors.append(f"Required columns not found: {', '.join(sorted(missing))}")
-            return self._preview_result(valid=False, errors=errors, account=account_info)
+            return self._preview_result(valid=False, errors=errors, account=account_info, **sheet_meta)
 
         # 6. Detect import mode
         import_mode = self._detect_import_mode(workbook, headers)
 
         # 7. Validate data integrity — scan all data rows
-        rows = list(movement_sheet.iter_rows(min_row=header_row + 1, values_only=True))
+        # Filter out trailing empty rows (openpyxl read_only mode can report
+        # inflated max_row due to formatting-only cells).
+        raw_rows = list(movement_sheet.iter_rows(min_row=header_row + 1, values_only=True))
+        rows = [r for r in raw_rows if any(v not in (None, "") for v in r)]
         total_rows = len(rows)
         if total_rows == 0:
             return self._preview_result(
@@ -105,6 +151,7 @@ class ImportService:
                 import_mode=import_mode,
                 errors=["No data rows found below the header row"],
                 account=account_info,
+                **sheet_meta,
             )
 
         empty_dates: list[int] = []
@@ -182,6 +229,7 @@ class ImportService:
                 total_rows=total_rows,
                 rows_with_errors=rows_with_errors,
                 account=account_info,
+                **sheet_meta,
             )
 
         # 8. Category / subcategory diff (mode-specific)
@@ -205,6 +253,8 @@ class ImportService:
                     valid=False,
                     import_mode=import_mode,
                     errors=[f"No categories sheet found. Expected a sheet named: {names}"],
+                    account=account_info,
+                    **sheet_meta,
                 )
             parsed_categories = self._parse_category_sheet(category_sheet)
             new_categories, new_subcategories, resolvable, cat_warnings = self._compute_category_diff(
@@ -252,6 +302,7 @@ class ImportService:
                 account=account_info,
                 new_categories=new_categories,
                 new_subcategories=new_subcategories,
+                **sheet_meta,
             )
 
         # 10. Count transactions and duplicates
@@ -262,9 +313,10 @@ class ImportService:
         ]
 
         duplicates_to_skip = 0
+        duplicate_rows: list[dict] = []
         transactions_to_import = 0
 
-        if valid_dates and account_info.get("id"):
+        if skip_duplicates and valid_dates and account_info.get("id"):
             existing_txns = await self._transactions.get_transactions_for_export(
                 date_from=min(valid_dates).isoformat(),
                 date_to=max(valid_dates).isoformat(),
@@ -280,7 +332,7 @@ class ImportService:
                 for item in existing_txns
             }
             seen_keys = set(existing_keys)
-            for row in rows:
+            for row_offset, row in enumerate(rows, start=header_row + 1):
                 tx_date = self._to_date(self._cell(row, headers.get("date")))
                 amount = self._to_decimal(self._cell(row, headers.get("amount")))
                 desc = self._string_value(self._cell(row, headers.get("description")))
@@ -293,6 +345,14 @@ class ImportService:
                 )
                 if identity in seen_keys:
                     duplicates_to_skip += 1
+                    duplicate_rows.append(
+                        {
+                            "row": row_offset,
+                            "date": tx_date.isoformat() if tx_date else None,
+                            "amount": float(amount) if amount is not None else None,
+                            "description": self._truncate(desc, 120),
+                        }
+                    )
                 else:
                     transactions_to_import += 1
                     seen_keys.add(identity)
@@ -310,6 +370,8 @@ class ImportService:
             new_subcategories=new_subcategories,
             transactions_to_import=transactions_to_import,
             duplicates_to_skip=duplicates_to_skip,
+            duplicate_rows=duplicate_rows,
+            **sheet_meta,
         )
 
     def _preview_result(
@@ -326,6 +388,10 @@ class ImportService:
         new_subcategories: list[dict] | None = None,
         transactions_to_import: int = 0,
         duplicates_to_skip: int = 0,
+        duplicate_rows: list[dict] | None = None,
+        selected_sheet: str | None = None,
+        available_sheets: list[str] | None = None,
+        ignored_sheets: list[dict] | None = None,
     ) -> dict:
         return {
             "valid": valid,
@@ -339,6 +405,48 @@ class ImportService:
             "newSubcategories": new_subcategories or [],
             "transactionsToImport": transactions_to_import,
             "duplicatesToSkip": duplicates_to_skip,
+            "duplicateRows": duplicate_rows or [],
+            "requiresSheetSelection": False,
+            "selectedSheet": selected_sheet,
+            "availableSheets": available_sheets or [],
+            "ignoredSheets": ignored_sheets or [],
+        }
+
+    def _sheet_selection_result(
+        self,
+        *,
+        candidates: list[dict],
+        ignored: list[dict],
+        account: dict,
+    ) -> dict:
+        """Return the discovery payload that asks the UI to prompt for a sheet."""
+        return {
+            "requiresSheetSelection": True,
+            "candidateSheets": [
+                {
+                    "name": c["name"],
+                    "dataRowCount": c["data_row_count"],
+                    "headerRow": c["header_row"],
+                }
+                for c in candidates
+            ],
+            "ignoredSheets": ignored,
+            "account": account,
+            # Echo today's preview shape fields with safe defaults so callers that
+            # branch on `requiresSheetSelection` still get well-formed JSON.
+            "valid": False,
+            "importMode": "full",
+            "errors": [],
+            "warnings": [],
+            "totalRows": 0,
+            "rowsWithErrors": 0,
+            "newCategories": [],
+            "newSubcategories": [],
+            "transactionsToImport": 0,
+            "duplicatesToSkip": 0,
+            "duplicateRows": [],
+            "selectedSheet": None,
+            "availableSheets": [c["name"] for c in candidates],
         }
 
     async def _validate_account(self, account_id: str) -> dict:
@@ -405,10 +513,21 @@ class ImportService:
         category_type_overrides: dict[str, str] | None = None,
         user_id: str,
         user_name: str,
+        sheet: str | None = None,
+        skip_duplicates: bool = True,
     ) -> dict:
-        workbook = load_workbook(BytesIO(workbook_bytes), data_only=True)
+        workbook = self._load_workbook(workbook_bytes)
 
-        movement_sheet, header_row = self._find_movements_sheet(workbook)
+        candidates, _ = self._enumerate_sheets(workbook)
+        if sheet is not None:
+            movement_sheet, header_row = self._select_sheet_by_name(workbook, sheet, candidates)
+        elif candidates:
+            # Backwards compatibility: omit `sheet` → first-candidate-wins (today's behavior).
+            movement_sheet = candidates[0]["sheet"]
+            header_row = candidates[0]["header_row"]
+        else:
+            movement_sheet, header_row = None, None
+
         if movement_sheet is None:
             raise ValueError("No movement sheet found in workbook")
 
@@ -435,7 +554,8 @@ class ImportService:
             category_map = await self._sync_categories(parsed, user_id=user_id, user_name=user_name, summary=summary)
 
         elif import_mode == "inline":
-            rows = list(movement_sheet.iter_rows(min_row=header_row + 1, values_only=True))
+            raw_rows = list(movement_sheet.iter_rows(min_row=header_row + 1, values_only=True))
+            rows = [r for r in raw_rows if any(v not in (None, "") for v in r)]
             existing_categories = await self._categories.list_categories()
             extracted = self._extract_categories_from_rows(rows, headers)
             resolved, resolve_warnings = self._resolve_inline_categories(extracted, existing_categories)
@@ -462,6 +582,7 @@ class ImportService:
             user_id=user_id,
             user_name=user_name,
             summary=summary,
+            skip_duplicates=skip_duplicates,
         )
 
         return {
@@ -470,6 +591,7 @@ class ImportService:
             "importSource": import_source,
             "accountId": summary.account_id,
             "accountLabel": summary.account_label,
+            "selectedSheet": movement_sheet.title,
             "categoriesCreated": summary.categories_created,
             "subcategoriesAdded": summary.subcategories_added,
             "transactionsImported": summary.transactions_imported,
@@ -586,16 +708,153 @@ class ImportService:
         return TransactionType.EXPENSE
 
     # ------------------------------------------------------------------
+    # Workbook loading
+    # ------------------------------------------------------------------
+
+    @staticmethod
+    def _load_workbook(workbook_bytes: bytes):
+        """Open workbook with openpyxl, falling back to read-only mode.
+
+        Some bank-exported workbooks contain pivot tables that trigger a bug
+        in openpyxl <= 3.1.x (``Nested.from_tree()`` missing argument).  When
+        the standard load fails we retry with ``read_only=True`` which skips
+        pivot-cache parsing.  A warning is logged so we notice if this path is
+        hit frequently.
+        """
+        try:
+            return load_workbook(BytesIO(workbook_bytes), data_only=True)
+        except Exception:
+            logger.warning("Standard workbook load failed; retrying with read_only=True")
+            return load_workbook(BytesIO(workbook_bytes), data_only=True, read_only=True)
+
+    # ------------------------------------------------------------------
     # Sheet / header detection (multilingual)
     # ------------------------------------------------------------------
 
     def _find_movements_sheet(self, workbook):
-        """Find the first sheet with required headers. Returns (sheet, header_row) or (None, None)."""
+        """Find the first sheet with required headers. Returns (sheet, header_row) or (None, None).
+
+        Kept for backward compatibility with any external callers; new code paths use
+        ``_enumerate_sheets`` + ``_select_sheet_by_name`` so they can offer the user a choice.
+        """
         for sheet in workbook.worksheets:
             header_row = self._find_header_row(sheet)
             if header_row is not None:
                 return sheet, header_row
         return None, None
+
+    def _enumerate_sheets(self, workbook) -> tuple[list[dict], list[dict]]:
+        """Return ``(candidates, ignored)`` for every worksheet in the workbook.
+
+        Each candidate dict contains: ``name``, ``sheet``, ``header_row``, ``data_row_count``.
+        Each ignored dict contains: ``name``, ``reason``, and (when applicable) ``missing``.
+        Order is preserved from workbook order — the caller can rely on it for default selection.
+        """
+        candidates: list[dict] = []
+        ignored: list[dict] = []
+        for sheet in workbook.worksheets:
+            header_row = self._find_header_row(sheet)
+            if header_row is None:
+                # Distinguish "empty sheet" from "has rows but missing headers" so we can
+                # show a useful reason in the UI without needing to compute the full diff.
+                if sheet.max_row is None or sheet.max_row <= 0 or self._sheet_is_empty(sheet):
+                    ignored.append({"name": sheet.title, "reason": "empty"})
+                else:
+                    # Compute which required headers were not seen anywhere in the
+                    # candidate header zone (first 12 rows), so the UI can tell the
+                    # user *which* columns to add — not just that some are missing.
+                    # (`missing` cannot be empty here: if both required headers were
+                    # present in any of the first 12 rows, `_find_header_row` would
+                    # have succeeded and we wouldn't be in this branch.)
+                    found = self._collect_known_headers(sheet)
+                    missing = sorted(REQUIRED_HEADERS - found)
+                    ignored.append(
+                        {
+                            "name": sheet.title,
+                            "reason": "missing_required_headers",
+                            "missing": missing,
+                        }
+                    )
+                continue
+
+            # Cheap data-row count: max_row minus header_row (clamped at zero).
+            # openpyxl's max_row is already cached, so this is O(1).
+            data_row_count = max(0, (sheet.max_row or 0) - header_row)
+            candidates.append(
+                {
+                    "name": sheet.title,
+                    "sheet": sheet,
+                    "header_row": header_row,
+                    "data_row_count": data_row_count,
+                }
+            )
+        return candidates, ignored
+
+    def _select_sheet_by_name(self, workbook, name: str, candidates: list[dict]):
+        """Resolve a user-selected sheet name to ``(sheet, header_row)``.
+
+        Raises ValueError (mapped to HTTP 400 by the router) when:
+          - the sheet name does not exist in the workbook, or
+          - the sheet exists but is not a valid movements candidate.
+        """
+        if name not in workbook.sheetnames:
+            raise ValueError(f"Sheet '{name}' not found in workbook")
+        for candidate in candidates:
+            if candidate["name"] == name:
+                return candidate["sheet"], candidate["header_row"]
+        raise ValueError(f"Sheet '{name}' is not importable: missing required headers")
+
+    @staticmethod
+    def _sheet_is_empty(sheet) -> bool:
+        """Return True if the sheet has no non-empty cell value.
+
+        The check is intentionally bounded so sheet discovery stays cheap even
+        for worksheets with very large used ranges. We scan only an initial
+        window of cells; if the worksheet fits entirely inside that window and
+        no values are found, it is empty. For larger worksheets, absence of a
+        value in the sampled region is treated conservatively as non-empty.
+        """
+        max_row = sheet.max_row or 0
+        max_col = sheet.max_column or 0
+
+        if max_row == 0 or max_col == 0:
+            return True
+
+        row_limit = min(max_row, 50)
+        col_limit = min(max_col, 20)
+
+        for row in sheet.iter_rows(
+            min_row=1,
+            max_row=row_limit,
+            min_col=1,
+            max_col=col_limit,
+            values_only=True,
+        ):
+            for value in row:
+                if value not in (None, ""):
+                    return False
+
+        return max_row <= row_limit and max_col <= col_limit
+
+    def _collect_known_headers(self, sheet) -> set[str]:
+        """Return the set of canonical header keys found in the first 12 rows.
+
+        Used by ``_enumerate_sheets`` to report which *specific* required
+        headers are missing on a non-candidate sheet.
+        Uses ``iter_rows`` instead of ``sheet[row_idx]`` for read-only compatibility.
+        """
+        found: set[str] = set()
+        scan_limit = min(sheet.max_row or 0, 12)
+        if scan_limit <= 0:
+            return found
+        for row in sheet.iter_rows(min_row=1, max_row=scan_limit):
+            for cell in row:
+                if cell.value is None:
+                    continue
+                canonical = self._resolve_alias(cell.value)
+                if canonical:
+                    found.add(canonical)
+        return found
 
     def _find_categories_sheet(self, workbook):
         """Find the categories sheet by name. Returns sheet or None."""
@@ -605,10 +864,16 @@ class ImportService:
         return None
 
     def _find_header_row(self, sheet) -> int | None:
-        """Scan the first 12 rows for one that contains all required canonical headers."""
-        for row_idx in range(1, min(sheet.max_row, 12) + 1):
+        """Scan the first 12 rows for one that contains all required canonical headers.
+
+        Uses ``iter_rows`` instead of ``sheet[row_idx]`` for read-only compatibility.
+        """
+        scan_limit = min(sheet.max_row or 0, 12)
+        if scan_limit <= 0:
+            return None
+        for row_idx, row in enumerate(sheet.iter_rows(min_row=1, max_row=scan_limit), start=1):
             found_keys: set[str] = set()
-            for cell in sheet[row_idx]:
+            for cell in row:
                 if cell.value is None:
                     continue
                 canonical = self._resolve_alias(cell.value)
@@ -626,17 +891,18 @@ class ImportService:
         can be captured into the detail field by _build_detail.
         """
         result: dict[str, int] = {}
-        for idx, cell in enumerate(sheet[header_row]):
-            if cell.value is None:
-                continue
-            canonical = self._resolve_alias(cell.value)
-            if canonical and canonical not in result:
-                result[canonical] = idx
-            elif not canonical:
-                # Unrecognized column — normalize and keep for detail capture
-                raw = self._normalize_header(cell.value)
-                if raw and raw not in result:
-                    result[raw] = idx
+        for row in sheet.iter_rows(min_row=header_row, max_row=header_row):
+            for idx, cell in enumerate(row):
+                if cell.value is None:
+                    continue
+                canonical = self._resolve_alias(cell.value)
+                if canonical and canonical not in result:
+                    result[canonical] = idx
+                elif not canonical:
+                    # Unrecognized column — normalize and keep for detail capture
+                    raw = self._normalize_header(cell.value)
+                    if raw and raw not in result:
+                        result[raw] = idx
         return result
 
     def _resolve_alias(self, value) -> str | None:
@@ -767,8 +1033,10 @@ class ImportService:
         user_id: str,
         user_name: str,
         summary: ImportSummary,
+        skip_duplicates: bool = True,
     ) -> None:
-        rows = list(sheet.iter_rows(min_row=header_row + 1, values_only=True))
+        raw_rows = list(sheet.iter_rows(min_row=header_row + 1, values_only=True))
+        rows = [r for r in raw_rows if any(v not in (None, "") for v in r)]
         if not rows:
             return
 
@@ -845,7 +1113,7 @@ class ImportService:
                 detail,
                 amount,
             )
-            if identity in imported_keys:
+            if identity in imported_keys and skip_duplicates:
                 summary.duplicates_skipped += 1
                 continue
 

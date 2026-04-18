@@ -254,3 +254,100 @@ class TestImportWorkbook:
         )
 
         assert response.status_code in (404, 405)
+
+
+# ---------------------------------------------------------------------------
+# Multi-sheet selection (issue #17)
+# ---------------------------------------------------------------------------
+
+
+SAMPLE_SHEET_SELECTION = {
+    "requiresSheetSelection": True,
+    "candidateSheets": [
+        {"name": "Movimientos 2026", "dataRowCount": 52, "headerRow": 6},
+        {"name": "Movimientos 2025", "dataRowCount": 247, "headerRow": 6},
+    ],
+    "ignoredSheets": [{"name": "Resumen", "reason": "missing_required_headers", "missing": ["amount", "date"]}],
+    "account": {"id": "acc-1", "label": "Unicaja 0382", "iban": "ES70..."},
+    "valid": False,
+    "importMode": "full",
+    "errors": [],
+    "warnings": [],
+    "totalRows": 0,
+    "rowsWithErrors": 0,
+    "newCategories": [],
+    "newSubcategories": [],
+    "transactionsToImport": 0,
+    "duplicatesToSkip": 0,
+    "selectedSheet": None,
+    "availableSheets": ["Movimientos 2026", "Movimientos 2025"],
+}
+
+
+class TestPreviewSheetSelection:
+    async def test_sheet_selection_payload_passes_through(self, admin_client, mock_import_svc):
+        mock_import_svc.preview_workbook.return_value = SAMPLE_SHEET_SELECTION
+        app.dependency_overrides[get_import_service] = lambda: mock_import_svc
+
+        response = await admin_client.post(
+            "/api/imports/preview?accountId=acc-1",
+            files={"file": ("import.xlsx", make_minimal_xlsx(), XLSX_CONTENT_TYPE)},
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["requiresSheetSelection"] is True
+        assert [c["name"] for c in data["candidateSheets"]] == ["Movimientos 2026", "Movimientos 2025"]
+        # Service called without `sheet`
+        kwargs = mock_import_svc.preview_workbook.await_args.kwargs
+        assert kwargs.get("sheet") is None
+
+    async def test_preview_forwards_sheet_param(self, admin_client, mock_import_svc):
+        app.dependency_overrides[get_import_service] = lambda: mock_import_svc
+
+        response = await admin_client.post(
+            "/api/imports/preview?accountId=acc-1&sheet=Movimientos%202026",
+            files={"file": ("import.xlsx", make_minimal_xlsx(), XLSX_CONTENT_TYPE)},
+        )
+
+        assert response.status_code == 200
+        kwargs = mock_import_svc.preview_workbook.await_args.kwargs
+        assert kwargs.get("sheet") == "Movimientos 2026"
+
+    async def test_preview_invalid_sheet_returns_400(self, admin_client, mock_import_svc):
+        mock_import_svc.preview_workbook.side_effect = ValueError("Sheet 'Bad' not found in workbook")
+        app.dependency_overrides[get_import_service] = lambda: mock_import_svc
+
+        response = await admin_client.post(
+            "/api/imports/preview?accountId=acc-1&sheet=Bad",
+            files={"file": ("import.xlsx", make_minimal_xlsx(), XLSX_CONTENT_TYPE)},
+        )
+
+        assert response.status_code == 400
+        assert "not found" in response.json()["detail"].lower()
+
+    async def test_import_forwards_sheet_param(self, admin_client, mock_import_svc):
+        app.dependency_overrides[get_import_service] = lambda: mock_import_svc
+
+        response = await admin_client.post(
+            "/api/imports/workbook?accountId=acc-1&sheet=Second",
+            files={"file": ("import.xlsx", make_minimal_xlsx(), XLSX_CONTENT_TYPE)},
+        )
+
+        assert response.status_code == 201
+        kwargs = mock_import_svc.import_workbook.await_args.kwargs
+        assert kwargs.get("sheet") == "Second"
+
+    async def test_import_invalid_sheet_returns_400(self, admin_client, mock_import_svc):
+        mock_import_svc.import_workbook.side_effect = ValueError(
+            "Sheet 'Resumen' is not importable: missing required headers"
+        )
+        app.dependency_overrides[get_import_service] = lambda: mock_import_svc
+
+        response = await admin_client.post(
+            "/api/imports/workbook?accountId=acc-1&sheet=Resumen",
+            files={"file": ("import.xlsx", make_minimal_xlsx(), XLSX_CONTENT_TYPE)},
+        )
+
+        assert response.status_code == 400
+        assert "not importable" in response.json()["detail"].lower()

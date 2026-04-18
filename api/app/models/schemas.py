@@ -464,6 +464,25 @@ class AccountPreview(CamelModel):
     iban: str
 
 
+class IgnoredSheet(CamelModel):
+    name: str
+    reason: str
+    missing: list[str] = []
+
+
+class CandidateSheet(CamelModel):
+    name: str
+    data_row_count: int = 0
+    header_row: int = 0
+
+
+class DuplicateRow(CamelModel):
+    row: int
+    date: Optional[str] = None
+    amount: Optional[float] = None
+    description: Optional[str] = None
+
+
 class ImportPreview(CamelModel):
     valid: bool
     import_mode: str = "full"
@@ -476,6 +495,12 @@ class ImportPreview(CamelModel):
     new_subcategories: list[NewSubcategoryPreview] = []
     transactions_to_import: int = 0
     duplicates_to_skip: int = 0
+    duplicate_rows: list[DuplicateRow] = []
+    requires_sheet_selection: bool = False
+    selected_sheet: Optional[str] = None
+    available_sheets: list[str] = []
+    ignored_sheets: list[IgnoredSheet] = []
+    candidate_sheets: list[CandidateSheet] = []
 
 
 class ExcelImportSummary(CamelModel):
@@ -484,6 +509,7 @@ class ExcelImportSummary(CamelModel):
     import_source: str
     account_id: str
     account_label: str
+    selected_sheet: Optional[str] = None
     categories_created: int
     subcategories_added: int
     transactions_imported: int
