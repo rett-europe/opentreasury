@@ -139,7 +139,10 @@ class ImportService:
         import_mode = self._detect_import_mode(workbook, headers)
 
         # 7. Validate data integrity — scan all data rows
-        rows = list(movement_sheet.iter_rows(min_row=header_row + 1, values_only=True))
+        # Filter out trailing empty rows (openpyxl read_only mode can report
+        # inflated max_row due to formatting-only cells).
+        raw_rows = list(movement_sheet.iter_rows(min_row=header_row + 1, values_only=True))
+        rows = [r for r in raw_rows if any(v not in (None, "") for v in r)]
         total_rows = len(rows)
         if total_rows == 0:
             return self._preview_result(
@@ -536,7 +539,8 @@ class ImportService:
             category_map = await self._sync_categories(parsed, user_id=user_id, user_name=user_name, summary=summary)
 
         elif import_mode == "inline":
-            rows = list(movement_sheet.iter_rows(min_row=header_row + 1, values_only=True))
+            raw_rows = list(movement_sheet.iter_rows(min_row=header_row + 1, values_only=True))
+            rows = [r for r in raw_rows if any(v not in (None, "") for v in r)]
             existing_categories = await self._categories.list_categories()
             extracted = self._extract_categories_from_rows(rows, headers)
             resolved, resolve_warnings = self._resolve_inline_categories(extracted, existing_categories)
@@ -1014,7 +1018,8 @@ class ImportService:
         user_name: str,
         summary: ImportSummary,
     ) -> None:
-        rows = list(sheet.iter_rows(min_row=header_row + 1, values_only=True))
+        raw_rows = list(sheet.iter_rows(min_row=header_row + 1, values_only=True))
+        rows = [r for r in raw_rows if any(v not in (None, "") for v in r)]
         if not rows:
             return
 

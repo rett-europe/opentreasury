@@ -75,15 +75,17 @@ import { PageHeaderComponent } from '@shared/components/page-header/page-header.
                 {{ settings.labels().chooseExcel }}
               </button>
 
-              <button
-                mat-flat-button
-                color="primary"
-                [disabled]="!selectedFile() || !selectedAccountId() || previewing() || importing()"
-                (click)="runPreview()"
-              >
-                <mat-icon>fact_check</mat-icon>
-                {{ previewing() ? settings.labels().validating : settings.labels().previewBtn }}
-              </button>
+              @if (!sheetSelection()) {
+                <button
+                  mat-flat-button
+                  color="primary"
+                  [disabled]="!selectedFile() || !selectedAccountId() || previewing() || importing()"
+                  (click)="runPreview()"
+                >
+                  <mat-icon>fact_check</mat-icon>
+                  {{ previewing() ? settings.labels().validating : settings.labels().previewBtn }}
+                </button>
+              }
             </div>
           </mat-card-content>
         </mat-card>
@@ -635,14 +637,17 @@ import { PageHeaderComponent } from '@shared/components/page-header/page-header.
     .sheet-radio-group {
       display: flex;
       flex-direction: column;
-      gap: var(--spc-8);
-      max-height: 360px;
+      gap: 0;
+      max-height: 240px;
       overflow-y: auto;
-      margin-bottom: var(--spc-12);
+      margin-bottom: var(--spc-8);
+      border: 1px solid var(--clr-border, #e0e0e0);
+      border-radius: 4px;
+      padding: var(--spc-4) 0;
     }
 
     .sheet-radio {
-      padding: var(--spc-6) var(--spc-8);
+      padding: var(--spc-2) var(--spc-8);
     }
 
     .sheet-name {
