@@ -47,3 +47,17 @@
 - Edge cases covered: cross-year ranges, future dates (allowed), start > end (prevented by MatDateRangeInput), no max range cap (NGO volumes trivial), 0-result state distinct from initial empty state.
 - 16 acceptance criteria, all testable.
 - **Lesson:** The "empty state as default" pattern is cleaner than auto-loading for pages that serve as analysis views (vs. dashboards). The dashboard already shows latest movements — the transaction list is for targeted queries. Presets inline in the empty state serve dual purpose: they teach the UI and provide the fastest path to data.
+
+### 2026-04-18: Multi-sheet Excel import — UX spec written (issue #17)
+- Wrote `docs/specs/multi-sheet-import-spec.md` for issue #17 (allow user to pick which sheet to import when an `.xlsx` workbook contains several movements-shaped sheets).
+- Today's behavior: `_find_movements_sheet` silently picks the *first* sheet whose first 12 rows contain the four required headers. Other candidate sheets are dropped with no signal — confusing for archive workbooks (one sheet per year).
+- Core UX decision: **two-call preview**. First call (no `sheet` param) is *discovery* — returns either the normal preview (0 or 1 candidate, behavior unchanged) or a new `requiresSheetSelection: true` payload listing candidates + reasons for ignored sheets. Second call (`sheet={name}`) does the actual validation. This avoids paying parse cost for sheets the user is not going to import, and lets the single-sheet case stay one-click as it is today.
+- Designed the discovery payload to also list **ignored** sheets with a reason (`missing_required_headers` + which headers, or `empty`) — closes the "the file looks fine, why won't it import?" support gap without adding much code.
+- Added a small "Sheet: {name}" badge on the preview card for **both** paths (single- and multi-sheet) so the user is never ambiguous about what they're committing.
+- State machine rule for the picker: changing the sheet selection after a successful preview clears the preview and disables Confirm until re-previewed. Prevents committing data the user did not actually validate.
+- Backwards compatibility: import endpoint's `sheet` param is optional; omitting it keeps today's "first candidate wins" behavior so legacy API callers (if any) are unaffected. Frontend ships in lockstep with API, so the new `requiresSheetSelection` shape is acceptable for the Angular client.
+- 10 edge cases nailed down up-front, including: URL-unsafe sheet names (Año 2026 / Caja #1), Categories sheet that coincidentally also has the four movements headers, 50+ candidate sheets (Pedro's archive case), and the "user changes the picker after a valid preview then clicks Confirm" trap.
+- 15 acceptance criteria, all directly testable.
+- 5 open questions flagged for Pedro / Morpheus / Trinity / Switch — most importantly Q-1 (is `dataRowCount` cheap enough to compute during discovery on a 50-sheet workbook).
+- Explicit non-goals listed: importing multiple sheets in one run, per-sheet account mapping, remembering last-picked sheet — all real future ideas, kept out so reviewers don't conflate scope.
+- **Lesson:** When a current behavior is "silently pick the first one," the right UX is rarely "always ask." It's "ask only when the choice is actually ambiguous." Splitting the preview into discovery + validation kept the common (single-sheet) path zero-friction while making the multi-sheet path explicit. Same pattern likely applies elsewhere in the app — e.g., account auto-resolution by IBAN.
