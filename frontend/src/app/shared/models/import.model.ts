@@ -14,6 +14,27 @@ export interface NewSubcategoryPreview {
   name: string;
 }
 
+export interface CandidateSheet {
+  name: string;
+  dataRowCount: number;
+  headerRow: number;
+}
+
+export type IgnoredSheetReason = 'missing_required_headers' | 'empty' | string;
+
+export interface IgnoredSheet {
+  name: string;
+  reason: IgnoredSheetReason;
+  missing?: string[];
+}
+
+/**
+ * Discovery payload returned by /imports/preview when the workbook has 2+
+ * candidate movement sheets and no `sheet` query param was provided.
+ *
+ * Frontend should branch on `requiresSheetSelection` to decide whether to
+ * render the sheet picker or the normal preview.
+ */
 export interface ImportPreview {
   valid: boolean;
   importMode: string;
@@ -26,6 +47,11 @@ export interface ImportPreview {
   newSubcategories: NewSubcategoryPreview[];
   transactionsToImport: number;
   duplicatesToSkip: number;
+  requiresSheetSelection: boolean;
+  selectedSheet: string | null;
+  availableSheets: string[];
+  ignoredSheets: IgnoredSheet[];
+  candidateSheets: CandidateSheet[];
 }
 
 export interface ExcelImportSummary {
@@ -34,6 +60,7 @@ export interface ExcelImportSummary {
   importSource: string;
   accountId: string;
   accountLabel: string;
+  selectedSheet: string | null;
   categoriesCreated: number;
   subcategoriesAdded: number;
   transactionsImported: number;

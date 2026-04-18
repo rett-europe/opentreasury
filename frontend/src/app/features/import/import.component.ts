@@ -3,16 +3,18 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatButtonToggleModule } from '@angular/material/button-toggle';
 import { MatCardModule } from '@angular/material/card';
 import { MatChipsModule } from '@angular/material/chips';
+import { MatExpansionModule } from '@angular/material/expansion';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
 import { MatListModule } from '@angular/material/list';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
+import { MatRadioModule } from '@angular/material/radio';
 import { MatSelectModule } from '@angular/material/select';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { AppSettingsService } from '@core/services/app-settings.service';
 import { ReferenceDataService } from '@core/services/reference-data.service';
 import { ImportService } from '@core/services/import.service';
-import { ExcelImportSummary, ImportPreview } from '@shared/models/import.model';
+import { ExcelImportSummary, IgnoredSheet, ImportPreview } from '@shared/models/import.model';
 import { PageHeaderComponent } from '@shared/components/page-header/page-header.component';
 
 @Component({
@@ -24,10 +26,12 @@ import { PageHeaderComponent } from '@shared/components/page-header/page-header.
     MatButtonToggleModule,
     MatCardModule,
     MatChipsModule,
+    MatExpansionModule,
     MatFormFieldModule,
     MatIconModule,
     MatListModule,
     MatProgressSpinnerModule,
+    MatRadioModule,
     MatSelectModule,
     MatSnackBarModule,
     PageHeaderComponent,
@@ -99,8 +103,62 @@ import { PageHeaderComponent } from '@shared/components/page-header/page-header.
         </mat-card>
       </div>
 
+      <!-- Sheet selector (multi-sheet workbook) -->
+      @if (sheetSelection(); as sel) {
+        <mat-card class="status-card sheet-selector-card">
+          <mat-card-header>
+            <mat-card-title>
+              <mat-icon class="inline-icon">layers</mat-icon>
+              {{ settings.labels().importSheetSelectorTitle }}
+            </mat-card-title>
+            <mat-card-subtitle>{{ settings.labels().importSheetSelectorHelp }}</mat-card-subtitle>
+          </mat-card-header>
+          <mat-card-content>
+            <mat-radio-group
+              class="sheet-radio-group"
+              [value]="selectedSheetForPicker()"
+              (change)="onSheetPicked($event.value)"
+            >
+              @for (s of sel.candidates; track s.name) {
+                <mat-radio-button [value]="s.name" class="sheet-radio">
+                  <span class="sheet-name">{{ s.name }}</span>
+                  <span class="sheet-rows">{{ settings.labels().importSheetSelectorRows(s.dataRowCount) }}</span>
+                </mat-radio-button>
+              }
+            </mat-radio-group>
+
+            @if (sel.ignored.length) {
+              <mat-expansion-panel class="ignored-panel">
+                <mat-expansion-panel-header>
+                  <mat-panel-title>{{ settings.labels().importSheetSelectorIgnored(sel.ignored.length) }}</mat-panel-title>
+                </mat-expansion-panel-header>
+                <mat-list dense>
+                  @for (ig of sel.ignored; track ig.name) {
+                    <mat-list-item class="ignored-item">
+                      <strong>{{ ig.name }}</strong> — {{ ignoredReasonLabel(ig) }}
+                    </mat-list-item>
+                  }
+                </mat-list>
+              </mat-expansion-panel>
+            }
+
+            <div class="action-row">
+              <button
+                mat-flat-button
+                color="primary"
+                [disabled]="!selectedSheetForPicker() || previewing()"
+                (click)="runPreview()"
+              >
+                <mat-icon>fact_check</mat-icon>
+                {{ previewing() ? settings.labels().validating : settings.labels().previewBtn }}
+              </button>
+            </div>
+          </mat-card-content>
+        </mat-card>
+      }
+
       <!-- Validation errors -->
-      @if (preview()?.valid === false) {
+      @if (preview()?.valid === false && !sheetSelection()) {
         <mat-card class="status-card error-card">
           <mat-card-header>
             <mat-card-title>
@@ -115,6 +173,18 @@ import { PageHeaderComponent } from '@shared/components/page-header/page-header.
                 <mat-list-item class="error-item">{{ err }}</mat-list-item>
               }
             </mat-list>
+            @if (preview()!.ignoredSheets.length) {
+              <div class="detail-block ignored-block">
+                <h3>{{ settings.labels().importSheetSelectorIgnored(preview()!.ignoredSheets.length) }}</h3>
+                <mat-list dense>
+                  @for (ig of preview()!.ignoredSheets; track ig.name) {
+                    <mat-list-item class="ignored-item">
+                      <strong>{{ ig.name }}</strong> — {{ ignoredReasonLabel(ig) }}
+                    </mat-list-item>
+                  }
+                </mat-list>
+              </div>
+            }
           </mat-card-content>
         </mat-card>
       }
@@ -130,6 +200,12 @@ import { PageHeaderComponent } from '@shared/components/page-header/page-header.
                 <mat-chip [class]="'mode-chip mode-' + preview()!.importMode" highlighted>
                   {{ importModeLabel() }}
                 </mat-chip>
+                @if (preview()!.selectedSheet) {
+                  <mat-chip class="sheet-chip" highlighted>
+                    <mat-icon matChipAvatar>description</mat-icon>
+                    {{ settings.labels().importSheetBadge(preview()!.selectedSheet!) }}
+                  </mat-chip>
+                }
               </mat-chip-set>
             </mat-card-title>
             <mat-card-subtitle>
@@ -242,7 +318,7 @@ import { PageHeaderComponent } from '@shared/components/page-header/page-header.
               <button
                 mat-flat-button
                 color="primary"
-                [disabled]="importing()"
+                [disabled]="importing() || pickerDriftedFromValidated()"
                 (click)="confirmImport()"
               >
                 <mat-icon>cloud_upload</mat-icon>
@@ -548,6 +624,54 @@ import { PageHeaderComponent } from '@shared/components/page-header/page-header.
       margin-top: var(--spc-2);
     }
 
+    .sheet-selector-card {
+      border-left: 4px solid var(--brand-primary);
+      margin-bottom: var(--spc-16);
+    }
+
+    .sheet-radio-group {
+      display: flex;
+      flex-direction: column;
+      gap: var(--spc-8);
+      max-height: 360px;
+      overflow-y: auto;
+      margin-bottom: var(--spc-12);
+    }
+
+    .sheet-radio {
+      padding: var(--spc-6) var(--spc-8);
+    }
+
+    .sheet-name {
+      font-weight: var(--fw-medium);
+      margin-right: var(--spc-8);
+    }
+
+    .sheet-rows {
+      color: var(--clr-text-muted);
+      font-size: var(--font-sm);
+    }
+
+    .ignored-panel {
+      margin-top: var(--spc-8);
+      box-shadow: none;
+      background: var(--brand-surface);
+    }
+
+    .ignored-item {
+      color: var(--clr-text-muted);
+      font-size: var(--font-sm);
+    }
+
+    .ignored-block {
+      margin-top: var(--spc-12);
+    }
+
+    .sheet-chip {
+      --mdc-chip-elevated-container-color: var(--brand-surface);
+      --mdc-chip-label-text-color: var(--clr-text);
+    }
+
     @media (max-width: 960px) {
       .import-grid {
         grid-template-columns: 1fr;
@@ -573,12 +697,40 @@ export class ImportComponent {
   readonly summary = signal<ExcelImportSummary | null>(null);
   readonly error = signal<string | null>(null);
   readonly categoryTypeSelections = signal<Record<string, string>>({});
+  /**
+   * Sheet currently chosen in the picker. May differ from the validated sheet
+   * (`preview().selectedSheet`) until the user re-runs preview.
+   */
+  readonly selectedSheetForPicker = signal<string | null>(null);
 
   readonly activeAccounts = computed(() => this.refData.accounts().filter(a => a.isActive));
   readonly categoryCount = computed(() => this.refData.categories().length);
   readonly account_label = computed(() => {
     const p = this.preview();
     return p?.account.label ?? '';
+  });
+
+  /**
+   * Discovery payload extracted from the latest preview response when the
+   * workbook requires sheet selection. Returns null otherwise.
+   */
+  readonly sheetSelection = computed(() => {
+    const p = this.preview();
+    if (!p?.requiresSheetSelection) return null;
+    return { candidates: p.candidateSheets, ignored: p.ignoredSheets };
+  });
+
+  /**
+   * True when the user has changed the picker selection after a successful
+   * preview without re-validating. Used to disable Confirm so we never commit
+   * data the user did not validate.
+   */
+  readonly pickerDriftedFromValidated = computed(() => {
+    const p = this.preview();
+    if (!p?.valid) return false;
+    const validated = p.selectedSheet;
+    const picked = this.selectedSheetForPicker();
+    return validated !== null && picked !== null && validated !== picked;
   });
 
   readonly importModeLabel = computed(() => {
@@ -619,6 +771,27 @@ export class ImportComponent {
     this.resetState();
   }
 
+  onSheetPicked(sheet: string): void {
+    this.selectedSheetForPicker.set(sheet);
+    // When the user changes the selection after a valid preview, clear the
+    // preview so Confirm cannot fire against stale data.
+    const p = this.preview();
+    if (p?.valid && p.selectedSheet !== sheet) {
+      this.preview.set(null);
+      this.summary.set(null);
+      this.categoryTypeSelections.set({});
+    }
+  }
+
+  ignoredReasonLabel(ig: IgnoredSheet): string {
+    if (ig.reason === 'empty') return this.settings.labels().importSheetReasonEmpty;
+    if (ig.reason === 'missing_required_headers') {
+      const list = (ig.missing ?? []).join(', ');
+      return this.settings.labels().importSheetReasonNoHeaders(list);
+    }
+    return ig.reason;
+  }
+
   getCategoryType(name: string, defaultType: string): string {
     return this.categoryTypeSelections()[name] ?? defaultType;
   }
@@ -633,11 +806,25 @@ export class ImportComponent {
     if (!file || !accountId) return;
 
     this.previewing.set(true);
-    this.resetState();
+    // Preserve the picker selection across preview reloads so the radio stays put.
+    const pickerSheet = this.selectedSheetForPicker();
+    this.preview.set(null);
+    this.summary.set(null);
+    this.error.set(null);
+    this.categoryTypeSelections.set({});
 
-    this.importService.preview(file, accountId).subscribe({
+    this.importService.preview(file, accountId, pickerSheet ?? undefined).subscribe({
       next: (result) => {
         this.preview.set(result);
+        // Default the picker to the first candidate when discovery returns one,
+        // or to the validated sheet when the response is a normal preview.
+        if (result.requiresSheetSelection && result.candidateSheets.length) {
+          this.selectedSheetForPicker.set(
+            this.selectedSheetForPicker() ?? result.candidateSheets[0].name,
+          );
+        } else if (result.selectedSheet) {
+          this.selectedSheetForPicker.set(result.selectedSheet);
+        }
         this.initCategoryTypeSelections(result);
         this.previewing.set(false);
       },
@@ -659,12 +846,14 @@ export class ImportComponent {
     const file = this.selectedFile();
     const accountId = this.selectedAccountId();
     if (!file || !accountId) return;
+    // Only commit the sheet that was actually validated.
+    const validatedSheet = this.preview()?.selectedSheet ?? undefined;
 
     this.importing.set(true);
     this.error.set(null);
 
     const overrides = this.buildCategoryTypeOverrides();
-    this.importService.importWorkbook(file, accountId, overrides).subscribe({
+    this.importService.importWorkbook(file, accountId, overrides, validatedSheet).subscribe({
       next: (result) => {
         this.summary.set(result);
         this.preview.set(null);
@@ -685,6 +874,7 @@ export class ImportComponent {
 
   cancelPreview(): void {
     this.preview.set(null);
+    this.selectedSheetForPicker.set(null);
   }
 
   private initCategoryTypeSelections(result: ImportPreview): void {
@@ -719,5 +909,6 @@ export class ImportComponent {
     this.summary.set(null);
     this.error.set(null);
     this.categoryTypeSelections.set({});
+    this.selectedSheetForPicker.set(null);
   }
 }

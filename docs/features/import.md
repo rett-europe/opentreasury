@@ -34,7 +34,10 @@ flowchart LR
 
 ## Workbook Format
 
-The import expects an `.xlsx` file with **two sheets**.
+The import expects an `.xlsx` file with **two sheets** (one Movements sheet
+and one Categories sheet). When a workbook contains **multiple** movements-shaped
+sheets — for example an archive with one sheet per year — the user is asked to
+pick which one to import; see [Multi-sheet workbooks](#multi-sheet-workbooks) below.
 
 ### Sheet 1 — Movements
 
@@ -260,6 +263,34 @@ Body: raw .xlsx bytes
 
 ---
 
+## Multi-sheet workbooks
+
+When the uploaded `.xlsx` contains **two or more** sheets that match the movements
+header pattern (`date` + `amount` detectable in the first 12 rows), the preview
+endpoint returns a *sheet-selection-required* payload instead of validating
+immediately. The UI shows a sheet picker listing each candidate with its data-row
+count, plus a collapsed "Ignored sheets" panel explaining why other sheets were
+skipped (`missing_required_headers` or `empty`).
+
+The user picks a sheet, runs preview again — this time with `?sheet={name}` —
+and the rest of the flow is unchanged. The sheet name is also passed to
+`POST /imports/workbook` so the import commits exactly the sheet that was
+validated.
+
+| Workbook shape | Behavior |
+|----------------|----------|
+| 1 candidate sheet | Auto-selected, no extra clicks. Sheet name shown as a chip on the preview card. |
+| 2+ candidate sheets | User picks one before validation runs. Default selection is the first candidate (workbook order). |
+| 0 candidate sheets | Existing error card, plus a list of sheets found and why each was skipped. |
+
+API contract:
+
+- `POST /api/imports/preview?sheet={name}` — optional. When omitted with multi-sheet
+  workbooks, returns `requiresSheetSelection: true` with a `candidateSheets` list.
+- `POST /api/imports/workbook?sheet={name}` — optional. When omitted, falls back to
+  the first candidate sheet (preserves the pre-issue-#17 behavior for legacy clients).
+- An invalid `sheet` value (unknown sheet name or non-candidate sheet) returns HTTP 400.
+
 ## Constraints
 
 | Constraint | Value |
@@ -282,3 +313,4 @@ Body: raw .xlsx bytes
 | Transactions without category/subcategory are skipped — staging area for uncategorized rows | P3 | Under discussion |
 | No drag-and-drop file upload | — | Enhancement |
 | Stateless preview/confirm — file is uploaded twice (once per step) | — | By design (no server-side temp storage) |
+| Multi-sheet workbooks — pick which sheet to import | — | ✅ Implemented (issue #17) |

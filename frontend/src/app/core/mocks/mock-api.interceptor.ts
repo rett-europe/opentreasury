@@ -308,7 +308,43 @@ export const mockApiInterceptor: HttpInterceptorFn = (req, next) => {
   // ---- Import ----
   if (path === '/api/imports/preview' && method === 'POST') {
     const accountId = req.params.get('accountId') || 'acc-unicaja-01';
+    const sheet = req.params.get('sheet');
     const account = MOCK_ACCOUNTS.find(a => a.id === accountId);
+
+    // Discovery call (no `sheet`) → ask the user to pick one.
+    if (!sheet) {
+      const discovery = {
+        requiresSheetSelection: true,
+        candidateSheets: [
+          { name: 'Movimientos 2026', dataRowCount: 52, headerRow: 6 },
+          { name: 'Movimientos 2025', dataRowCount: 247, headerRow: 6 },
+        ],
+        ignoredSheets: [
+          { name: 'Resumen', reason: 'missing_required_headers', missing: ['date', 'amount'] },
+          { name: 'Notas', reason: 'empty' },
+        ],
+        account: {
+          id: accountId,
+          label: account?.accountLabel ?? 'Unknown',
+          iban: account?.iban ?? '',
+        },
+        valid: false,
+        importMode: 'full',
+        errors: [],
+        warnings: [],
+        totalRows: 0,
+        rowsWithErrors: 0,
+        newCategories: [],
+        newSubcategories: [],
+        transactionsToImport: 0,
+        duplicatesToSkip: 0,
+        selectedSheet: null,
+        availableSheets: ['Movimientos 2026', 'Movimientos 2025'],
+      };
+      log(method, path, 200, 'sheet selection required');
+      return of(json(discovery)).pipe(delay(randomDelay()));
+    }
+
     const mockPreview = {
       valid: true,
       importMode: 'inline',
@@ -328,6 +364,11 @@ export const mockApiInterceptor: HttpInterceptorFn = (req, next) => {
       newSubcategories: [{ categoryName: 'Donaciones', name: 'Donación Particular' }],
       transactionsToImport: 22,
       duplicatesToSkip: 3,
+      requiresSheetSelection: false,
+      selectedSheet: sheet,
+      availableSheets: ['Movimientos 2026', 'Movimientos 2025'],
+      ignoredSheets: [],
+      candidateSheets: [],
     };
     log(method, path, 200);
     return of(json(mockPreview)).pipe(delay(randomDelay()));
@@ -335,6 +376,7 @@ export const mockApiInterceptor: HttpInterceptorFn = (req, next) => {
 
   if (path === '/api/imports/workbook' && method === 'POST') {
     const accountId = req.params.get('accountId') || 'acc-unicaja-01';
+    const sheet = req.params.get('sheet');
     const account = MOCK_ACCOUNTS.find(a => a.id === accountId);
     const mockSummary = {
       importBatchId: 'mock-batch-' + Date.now(),
@@ -342,6 +384,7 @@ export const mockApiInterceptor: HttpInterceptorFn = (req, next) => {
       importSource: 'excel-inline',
       accountId,
       accountLabel: account?.accountLabel ?? 'Unknown',
+      selectedSheet: sheet ?? 'Movimientos 2026',
       categoriesCreated: 2,
       subcategoriesAdded: 1,
       transactionsImported: 22,

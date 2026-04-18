@@ -194,6 +194,16 @@ export interface AppLabels {
   importValidateError: string;
   importError: string;
   importedCount: (n: number) => string;
+  // Multi-sheet selection (issue #17)
+  importSheetSelectorTitle: string;
+  importSheetSelectorHelp: string;
+  importSheetSelectorRows: (n: number) => string;
+  importSheetSelectorIgnored: (n: number) => string;
+  importSheetBadge: (name: string) => string;
+  importSheetReasonNoHeaders: (list: string) => string;
+  importSheetReasonEmpty: string;
+  importSheetSelectionRequired: string;
+  importPickSheetFirst: string;
   // --- Phase 1: Transaction Type ---
   transactionType: string;
   incomeOption: string;
