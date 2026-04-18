@@ -127,6 +127,7 @@ export interface AppLabels {
   bankType: string;
   paypalType: string;
   ibanLabel: string;
+  colorLabel: string;
   activateAccount: (label: string) => string;
   deactivateAccount: (label: string, count: number) => string;
   deactivateAccountNoTx: (label: string) => string;

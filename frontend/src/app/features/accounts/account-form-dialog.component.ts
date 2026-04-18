@@ -20,7 +20,7 @@ import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { AppSettingsService } from '@core/services/app-settings.service';
 import { AccountService } from '@core/services/account.service';
-import { BankAccount } from '@shared/models/account.model';
+import { ACCOUNT_COLORS, BankAccount, DEFAULT_ACCOUNT_COLOR } from '@shared/models/account.model';
 
 @Component({
   selector: 'app-account-form-dialog',
@@ -99,6 +99,27 @@ import { BankAccount } from '@shared/models/account.model';
             <input matInput formControlName="paypalEmail" type="email">
           </mat-form-field>
         }
+
+        <!-- Color picker (issue #20) -->
+        <div class="color-picker-row">
+          <span class="color-picker-label" id="account-color-label">{{ settings.labels().colorLabel }}</span>
+          <div class="color-swatches" role="radiogroup" aria-labelledby="account-color-label">
+            @for (color of colors; track color) {
+              <button type="button"
+                      role="radio"
+                      class="color-swatch"
+                      [class.selected]="form.value.color === color"
+                      [attr.aria-checked]="form.value.color === color"
+                      [attr.aria-label]="color"
+                      [style.background-color]="color"
+                      (click)="form.patchValue({ color: color })">
+                @if (form.value.color === color) {
+                  <mat-icon aria-hidden="true">check</mat-icon>
+                }
+              </button>
+            }
+          </div>
+        </div>
 
         <!-- Currency + Sort Order row -->
         <div class="two-col">
@@ -211,6 +232,50 @@ import { BankAccount } from '@shared/models/account.model';
       color: var(--clr-transfer);
     }
 
+    /* --- Color picker --- */
+    .color-picker-row {
+      margin-bottom: var(--spc-16);
+    }
+    .color-picker-label {
+      display: block;
+      font-size: var(--font-sm);
+      color: var(--clr-text-secondary);
+      margin-bottom: var(--spc-8);
+    }
+    .color-swatches {
+      display: flex;
+      flex-wrap: wrap;
+      gap: var(--spc-8);
+    }
+    .color-swatch {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      border: 2px solid transparent;
+      cursor: pointer;
+      padding: 0;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      transition: transform var(--transition-fast), border-color var(--transition-fast);
+    }
+    .color-swatch:hover {
+      transform: scale(1.1);
+    }
+    .color-swatch:focus-visible {
+      outline: 2px solid var(--brand-primary);
+      outline-offset: 2px;
+    }
+    .color-swatch.selected {
+      border-color: var(--clr-text-primary, #1f2937);
+    }
+    .color-swatch mat-icon {
+      font-size: 18px;
+      width: 18px;
+      height: 18px;
+      color: #1f2937;
+    }
+
     /* --- Two-column layout --- */
     .two-col {
       display: grid;
@@ -252,6 +317,7 @@ export class AccountFormDialogComponent {
   readonly settings = inject(AppSettingsService);
 
   readonly saving = signal(false);
+  readonly colors = ACCOUNT_COLORS;
 
   form: FormGroup = this.fb.group({
     bankName: [this.data?.bankName ?? '', Validators.required],
@@ -261,6 +327,7 @@ export class AccountFormDialogComponent {
     iban: [this.formatIbanValue(this.data?.iban ?? '')],
     paypalEmail: [this.data?.paypalEmail ?? ''],
     currency: [this.data?.currency ?? 'EUR'],
+    color: [this.data?.color ?? DEFAULT_ACCOUNT_COLOR, Validators.required],
     sortOrder: [this.data?.sortOrder ?? 0],
     isActive: [this.data?.isActive ?? true],
   });

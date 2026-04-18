@@ -48,6 +48,10 @@ export class ReferenceDataService {
     return this._accounts().find((a) => a.id === id)?.accountLabel ?? '';
   }
 
+  getAccountColor(id: string): string | null {
+    return this._accounts().find((a) => a.id === id)?.color ?? null;
+  }
+
   getCategoryName(id: string): string {
     return this._categories().find((c) => c.id === id)?.name ?? '';
   }

@@ -42,9 +42,13 @@ import { ConfirmDialogComponent, ConfirmDialogData } from '@shared/components/co
       <app-loading-container [loading]="loading()">
         <div class="card-grid">
           @for (acc of accounts(); track acc.id) {
-            <mat-card class="account-card" [class.inactive]="!acc.isActive">
+            <mat-card class="account-card" [class.inactive]="!acc.isActive"
+                      [style.border-left-color]="acc.color || null"
+                      [class.has-color]="!!acc.color">
               <mat-card-header>
-                <mat-icon mat-card-avatar class="card-icon">
+                <mat-icon mat-card-avatar class="card-icon"
+                          [style.background-color]="acc.color || null"
+                          [style.color]="acc.color ? '#1f2937' : null">
                   {{ acc.isPaypal ? 'payment' : 'account_balance' }}
                 </mat-icon>
                 <mat-card-title>
@@ -100,6 +104,10 @@ import { ConfirmDialogComponent, ConfirmDialogData } from '@shared/components/co
       border-radius: var(--rad-lg);
       box-shadow: var(--elev-card);
       transition: box-shadow var(--transition-normal);
+    }
+    .account-card.has-color {
+      border-left-width: 4px;
+      border-left-style: solid;
     }
     .account-card:hover {
       box-shadow: var(--elev-card-hover);

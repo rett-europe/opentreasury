@@ -269,3 +269,56 @@ class TestAccountCurrency:
         audit_call = mock_audit.log.call_args
         assert audit_call.kwargs["old_values"] == {"currency": "EUR"}
         assert audit_call.kwargs["new_values"] == {"currency": "USD"}
+
+
+# ---------------------------------------------------------------------------
+# Issue #20: Account color
+# ---------------------------------------------------------------------------
+
+
+class TestAccountColor:
+    """Issue #20: color code assigned to accounts from a fixed palette."""
+
+    async def test_create_with_color(self, service, mock_repo, mock_audit):
+        data = AccountCreate(
+            bank_name="Banco BPI",
+            account_label="Principal",
+            color="#7BB3F0",
+        )
+        mock_repo.create.return_value = {**SAMPLE_ACCOUNT, "color": "#7BB3F0"}
+
+        await service.create_account(data, USER_ID, USER_NAME)
+
+        doc = mock_repo.create.call_args[0][0]
+        assert doc["color"] == "#7BB3F0"
+
+    async def test_create_without_color_defaults_to_none(self, service, mock_repo, mock_audit):
+        data = AccountCreate(bank_name="Banco BPI", account_label="Principal")
+        mock_repo.create.return_value = {**SAMPLE_ACCOUNT}
+
+        await service.create_account(data, USER_ID, USER_NAME)
+
+        doc = mock_repo.create.call_args[0][0]
+        assert doc["color"] is None
+
+    def test_invalid_color_rejected(self):
+        import pydantic
+
+        with pytest.raises(pydantic.ValidationError):
+            AccountCreate(bank_name="X", account_label="Y", color="#123456")
+
+    def test_color_is_normalized_to_uppercase(self):
+        data = AccountCreate(bank_name="X", account_label="Y", color="#7bb3f0")
+        assert data.color == "#7BB3F0"
+
+    async def test_update_color(self, service, mock_repo, mock_audit):
+        mock_repo.get_by_id.return_value = {**SAMPLE_ACCOUNT, "color": None}
+        mock_repo.replace.return_value = {**SAMPLE_ACCOUNT, "color": "#A3D977"}
+
+        data = AccountUpdate(color="#A3D977")
+        result = await service.update_account("acc-aabbccdd1122", data, USER_ID, USER_NAME)
+
+        assert result is not None
+        audit_call = mock_audit.log.call_args
+        assert audit_call.kwargs["old_values"] == {"color": None}
+        assert audit_call.kwargs["new_values"] == {"color": "#A3D977"}

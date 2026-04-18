@@ -218,3 +218,51 @@ class TestAccountCurrency:
 
         assert response.status_code == 200
         assert response.json()["currency"] == "USD"
+
+
+# ---------------------------------------------------------------------------
+# Issue #20: Account color (router level)
+# ---------------------------------------------------------------------------
+
+
+class TestAccountColor:
+    async def test_create_with_color(self, admin_client, mock_account_svc):
+        created = {**SAMPLE_ACCOUNT, "color": "#7BB3F0"}
+        mock_account_svc.create_account.return_value = created
+        app.dependency_overrides[get_account_service] = lambda: mock_account_svc
+
+        response = await admin_client.post(
+            "/api/accounts",
+            json={
+                "bankName": "Banco BPI",
+                "accountLabel": "Principal",
+                "color": "#7BB3F0",
+            },
+        )
+        assert response.status_code == 201
+        assert response.json()["color"] == "#7BB3F0"
+
+    async def test_invalid_color_rejected(self, admin_client, mock_account_svc):
+        app.dependency_overrides[get_account_service] = lambda: mock_account_svc
+
+        response = await admin_client.post(
+            "/api/accounts",
+            json={
+                "bankName": "Banco BPI",
+                "accountLabel": "Principal",
+                "color": "#123456",
+            },
+        )
+        assert response.status_code == 422
+
+    async def test_update_color(self, admin_client, mock_account_svc):
+        updated = {**SAMPLE_ACCOUNT, "color": "#A3D977"}
+        mock_account_svc.update_account.return_value = updated
+        app.dependency_overrides[get_account_service] = lambda: mock_account_svc
+
+        response = await admin_client.put(
+            "/api/accounts/acc-aabbccdd1122",
+            json={"color": "#A3D977"},
+        )
+        assert response.status_code == 200
+        assert response.json()["color"] == "#A3D977"

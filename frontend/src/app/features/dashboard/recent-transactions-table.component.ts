@@ -9,6 +9,7 @@ import { ReferenceDataService } from '@core/services/reference-data.service';
 import { TypeColorPipe } from '@shared/pipes/type-color.pipe';
 import { TypeIconPipe } from '@shared/pipes/type-icon.pipe';
 import { Transaction } from '@shared/models/transaction.model';
+import { AccountLabelComponent } from '@shared/components/account-label/account-label.component';
 
 @Component({
   selector: 'app-recent-transactions-table',
@@ -18,6 +19,7 @@ import { Transaction } from '@shared/models/transaction.model';
     MatTableModule, MatIconModule, MatButtonModule,
     CurrencyPipe, DatePipe,
     TypeColorPipe, TypeIconPipe,
+    AccountLabelComponent,
   ],
   template: `
     <table mat-table [dataSource]="transactions()" class="full-width">
@@ -35,7 +37,9 @@ import { Transaction } from '@shared/models/transaction.model';
 
       <ng-container matColumnDef="account">
         <th mat-header-cell *matHeaderCellDef>{{ settings.labels().account }}</th>
-        <td mat-cell *matCellDef="let tx">{{ refData.getAccountLabel(tx.accountId) }}</td>
+        <td mat-cell *matCellDef="let tx">
+          <app-account-label [accountId]="tx.accountId" />
+        </td>
       </ng-container>
 
       <ng-container matColumnDef="description">

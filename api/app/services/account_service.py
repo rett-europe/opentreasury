@@ -45,6 +45,7 @@ class AccountService:
             "accountLabel": data.account_label,
             "isPaypal": data.is_paypal,
             "currency": data.currency,
+            "color": data.color,
             "sortOrder": data.sort_order,
             "isActive": True,
             "createdAt": now,
@@ -86,6 +87,7 @@ class AccountService:
             "account_label": "accountLabel",
             "is_paypal": "isPaypal",
             "currency": "currency",
+            "color": "color",
             "sort_order": "sortOrder",
             "is_active": "isActive",
         }

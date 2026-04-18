@@ -22,6 +22,7 @@ import { TypeColorPipe } from '@shared/pipes/type-color.pipe';
 import { TransactionFilterBarComponent, TransactionFilters } from './tx-filter-bar.component';
 import { QuickCategorizeDialogComponent } from './quick-categorize-dialog.component';
 import { SplitDialogComponent, SplitDialogData } from './split-dialog.component';
+import { AccountLabelComponent } from '@shared/components/account-label/account-label.component';
 
 @Component({
   selector: 'app-transaction-list',
@@ -42,6 +43,7 @@ import { SplitDialogComponent, SplitDialogData } from './split-dialog.component'
     TypeIconPipe,
     TypeColorPipe,
     TransactionFilterBarComponent,
+    AccountLabelComponent,
   ],
   template: `
     <div class="page-container">
@@ -104,7 +106,9 @@ import { SplitDialogComponent, SplitDialogData } from './split-dialog.component'
 
                 <ng-container matColumnDef="account">
                   <th mat-header-cell *matHeaderCellDef>{{ settings.labels().account }}</th>
-                  <td mat-cell *matCellDef="let tx">{{ refData.getAccountLabel(tx.accountId) }}</td>
+                  <td mat-cell *matCellDef="let tx">
+                    <app-account-label [accountId]="tx.accountId" />
+                  </td>
                 </ng-container>
 
                 <ng-container matColumnDef="bankDescription">
