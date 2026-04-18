@@ -297,17 +297,17 @@ The feature is done when **all** of the following are true:
 
 1. Uploading a workbook with **one** movements sheet behaves exactly like today (no new clicks, same preview card, plus the new sheet badge).
 2. Uploading a workbook with **two or more** movements sheets shows the sheet selector before any validation. No transactions are imported and no categories are created until the user picks a sheet and confirms.
-3. The selector lists every sheet that has all four required headers detectable in its first 12 rows; sheets without those headers are listed separately as "Ignored" with a reason.
+3. The selector lists every sheet that has the current candidate-detection required headers (`date` and `amount`) detectable in its first 12 rows; sheets without those headers are listed separately as "Ignored" with a reason. Any additional header requirements remain part of the normal validation/import flow, not sheet-candidate discovery.
 4. The default radio selection is the first candidate in workbook order.
 5. After preview succeeds, the green preview card shows a chip with the selected sheet name.
 6. Clicking Confirm imports **only** the selected sheet's rows. Other candidate sheets are untouched, even if they have new categories or subcategories.
 7. The import summary shows the selected sheet name.
-8. Uploading a workbook with **zero** importable sheets shows an error that lists every sheet found and the missing required headers per sheet.
+8. Uploading a workbook with **zero** importable sheets shows an error that lists every sheet found and the missing candidate-detection required headers per sheet.
 9. Changing the sheet selection after a successful preview clears the preview result and disables Confirm until the new sheet is previewed.
 10. The `POST /api/imports/workbook` endpoint, called without `sheet`, falls back to today's "first candidate wins" behavior so legacy API clients are unaffected.
 11. Calling either endpoint with a `sheet` value that does not exist in the workbook returns HTTP 400 with a clear message.
 12. New i18n keys are present and translated in all five supported locales (ES/EN/PT/FR/DE).
-13. The Categories sheet (`Categorias` / `Categories` / `Kategorien`) is **never** offered in the movements selector unless it independently also matches the four required headers (EC-4).
+13. The Categories sheet (`Categorias` / `Categories` / `Kategorien`) is **never** offered in the movements selector unless it independently also matches the same candidate-detection required headers (`date` and `amount`) (EC-4).
 14. Existing import tests continue to pass without modification. New tests cover: 2-sheet selection, 3-sheet selection, zero-candidate diagnostics, invalid `sheet` parameter, sheet-name URL encoding (EC-2), and EC-4 (categories sheet that also looks like movements).
 15. `docs/features/import.md` is updated to describe multi-sheet behavior.
 
