@@ -200,8 +200,15 @@ All dropdowns use `mat-select`. The text input uses `mat-form-field` + `matInput
 ### 6.2 Date format
 
 - **Options:** `DD/MM/YYYY` (EU), `MM/DD/YYYY` (US), `YYYY-MM-DD` (ISO), `DD MMM YYYY` (long, localized month).
-- **Persisted value:** The format token string (e.g. `"DD/MM/YYYY"`). The Angular `DatePipe` pattern is derived from this.
-- **Display effect:** All date renders (`<td>{{tx.date | date:...}}</td>`, filters, dashboards, export filenames) read from the setting instead of a hard-coded pattern.
+- **Persisted value:** The user-visible format token string (e.g. `"DD/MM/YYYY"`). These values use Moment/Day.js-style tokens for storage and display in the settings UI; they are **not** passed directly to Angular `DatePipe`.
+- **Angular mapping (deterministic, V1):**
+  - `DD/MM/YYYY` → `dd/MM/yyyy`
+  - `MM/DD/YYYY` → `MM/dd/yyyy`
+  - `YYYY-MM-DD` → `yyyy-MM-dd`
+  - `DD MMM YYYY` → `dd MMM yyyy`
+- **Implementation rule:** Only the four formats above are supported in V1. Any code path rendering dates in Angular must first map the persisted value through the table above and then use the resulting `DatePipe` pattern.
+- **Display effect:** All on-screen date renders (`<td>{{tx.date | date:...}}</td>`, filters, dashboards) read from the setting (mapped through the table above) instead of a hard-coded pattern.
+- **Export filenames:** Must always use an ISO-safe date (`YYYY-MM-DD`) or an equivalently sanitized/slugified variant, regardless of the configured display format. This avoids invalid filename characters (e.g. `/` from `DD/MM/YYYY`) on Windows/macOS and keeps exports sortable.
 
 ### 6.3 Number format
 
@@ -233,14 +240,16 @@ All dropdowns use `mat-select`. The text input uses `mat-form-field` + `matInput
 
 ### 7.1 Cosmos DB document
 
-Following the project's Cosmos NoSQL pattern, system settings are stored as a **single singleton document**:
+Following the project's Cosmos NoSQL pattern, system settings are stored as a **single singleton document inside the existing `reference_data` container** — no new container, no infra changes, no `CosmosService` edits.
+
+**Why reuse `reference_data`:** the repo already initializes exactly four Cosmos containers (`transactions` pk `/partitionKey`, `categories` pk `/id`, `reference_data` pk `/type`, `audit_log` pk `/entityType`). Adding a fifth container would require Bicep + `CosmosService` changes for a single-document payload — wasteful. `reference_data` already follows the discriminated `type` pattern, so settings fit naturally.
 
 ```jsonc
-// Container: settings (or existing "config" container if one exists)
-// Partition key: /id
+// Container: reference_data
+// Partition key: /type
 {
   "id": "system",
-  "type": "system-settings",
+  "type": "system_settings",        // partition key
   "currency": "EUR",
   "dateFormat": "DD/MM/YYYY",
   "numberFormat": "eu",
@@ -252,9 +261,10 @@ Following the project's Cosmos NoSQL pattern, system settings are stored as a **
 }
 ```
 
-- **One document, id = `"system"`.** Small. Read on app bootstrap, cached.
+- **One document, `id = "system"`, `type = "system_settings"` (partition key).** Small. Read on app bootstrap, cached.
 - `updatedAt` / `updatedBy` give a tiny audit trail without a separate log.
 - If the document is missing on first bootstrap, the backend materializes it with defaults (see §2 US-7).
+- A new `SystemSettingsRepository` lives alongside the existing repos under `app/repositories/cosmos/` and uses the shared `reference_data` container — no schema migration required.
 
 ### 7.2 API
 
@@ -339,7 +349,7 @@ Added to both `es.ts` and `en.ts` label files:
 
 | Key | ES | EN |
 |-----|----|----|
-| `systemSettings` | Configuración | Settings |
+| `systemSettings` | Configuración del sistema | System settings |
 | `systemSettingsSubtitle` | Preferencias de toda la organización. Los cambios afectan a todos los usuarios. | Organization-wide preferences. Changes affect all users. |
 | `sectionRegional` | Regional y formato | Regional & formatting |
 | `sectionOrganization` | Organización | Organization |
