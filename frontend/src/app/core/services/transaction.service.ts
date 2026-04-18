@@ -37,6 +37,19 @@ export class TransactionService {
     });
   }
 
+  /** Cross-partition listing of all uncategorized transactions (admin workflow). */
+  listUncategorized(params: {
+    accountId?: string;
+    pageSize?: number;
+    continuationToken?: string;
+  } = {}): Observable<PaginatedResponse<Transaction>> {
+    return this.api.get<PaginatedResponse<Transaction>>('/transactions/uncategorized', {
+      accountId: params.accountId,
+      pageSize: params.pageSize,
+      continuationToken: params.continuationToken,
+    });
+  }
+
   get(id: string, year: number, month: number): Observable<Transaction> {
     return this.api.get<Transaction>(`/transactions/${id}`, { year, month });
   }

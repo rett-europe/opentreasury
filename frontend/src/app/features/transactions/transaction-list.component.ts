@@ -61,7 +61,7 @@ import { SplitDialogComponent, SplitDialogData } from './split-dialog.component'
 
       <div class="scroll-area" #scrollContainer>
 
-      @if (!rangeSelected()) {
+      @if (!rangeSelected() && !uncategorizedMode()) {
         <!-- Empty state: no range selected -->
         <div class="date-empty-state">
           <mat-icon class="date-empty-icon">calendar_today</mat-icon>
@@ -70,9 +70,24 @@ import { SplitDialogComponent, SplitDialogData } from './split-dialog.component'
             <button mat-stroked-button (click)="applyPreset('this-month')">{{ settings.labels().presetThisMonth }}</button>
             <button mat-stroked-button (click)="applyPreset('last-30-days')">{{ settings.labels().presetLast30Days }}</button>
             <button mat-stroked-button (click)="applyPreset('this-year')">{{ settings.labels().presetThisYear }}</button>
+            <button mat-stroked-button color="accent" class="uncat-shortcut"
+                    (click)="showAllUncategorized()">
+              <mat-icon>label_off</mat-icon>
+              {{ settings.labels().showAllUncategorized }}
+            </button>
           </div>
         </div>
       } @else {
+        @if (uncategorizedMode()) {
+          <div class="uncat-mode-banner" role="status">
+            <mat-icon>label_off</mat-icon>
+            <span class="uncat-mode-text">{{ settings.labels().uncategorizedModeHeadline }}</span>
+            <button mat-stroked-button class="uncat-clear-btn" (click)="exitUncategorizedMode()">
+              <mat-icon>close</mat-icon>
+              {{ settings.labels().exitUncategorizedMode }}
+            </button>
+          </div>
+        }
         <app-loading-container [loading]="loading()">
           @if (transactions().length > 0) {
             <div class="table-wrapper">
@@ -444,6 +459,34 @@ import { SplitDialogComponent, SplitDialogData } from './split-dialog.component'
     .date-empty-shortcuts {
       display: flex;
       gap: var(--spc-8);
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+    .uncat-shortcut mat-icon {
+      margin-right: var(--spc-4);
+    }
+    .uncat-mode-banner {
+      display: flex;
+      align-items: center;
+      gap: var(--spc-8);
+      padding: var(--spc-12) var(--spc-16);
+      margin-bottom: var(--spc-12);
+      background: var(--brand-surface-hover, var(--clr-surface));
+      border: 1px solid var(--clr-border);
+      border-radius: var(--rad-md);
+      color: var(--clr-text-primary);
+    }
+    .uncat-mode-banner mat-icon {
+      color: var(--clr-text-secondary);
+      flex-shrink: 0;
+    }
+    .uncat-mode-text {
+      flex: 1;
+      font-weight: var(--fw-medium);
+    }
+    .uncat-clear-btn {
+      color: var(--clr-text-muted);
+      border-color: var(--clr-border);
     }
   `,
 })
@@ -463,6 +506,7 @@ export class TransactionListComponent implements OnInit, OnDestroy {
   readonly loadingMore = signal(false);
   readonly expandedSplitIds = signal<Set<string>>(new Set());
   readonly rangeSelected = signal(false);
+  readonly uncategorizedMode = signal(false);
   readonly allPartitionsLoading = signal(false);
   private allTransactions: Transaction[] = [];
   readonly transactions = signal<Transaction[]>([]);
@@ -508,6 +552,11 @@ export class TransactionListComponent implements OnInit, OnDestroy {
   onFiltersChanged(filters: TransactionFilters): void {
     this.currentFilters = filters;
 
+    // Any filter change exits uncategorized mode (filters don't apply to that view)
+    if (this.uncategorizedMode()) {
+      this.uncategorizedMode.set(false);
+    }
+
     // If no date range set, show empty state — no API call
     if (!filters.dateFrom || !filters.dateTo) {
       this.rangeSelected.set(false);
@@ -530,6 +579,81 @@ export class TransactionListComponent implements OnInit, OnDestroy {
 
   applyPreset(key: string): void {
     this.filterBar.applyPreset(key);
+  }
+
+  /** Enter cross-partition "show all uncategorized" mode from the empty state. */
+  showAllUncategorized(): void {
+    this.uncategorizedMode.set(true);
+    this.rangeSelected.set(false);
+    this.currentFilters = null;
+    this.allTransactions = [];
+    this.transactions.set([]);
+    this.partitionList = [];
+    this.partitionIndex = 0;
+    this.currentBaseParams = null;
+    this.nextContinuationToken = null;
+    this.hasMore = false;
+    this.loadUncategorized();
+  }
+
+  exitUncategorizedMode(): void {
+    this.uncategorizedMode.set(false);
+    this.allTransactions = [];
+    this.transactions.set([]);
+    this.nextContinuationToken = null;
+    this.hasMore = false;
+    this.loading.set(false);
+    this.loadingMore.set(false);
+    this.allPartitionsLoading.set(false);
+  }
+
+  private loadUncategorized(): void {
+    this.loading.set(true);
+    this.allPartitionsLoading.set(true);
+    this.nextContinuationToken = null;
+    this.fetchUncategorizedPage(false);
+  }
+
+  private fetchUncategorizedPage(append: boolean): void {
+    if (append) {
+      this.loadingMore.set(true);
+    }
+
+    this.transactionService.listUncategorized({
+      pageSize: TransactionListComponent.PAGE_SIZE,
+      continuationToken: this.nextContinuationToken ?? undefined,
+    }).pipe(takeUntil(this.destroy$)).subscribe({
+      next: (res) => {
+        if (res.continuationToken) {
+          this.nextContinuationToken = res.continuationToken;
+          this.hasMore = true;
+        } else {
+          this.nextContinuationToken = null;
+          this.hasMore = false;
+          this.allPartitionsLoading.set(false);
+        }
+
+        if (append) {
+          this.allTransactions = [...this.allTransactions, ...res.items];
+          this.transactions.set(this.allTransactions);
+          this.loadingMore.set(false);
+        } else {
+          this.allTransactions = res.items;
+          this.transactions.set(this.allTransactions);
+          this.loading.set(false);
+        }
+      },
+      error: () => {
+        this.hasMore = false;
+        this.allPartitionsLoading.set(false);
+        if (append) {
+          this.loadingMore.set(false);
+        } else {
+          this.loading.set(false);
+          this.transactions.set([]);
+        }
+      },
+    });
   }
 
   typeTooltip(tx: Transaction): string {
@@ -563,7 +687,15 @@ export class TransactionListComponent implements OnInit, OnDestroy {
         if (idx >= 0) {
           this.allTransactions[idx] = { ...this.allTransactions[idx], ...updated };
         }
-        this.applyClientFilters();
+        if (this.uncategorizedMode()) {
+          // Item is no longer uncategorized — remove it from the list
+          this.allTransactions = this.allTransactions.filter(
+            t => t.categorizationStatus === 'uncategorized',
+          );
+          this.transactions.set(this.allTransactions);
+        } else {
+          this.applyClientFilters();
+        }
       }
     });
   }
@@ -610,7 +742,9 @@ export class TransactionListComponent implements OnInit, OnDestroy {
   deleteTransaction(tx: Transaction): void {
     if (confirm(this.settings.labels().deleteTransactionConfirm)) {
       this.transactionService.delete(tx.id, tx.year, tx.month).subscribe(() => {
-        if (this.currentFilters) {
+        if (this.uncategorizedMode()) {
+          this.loadUncategorized();
+        } else if (this.currentFilters) {
           this.loadTransactions(this.currentFilters);
         }
       });
@@ -729,7 +863,11 @@ export class TransactionListComponent implements OnInit, OnDestroy {
   }
 
   private loadMore(): void {
-    this.fetchPage(true);
+    if (this.uncategorizedMode()) {
+      this.fetchUncategorizedPage(true);
+    } else {
+      this.fetchPage(true);
+    }
   }
 
   private applyResults(items: Transaction[]): void {

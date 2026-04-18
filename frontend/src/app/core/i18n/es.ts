@@ -301,4 +301,7 @@ export const ES_LABELS: AppLabels = {
   clearDateRange: 'Limpiar',
   selectDateRange: 'Selecciona un rango de fechas para ver transacciones',
   noTransactionsInRange: 'No se encontraron transacciones en este rango',
+  showAllUncategorized: 'Mostrar todas sin categorizar',
+  uncategorizedModeHeadline: 'Todas las transacciones sin categorizar (en todos los meses)',
+  exitUncategorizedMode: 'Limpiar',
 };

@@ -91,6 +91,20 @@ class TransactionService:
         )
         return items, next_token, None
 
+    async def list_uncategorized(
+        self,
+        *,
+        account_id: str | None = None,
+        page_size: int = 100,
+        continuation_token: str | None = None,
+    ) -> tuple[list[dict], str | None]:
+        """Cross-partition listing of uncategorized transactions (admin workflow)."""
+        return await self._repo.list_uncategorized(
+            account_id=account_id,
+            page_size=page_size,
+            continuation_token=continuation_token,
+        )
+
     async def get_transaction(self, transaction_id: str, year: int, month: int) -> dict | None:
         partition_key = f"{year:04d}-{month:02d}"
         item = await self._repo.get_by_id(transaction_id, partition_key)

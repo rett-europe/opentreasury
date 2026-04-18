@@ -89,6 +89,42 @@ class CosmosTransactionRepository:
 
         return items, pager.continuation_token
 
+    async def list_uncategorized(
+        self,
+        *,
+        account_id: str | None = None,
+        page_size: int = 100,
+        continuation_token: str | None = None,
+    ) -> tuple[list[dict], str | None]:
+        """Cross-partition query for uncategorized, non-deleted transactions."""
+        conditions = [
+            "c.categorizationStatus = @categorizationStatus",
+            "(c.isDeleted = false OR NOT IS_DEFINED(c.isDeleted))",
+        ]
+        parameters: list[dict] = [
+            {"name": "@categorizationStatus", "value": "uncategorized"},
+        ]
+
+        if account_id:
+            conditions.append("c.accountId = @accountId")
+            parameters.append({"name": "@accountId", "value": account_id})
+
+        where = " AND ".join(conditions)
+        query = f"SELECT * FROM c WHERE {where} ORDER BY c.date DESC"
+
+        pager = cosmos_service.transactions.query_items(
+            query=query,
+            parameters=parameters,
+            max_item_count=page_size,
+        ).by_page(continuation_token)
+
+        items: list[dict] = []
+        async for page in pager:
+            items = [item async for item in page]
+            break
+
+        return items, pager.continuation_token
+
     async def get_by_id(self, item_id: str, partition_key: str) -> dict | None:
         try:
             return await cosmos_service.transactions.read_item(item=item_id, partition_key=partition_key)

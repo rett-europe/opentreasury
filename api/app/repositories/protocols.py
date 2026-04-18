@@ -14,6 +14,14 @@ class TransactionRepository(Protocol):
         continuation_token: str | None = None,
     ) -> tuple[list[dict], str | None]: ...
 
+    async def list_uncategorized(
+        self,
+        *,
+        account_id: str | None = None,
+        page_size: int = 100,
+        continuation_token: str | None = None,
+    ) -> tuple[list[dict], str | None]: ...
+
     async def get_by_id(self, item_id: str, partition_key: str) -> dict | None: ...
 
     async def create(self, document: dict) -> dict: ...

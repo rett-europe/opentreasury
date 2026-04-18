@@ -164,6 +164,44 @@ class TestListTransactions:
 
 
 # ---------------------------------------------------------------------------
+# list_uncategorized
+# ---------------------------------------------------------------------------
+
+
+class TestListUncategorized:
+    async def test_delegates_to_repo_with_defaults(self, service, mock_repo):
+        mock_repo.list_uncategorized.return_value = ([], None)
+
+        items, token = await service.list_uncategorized()
+
+        assert items == []
+        assert token is None
+        mock_repo.list_uncategorized.assert_awaited_once_with(
+            account_id=None,
+            page_size=100,
+            continuation_token=None,
+        )
+
+    async def test_forwards_all_parameters(self, service, mock_repo):
+        sample = [make_transaction()]
+        mock_repo.list_uncategorized.return_value = (sample, "next-tok")
+
+        items, token = await service.list_uncategorized(
+            account_id="acc-001",
+            page_size=50,
+            continuation_token="prev-tok",
+        )
+
+        assert items == sample
+        assert token == "next-tok"
+        mock_repo.list_uncategorized.assert_awaited_once_with(
+            account_id="acc-001",
+            page_size=50,
+            continuation_token="prev-tok",
+        )
+
+
+# ---------------------------------------------------------------------------
 # get_transaction
 # ---------------------------------------------------------------------------
 
