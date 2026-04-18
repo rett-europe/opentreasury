@@ -328,7 +328,7 @@ class TestGetByAccount:
 
 
 # ---------------------------------------------------------------------------
-# GET /balance â€” category + subcategory grouping
+# GET /balance — category + subcategory grouping
 # ---------------------------------------------------------------------------
 
 

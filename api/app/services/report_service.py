@@ -129,10 +129,15 @@ class ReportService:
                 cat_id = key
                 subcat_id = None
 
-            category_name = category_map.get(cat_id)
-            if category_name is None:
-                logger.warning("Category '%s' not found in reference data — falling back to 'Uncategorized'", cat_id)
+            if cat_id == "uncategorized":
                 category_name = "Uncategorized"
+            else:
+                category_name = category_map.get(cat_id)
+                if category_name is None:
+                    logger.warning(
+                        "Category '%s' not found in reference data — falling back to 'Uncategorized'", cat_id
+                    )
+                    category_name = "Uncategorized"
 
             balance_items.append(
                 {

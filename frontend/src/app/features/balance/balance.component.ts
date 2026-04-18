@@ -11,8 +11,8 @@ import { AppSettingsService } from '../../core/services/app-settings.service';
 import { ReportService } from '../../core/services/report.service';
 import { ReferenceDataService } from '../../core/services/reference-data.service';
 import { BalanceItem } from '../../shared/models/report.model';
-import { catchError, finalize, map } from 'rxjs/operators';
-import { of } from 'rxjs';
+import { catchError, finalize, map, switchMap } from 'rxjs/operators';
+import { of, Subject } from 'rxjs';
 
 type SortField = 'categoryName' | 'subcategoryName' | 'income' | 'expense';
 type SortDirection = 'asc' | 'desc';
@@ -149,7 +149,7 @@ type BalanceKind = 'income' | 'expense';
                 </tr>
               </thead>
               <tbody>
-                @for (item of visibleIncomeRows(); track $index) {
+                @for (item of visibleIncomeRows(); track item.categoryId + ':' + (item.subcategoryId ?? '')) {
                   <tr>
                     @if (item.showCategory) {
                       <td [attr.rowspan]="item.categoryRowSpan" class="category-cell">
@@ -223,7 +223,7 @@ type BalanceKind = 'income' | 'expense';
                 </tr>
               </thead>
               <tbody>
-                @for (item of visibleExpenseRows(); track $index) {
+                @for (item of visibleExpenseRows(); track item.categoryId + ':' + (item.subcategoryId ?? '')) {
                   <tr>
                     @if (item.showCategory) {
                       <td [attr.rowspan]="item.categoryRowSpan" class="category-cell">
@@ -521,6 +521,7 @@ export class BalanceComponent implements OnInit {
   private readonly reportService = inject(ReportService);
   private readonly referenceDataService = inject(ReferenceDataService);
   private readonly destroyRef = inject(DestroyRef);
+  private readonly yearChange$ = new Subject<number>();
 
   selectedYear = new Date().getFullYear();
   availableYears = this.generateAvailableYears();
@@ -566,35 +567,7 @@ export class BalanceComponent implements OnInit {
   }
 
   loadBalance() {
-    this.loading.set(true);
-
-    this.reportService.getBalance(this.selectedYear)
-      .pipe(
-        takeUntilDestroyed(this.destroyRef),
-        map((items: BalanceItem[]) => {
-          return this.processBalanceItems(items);
-        }),
-        catchError((error) => {
-          console.error('Error loading balance data:', error);
-          return of({
-            incomeRows: [],
-            expenseRows: [],
-            totalIncome: 0,
-            totalExpense: 0,
-          });
-        }),
-        finalize(() => {
-          this.loading.set(false);
-        })
-      )
-      .subscribe((result) => {
-        this.incomeData.set(result.incomeRows);
-        this.expenseData.set(result.expenseRows);
-        this.totalIncome.set(result.totalIncome);
-        this.totalExpense.set(result.totalExpense);
-        this.refreshIncomeRows();
-        this.refreshExpenseRows();
-      });
+    this.yearChange$.next(this.selectedYear);
   }
 
   private processBalanceItems(items: BalanceItem[]): {
@@ -791,6 +764,30 @@ export class BalanceComponent implements OnInit {
     // and the balance API returns pre-resolved category names. Same pattern as
     // transaction-list and other consumers — no await needed.
     this.referenceDataService.load();
+
+    // switchMap cancels in-flight requests on rapid year changes
+    this.yearChange$.pipe(
+      takeUntilDestroyed(this.destroyRef),
+      switchMap(year => {
+        this.loading.set(true);
+        return this.reportService.getBalance(year).pipe(
+          map((items: BalanceItem[]) => this.processBalanceItems(items)),
+          catchError((error) => {
+            console.error('Error loading balance data:', error);
+            return of({ incomeRows: [], expenseRows: [], totalIncome: 0, totalExpense: 0 });
+          }),
+          finalize(() => this.loading.set(false)),
+        );
+      }),
+    ).subscribe((result) => {
+      this.incomeData.set(result.incomeRows);
+      this.expenseData.set(result.expenseRows);
+      this.totalIncome.set(result.totalIncome);
+      this.totalExpense.set(result.totalExpense);
+      this.refreshIncomeRows();
+      this.refreshExpenseRows();
+    });
+
     this.loadBalance();
   }
 }
