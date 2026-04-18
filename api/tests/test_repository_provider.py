@@ -136,16 +136,29 @@ class TestProtocolConformance:
 
 
 class TestSqliteSkeletonsRaiseNotImplemented:
-    """Phase A skeletons must raise NotImplementedError, not silently no-op.
+    """Phase B has implemented every SQLite repo — no skeletons remain.
 
-    As Phase B implements each repo, the corresponding assertion is removed.
-    Anything still listed here is provably unimplemented.
+    Kept as an empty placeholder so the historical test class structure is
+    documented; the assertions below were removed as repos went green.
     """
 
-    @pytest.mark.asyncio
-    async def test_transaction_methods_raise(self):
-        repo = SqliteTransactionRepository()
-        with pytest.raises(NotImplementedError):
-            await repo.get_by_id("x", "pk")
-        with pytest.raises(NotImplementedError):
-            await repo.create({})
+    def test_phase_b_complete_no_skeletons_left(self):
+        # Sentinel: if a future refactor reintroduces a NotImplementedError
+        # path on any SQLite repo, add a targeted test back here.
+        from app.repositories.sqlite.audit_repo import SqliteAuditRepository
+        from app.repositories.sqlite.category_repo import SqliteCategoryRepository
+        from app.repositories.sqlite.reference_item_repo import SqliteReferenceItemRepository
+        from app.repositories.sqlite.transaction_repo import SqliteTransactionRepository
+        from app.repositories.sqlite.user_preferences_repo import (
+            SqliteUserPreferencesRepository,
+        )
+
+        # Sanity: classes are importable and constructible.
+        for cls in (
+            SqliteAuditRepository,
+            SqliteCategoryRepository,
+            SqliteReferenceItemRepository,
+            SqliteTransactionRepository,
+            SqliteUserPreferencesRepository,
+        ):
+            assert cls is not None

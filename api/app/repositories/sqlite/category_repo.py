@@ -73,11 +73,7 @@ class SqliteCategoryRepository:
         engine = self._engine_factory.get_engine()
         async with engine.connect() as conn:
             result = await conn.execute(
-                text(
-                    "SELECT * FROM categories "
-                    "WHERE is_deleted = 0 "
-                    "ORDER BY sort_order ASC, name ASC"
-                )
+                text("SELECT * FROM categories " "WHERE is_deleted = 0 " "ORDER BY sort_order ASC, name ASC")
             )
             return [self._to_doc(row) for row in result.mappings()]
 
@@ -142,11 +138,15 @@ class SqliteCategoryRepository:
             engine2 = self._engine_factory.get_engine()
             async with engine2.connect() as conn:
                 row = (
-                    await conn.execute(
-                        text("SELECT * FROM categories WHERE id = :id"),
-                        {"id": category_id},
+                    (
+                        await conn.execute(
+                            text("SELECT * FROM categories WHERE id = :id"),
+                            {"id": category_id},
+                        )
                     )
-                ).mappings().first()
+                    .mappings()
+                    .first()
+                )
             if row is None:
                 # Cosmos would raise here; mirror with a KeyError-equivalent.
                 raise KeyError(f"category {category_id!r} not found")

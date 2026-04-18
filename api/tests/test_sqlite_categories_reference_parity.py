@@ -11,8 +11,6 @@ from uuid import uuid4
 
 import pytest
 
-from tests.sqlite_fixtures import sqlite_engine_factory  # noqa: F401
-
 
 # ---------------------------------------------------------------------------
 # Category factories
@@ -56,8 +54,7 @@ class TestSqliteCategoryRepositoryParity:
         doc = _category_doc()
         created = await repo.create(doc)
 
-        for camel_key in ("id", "name", "categoryType", "sortOrder",
-                          "subcategories", "createdAt", "isDeleted"):
+        for camel_key in ("id", "name", "categoryType", "sortOrder", "subcategories", "createdAt", "isDeleted"):
             assert camel_key in created
         assert created["categoryType"] == "income"
         assert created["isDeleted"] is False
@@ -89,8 +86,12 @@ class TestSqliteCategoryRepositoryParity:
         doc = _category_doc(id="cat-r", name="Original")
         await repo.create(doc)
 
-        updated = {**doc, "name": "Renamed", "categoryType": "expense",
-                   "subcategories": [{"id": "sub-z", "name": "Solo"}]}
+        updated = {
+            **doc,
+            "name": "Renamed",
+            "categoryType": "expense",
+            "subcategories": [{"id": "sub-z", "name": "Solo"}],
+        }
         replaced = await repo.replace("cat-r", updated)
         assert replaced["name"] == "Renamed"
         assert replaced["categoryType"] == "expense"

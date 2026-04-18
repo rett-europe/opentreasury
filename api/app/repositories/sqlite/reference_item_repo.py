@@ -106,10 +106,7 @@ class SqliteReferenceItemRepository:
         engine = self._engine_factory.get_engine()
         async with engine.connect() as conn:
             result = await conn.execute(
-                text(
-                    "SELECT * FROM reference_data "
-                    "WHERE id = :id AND type = :type AND is_deleted = 0"
-                ),
+                text("SELECT * FROM reference_data " "WHERE id = :id AND type = :type AND is_deleted = 0"),
                 {"id": item_id, "type": item_type},
             )
             row = result.mappings().first()
@@ -160,14 +157,15 @@ class SqliteReferenceItemRepository:
             engine2 = self._engine_factory.get_engine()
             async with engine2.connect() as conn:
                 row = (
-                    await conn.execute(
-                        text(
-                            "SELECT * FROM reference_data "
-                            "WHERE id = :id AND type = :type"
-                        ),
-                        {"id": item_id, "type": item_type},
+                    (
+                        await conn.execute(
+                            text("SELECT * FROM reference_data " "WHERE id = :id AND type = :type"),
+                            {"id": item_id, "type": item_type},
+                        )
                     )
-                ).mappings().first()
+                    .mappings()
+                    .first()
+                )
             if row is None:
                 raise KeyError(f"reference_data item {item_id!r} of type {item_type!r} not found")
             return self._to_doc(row)
@@ -177,9 +175,6 @@ class SqliteReferenceItemRepository:
         engine = self._engine_factory.get_engine()
         async with engine.begin() as conn:
             await conn.execute(
-                text(
-                    "DELETE FROM reference_data "
-                    "WHERE id = :id AND type = :type"
-                ),
+                text("DELETE FROM reference_data " "WHERE id = :id AND type = :type"),
                 {"id": item_id, "type": item_type},
             )

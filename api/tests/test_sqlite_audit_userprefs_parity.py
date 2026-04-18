@@ -23,9 +23,6 @@ from uuid import uuid4
 
 import pytest
 
-# Re-export the shared fixture so pytest discovers it from this module.
-from tests.sqlite_fixtures import sqlite_engine_factory  # noqa: F401
-
 
 def _audit_entry(**overrides) -> dict:
     base = {
@@ -95,15 +92,9 @@ class TestSqliteAuditRepositoryParity:
         assert items[0]["entityId"] == "tx-B"
 
     async def test_query_orders_by_changed_at_desc(self, repo):
-        await repo.create(
-            _audit_entry(id="au-1", changedAt="2026-01-01T00:00:00+00:00", entityId="tx-z")
-        )
-        await repo.create(
-            _audit_entry(id="au-2", changedAt="2026-04-18T00:00:00+00:00", entityId="tx-z")
-        )
-        await repo.create(
-            _audit_entry(id="au-3", changedAt="2026-02-15T00:00:00+00:00", entityId="tx-z")
-        )
+        await repo.create(_audit_entry(id="au-1", changedAt="2026-01-01T00:00:00+00:00", entityId="tx-z"))
+        await repo.create(_audit_entry(id="au-2", changedAt="2026-04-18T00:00:00+00:00", entityId="tx-z"))
+        await repo.create(_audit_entry(id="au-3", changedAt="2026-02-15T00:00:00+00:00", entityId="tx-z"))
 
         items, _ = await repo.query_trail(entity_id="tx-z")
         assert [it["id"] for it in items] == ["au-2", "au-3", "au-1"]
@@ -122,16 +113,12 @@ class TestSqliteAuditRepositoryParity:
         assert len(page1) == 2
         assert token1 is not None
 
-        page2, token2 = await repo.query_trail(
-            entity_id="tx-page", page_size=2, continuation_token=token1
-        )
+        page2, token2 = await repo.query_trail(entity_id="tx-page", page_size=2, continuation_token=token1)
         assert len(page2) == 2
         # No overlap.
         assert {it["id"] for it in page1}.isdisjoint({it["id"] for it in page2})
 
-        page3, token3 = await repo.query_trail(
-            entity_id="tx-page", page_size=2, continuation_token=token2
-        )
+        page3, token3 = await repo.query_trail(entity_id="tx-page", page_size=2, continuation_token=token2)
         assert len(page3) == 1
         assert token3 is None  # Last page exhausts the result set.
 

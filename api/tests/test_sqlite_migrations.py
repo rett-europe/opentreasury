@@ -300,8 +300,7 @@ class TestPhaseBSchemaParityColumns:
         cols = _columns(fresh_db_path, "transactions")
         assert "tags" in cols, "downgrade must restore the `tags` column"
         assert "tag_ids" not in cols
-        for added in ("is_split", "split_lines", "bank_description",
-                      "detail", "reviewed_by_email"):
+        for added in ("is_split", "split_lines", "bank_description", "detail", "reviewed_by_email"):
             assert added not in cols, f"downgrade left {added} behind"
 
         audit_cols = _columns(fresh_db_path, "audit_log")

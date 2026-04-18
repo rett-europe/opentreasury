@@ -29,18 +29,22 @@ def to_decimal(value: Any) -> Decimal | None:
     return Decimal(str(value))
 
 
-def from_decimal(value: Any) -> Decimal | None:
-    """Coerce an inbound document amount field into a :class:`Decimal`.
+def from_decimal(value: Any) -> str | None:
+    """Coerce an inbound document amount field into a SQLite-bindable string.
 
-    Accepts Decimal, int, float, or str. Floats are routed through
-    :func:`str` first so that ``0.1`` is stored as Decimal('0.1') and
-    not Decimal('0.1000000000000000055511151231257827021181583404541015625').
+    aiosqlite does not have a native :class:`Decimal` adapter, so we render
+    money values as strings and rely on SQLite NUMERIC affinity to round-trip
+    them losslessly. The :func:`to_decimal` helper re-wraps on read.
+
+    Accepts Decimal, int, float, str, or None. Floats are routed through
+    :func:`str` so that ``0.1`` is stored as ``'0.1'`` and not the binary
+    expansion ``0.1000000000000000055511151231257827021181583404541015625``.
     """
     if value is None:
         return None
     if isinstance(value, Decimal):
-        return value
-    return Decimal(str(value))
+        return str(value)
+    return str(Decimal(str(value)))
 
 
 def loads_json(value: Any) -> Any:
