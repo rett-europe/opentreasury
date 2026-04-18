@@ -100,6 +100,30 @@ async def create_transaction(
     return TransactionResponse.model_validate(created)
 
 
+@router.get("/uncategorized", response_model=TransactionListResponse)
+async def list_uncategorized_transactions(
+    account_id: str | None = Query(None, alias="accountId"),
+    page_size: int = Query(100, ge=1, le=200, alias="pageSize"),
+    continuation_token: str | None = Query(None, alias="continuationToken"),
+    current_user: dict = Depends(get_current_user),
+    service: TransactionService = Depends(get_transaction_service),
+):
+    """List all uncategorized, non-deleted transactions across partitions.
+
+    Cross-partition Cosmos DB query — intentional admin workflow for categorizing
+    imported transactions without a date range restriction. Paginated.
+    """
+    items, next_token = await service.list_uncategorized(
+        account_id=account_id,
+        page_size=page_size,
+        continuation_token=continuation_token,
+    )
+    return TransactionListResponse(
+        items=[TransactionResponse.model_validate(i) for i in items],
+        continuation_token=next_token,
+    )
+
+
 @router.get("/{transaction_id}", response_model=TransactionResponse)
 async def get_transaction(
     transaction_id: str,

@@ -64,6 +64,7 @@ TX_CREATE_PAYLOAD = {
 def mock_txn_svc():
     svc = AsyncMock()
     svc.list_transactions.return_value = ([SAMPLE_TX], None, None)
+    svc.list_uncategorized.return_value = ([SAMPLE_TX], None)
     svc.get_transaction.return_value = SAMPLE_TX
     svc.create_transaction.return_value = SAMPLE_TX
     svc.update_transaction.return_value = SAMPLE_TX
@@ -108,6 +109,51 @@ class TestListTransactions:
         assert call_kwargs.get("include_deleted") is False or (
             mock_txn_svc.list_transactions.call_args[1].get("include_deleted") is False
         )
+
+
+# ---------------------------------------------------------------------------
+# GET /api/transactions/uncategorized
+# ---------------------------------------------------------------------------
+
+
+class TestListUncategorized:
+    async def test_returns_items(self, viewer_client, mock_txn_svc):
+        app.dependency_overrides[get_transaction_service] = lambda: mock_txn_svc
+
+        response = await viewer_client.get("/api/transactions/uncategorized")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert "items" in data
+        assert len(data["items"]) == 1
+        # Default arguments
+        _, kwargs = mock_txn_svc.list_uncategorized.call_args
+        assert kwargs.get("account_id") is None
+        assert kwargs.get("page_size") == 100
+        assert kwargs.get("continuation_token") is None
+
+    async def test_forwards_query_params(self, viewer_client, mock_txn_svc):
+        mock_txn_svc.list_uncategorized.return_value = ([SAMPLE_TX], "next-tok")
+        app.dependency_overrides[get_transaction_service] = lambda: mock_txn_svc
+
+        response = await viewer_client.get(
+            "/api/transactions/uncategorized?accountId=acc-001&pageSize=50&continuationToken=prev-tok"
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["continuationToken"] == "next-tok"
+        _, kwargs = mock_txn_svc.list_uncategorized.call_args
+        assert kwargs.get("account_id") == "acc-001"
+        assert kwargs.get("page_size") == 50
+        assert kwargs.get("continuation_token") == "prev-tok"
+
+    async def test_rejects_invalid_page_size(self, viewer_client, mock_txn_svc):
+        app.dependency_overrides[get_transaction_service] = lambda: mock_txn_svc
+
+        response = await viewer_client.get("/api/transactions/uncategorized?pageSize=500")
+
+        assert response.status_code == 422
 
 
 # ---------------------------------------------------------------------------

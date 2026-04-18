@@ -176,6 +176,38 @@ class TestCosmosTransactionRepository:
         assert "@accountId" in str(call_kwargs["parameters"])
         assert call_kwargs.get("partition_key") == "2026-04"
 
+    async def test_list_uncategorized_no_filter(self, repo):
+        sample = {"id": "tx-u1", "categorizationStatus": "uncategorized"}
+        pager_mock = make_paged_mock([sample], continuation_token="tok-next")
+        self.mock_container.query_items.return_value.by_page.return_value = pager_mock
+
+        items, token = await repo.list_uncategorized()
+
+        assert items == [sample]
+        assert token == "tok-next"
+        call_kwargs = self.mock_container.query_items.call_args[1]
+        # Cross-partition query: no partition_key passed
+        assert "partition_key" not in call_kwargs
+        assert "@categorizationStatus" in str(call_kwargs["parameters"])
+        assert "uncategorized" in str(call_kwargs["parameters"])
+        # Filters deleted rows
+        assert "isDeleted" in call_kwargs["query"]
+        assert "ORDER BY c.date DESC" in call_kwargs["query"]
+
+    async def test_list_uncategorized_with_account_filter(self, repo):
+        pager_mock = make_paged_mock([], continuation_token=None)
+        self.mock_container.query_items.return_value.by_page.return_value = pager_mock
+
+        items, token = await repo.list_uncategorized(account_id="acc-001", page_size=50, continuation_token="prev-tok")
+
+        assert items == []
+        assert token is None
+        call_kwargs = self.mock_container.query_items.call_args[1]
+        assert "@accountId" in str(call_kwargs["parameters"])
+        assert call_kwargs.get("max_item_count") == 50
+        # Continuation token forwarded to by_page
+        self.mock_container.query_items.return_value.by_page.assert_called_once_with("prev-tok")
+
 
 # ---------------------------------------------------------------------------
 # CosmosCategoryRepository

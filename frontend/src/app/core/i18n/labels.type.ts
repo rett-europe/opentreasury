@@ -302,4 +302,7 @@ export interface AppLabels {
   clearDateRange: string;
   selectDateRange: string;
   noTransactionsInRange: string;
+  showAllUncategorized: string;
+  uncategorizedModeHeadline: string;
+  exitUncategorizedMode: string;
 }
