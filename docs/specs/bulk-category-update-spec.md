@@ -1,13 +1,29 @@
 # Bulk Category + Subcategory Update — UX Spec
 
-**Version:** 1.0
+**Version:** 1.1
 **Date:** 2026-04-18
 **Author:** Niobe (Spec / UX Analyst)
 **Requested by:** Pedro (perocha)
-**Status:** Draft — pending Pedro review
+**Status:** Amended — ready for implementation
 **Issue:** [#22](https://github.com/rett-europe/opentreasury/issues/22)
 **Branch:** `copilot/create-spec-for-issue-22`
 **Scope:** Transactions page — multi-select + bulk "Change category / subcategory" action
+
+**Prerequisite:** Phase 3 — Split transactions (`docs/specs/phase-3-split-transactions-spec.md`, FR-022–025) must be merged before this feature ships. The split-parent carve-out (§5.4, §7.5, §9.3, AC-24) depends on the `splits[]` data model from Phase 3. Until Phase 3 merges, the carve-out has no rows to apply to and is a forward-compatible no-op.
+
+**Changelog:**
+
+- **v1.1 (2026-04-18)** — Amendments from Neo's Lead review:
+  - R-1: `categorizationStatus = 'categorized'` corrected to `'manually_categorized'` (matches `api/app/models/domain.py::CategorizationStatus`) — §7.2, §9.1, AC-18.
+  - R-2: Phase 3 declared as prerequisite (header above).
+  - R-3: AC-24 added — backend must reject split parents with stable error code.
+  - §15 open questions resolved (A-1…A-9): API shape, partial-failure body, batch cap = 200, audit trail with `batchCorrelationId`, Undo / server-side select deferred, sticky placement, i18n pattern, action-bar context.
+  - AC-25 added (NB-1): selection-update semantics on partial failure.
+  - §5.3 extended (NB-2): selection cleared on navigation to transaction detail/edit page.
+  - §7.1 clarified (NB-3): no-op rows (already in chosen category) count under "will be overwritten".
+  - §11 note (NB-4): en/es label parity asserted at build time.
+  - §11 `bulkBatchLimit` label added (NB-5).
+- **v1.0 (2026-04-18)** — Initial draft.
 
 ---
 
@@ -27,7 +43,7 @@
 12. [Acceptance Criteria](#12-acceptance-criteria)
 13. [Edge Cases](#13-edge-cases)
 14. [Out of Scope](#14-out-of-scope)
-15. [Open Questions](#15-open-questions)
+15. [Resolved Decisions](#15-resolved-decisions-formerly-open-questions)
 
 ---
 
@@ -142,7 +158,7 @@ Selection is **cleared** when:
 
 - The admin changes any filter in the filter bar (date range, account, category, search, etc.). Rationale: the set of visible rows changes, so the user's mental model of "what I have selected" would break.
 - The admin clicks the **Clear** action on the bulk action bar.
-- The admin navigates away from the transactions page.
+- The admin navigates away from the transactions page (including navigating to a specific transaction's detail or edit page).
 - A bulk update completes successfully (see §8).
 
 ### 5.4 Row disabled states
@@ -230,6 +246,8 @@ Read-only, above the form. Three lines:
 - `Net: {amount}` (same EUR formatting as the action bar).
 - A breakdown line: `{X} currently uncategorized · {Y} will be overwritten`, where `X + Y = N`. If all rows are currently uncategorized, show just `{X} currently uncategorized`.
 
+> **No-op rows count as "will be overwritten."** If some selected rows already have the chosen category/subcategory, they still count under `{Y}` — we do not add a third "no change" bucket. A bulk apply is defined by the intended target state, not the diff. The backend may no-op on the wire (EC-2).
+
 ### 7.2 Mode selector — two mutually exclusive modes
 
 A pair of Material radio buttons chooses what the dialog does:
@@ -237,7 +255,7 @@ A pair of Material radio buttons chooses what the dialog does:
 1. **Apply category and subcategory** (default):
    - Category dropdown is **required**.
    - Subcategory dropdown is **optional** and filtered by the chosen category's active subcategories.
-   - Applying sets `categoryId = chosen`, `subcategoryId = chosen or null`, `categorizationStatus = 'categorized'` (see §9.1).
+   - Applying sets `categoryId = chosen`, `subcategoryId = chosen or null`, `categorizationStatus = 'manually_categorized'` (see §9.1).
 
 2. **Clear category**:
    - The category and subcategory dropdowns are hidden / disabled.
@@ -295,13 +313,12 @@ Shown above the form, below the summary, stacked in this order when they apply:
 
 ### 8.3 Partial failure
 
-If the API reports per-row failures (e.g., some rows not found, concurrency conflicts, validation errors on specific rows):
+If the API reports per-row failures (e.g., some rows not found, concurrency conflicts, validation errors, split parents rejected — see §15 / A-2 for the stable error codes):
 
 - Dialog closes.
 - Snackbar (error variant, 8 s duration or until dismissed): *"{S} updated · {F} failed. Tap to see details."*
-- Clicking the snackbar opens a small results dialog listing the failed transaction IDs with their error reason. The admin can close it and try again.
-- **Selection is retained**, but only the still-failed rows remain in the selection so the admin can retry. Successfully updated rows are deselected.
-- Updated rows are refreshed inline, failed rows are unchanged.
+- Clicking the snackbar opens a small results dialog listing the failed transaction IDs with their error reason (mapped from the stable code). The admin can close it and try again.
+- **Selection update is specified by AC-25:** successfully updated rows are refreshed inline and deselected; rows that failed remain in the selection set so the admin can retry without re-picking them.
 
 ### 8.4 Total failure (network / server error)
 
@@ -319,14 +336,14 @@ If the API reports per-row failures (e.g., some rows not found, concurrency conf
 
 ### 9.1 `categorizationStatus` derivation
 
-Bulk update drives `categorizationStatus` the same way single-row update does (existing backend logic, not redefined here):
+Bulk update drives `categorizationStatus` the same way single-row update does (existing backend logic, not redefined here). The allowed values are defined by the `CategorizationStatus` enum in `api/app/models/domain.py`:
 
 | Mode | `categoryId` | `subcategoryId` | `categorizationStatus` |
 |------|--------------|-----------------|------------------------|
-| Apply | chosen (non-null) | chosen or null | `categorized` |
+| Apply | chosen (non-null) | chosen or null | `manually_categorized` |
 | Clear | null | null | `uncategorized` |
 
-If the existing data model distinguishes `auto_categorized` vs `categorized`, a user-initiated bulk apply counts as `categorized` (manual). This matches the per-row Quick categorize behavior today.
+A user-initiated bulk apply is by definition manual and sets `manually_categorized`. The `auto_categorized` value is reserved for rules-engine / import-driven classification and is never produced by this flow. This matches the per-row Quick categorize behavior.
 
 ### 9.2 Untouched fields
 
@@ -350,7 +367,7 @@ A **split parent** (a transaction with child split lines) must be excluded from 
 UX implementation:
 
 - Split parent rows are un-selectable in the list (§5.4).
-- If a split parent somehow ends up in the selection (e.g., existing selection + user toggling split state), the dialog shows the warning banner (§7.5) and the backend must also refuse to update split parents, returning them as row-level errors.
+- If a split parent somehow ends up in the selection (e.g., existing selection + user toggling split state), the dialog shows the warning banner (§7.5) and the backend **must** refuse to update split parents, returning them as per-row errors with stable code `SPLIT_PARENT_NOT_BULK_UPDATABLE` (AC-24). The UI carve-out is a usability aid; the backend rejection is the authoritative invariant.
 
 ### 9.4 Transfers
 
@@ -362,7 +379,7 @@ The selection can span many `(year, month)` partitions (Cosmos DB layout). The b
 
 ### 9.6 Audit trail
 
-Each affected transaction gets an `updatedAt` / `updatedBy` stamp as today. If the data model already records a change history entry per categorization change, bulk updates must produce the same entries — one per transaction, not one for the batch. Tagging them with a batch correlation id is nice-to-have, **out of scope** for this spec.
+Each affected transaction gets an `updatedAt` / `updatedBy` stamp as today. If the data model already records a change history entry per categorization change, bulk updates produce the same entries — **one per transaction, not one for the batch**. In addition, every audit entry produced by a single bulk request carries the **same `batchCorrelationId`** (UUID v4, generated server-side once per bulk request) so the team can reconstruct "what changed in this bulk op" post-hoc. Reuse of `AuditAction.UPDATE` is preferred over introducing a new action value — the field-level diff is identical to a single-row edit. See §15 / A-4.
 
 ### 9.7 Concurrency
 
@@ -402,8 +419,11 @@ New label keys to be added to `frontend/src/app/core/i18n/en.ts` and `es.ts`. Wh
 | `bulkPartialFailureToast` | `{s} updated · {f} failed. Tap for details.` | `{s} actualizadas · {f} con error. Toca para ver detalles.` |
 | `bulkFailureBanner` | `Something went wrong. No transactions were changed.` | `Algo falló. No se modificó ninguna transacción.` |
 | `bulkSplitParentDisabledTooltip` | `Split transactions can't be bulk re-categorized` | `Las transacciones divididas no se pueden re-categorizar en bloque` |
+| `bulkBatchLimit` | `You can bulk-update up to {max} transactions at once.` | `Puedes actualizar en bloque hasta {max} transacciones a la vez.` |
 
 Label interpolation follows the existing `{n}` pattern used elsewhere in the app (see `AppSettingsService.labels()`).
+
+> **Build-time parity:** Trinity to add an assertion (unit test or type-level check) that `en.ts` and `es.ts` expose the same set of keys for this feature. Missing a key in either locale should fail the frontend build.
 
 ---
 
@@ -428,12 +448,14 @@ Label interpolation follows the existing `{n}` pattern used elsewhere in the app
 | AC-15 | On successful apply, the dialog closes, a snackbar shows `"{n} transactions updated"`, the affected table rows update inline, and the selection is cleared. | ✅ E2E |
 | AC-16 | Bulk update does not modify any field other than category, subcategory, and categorizationStatus. | ✅ Backend integration test (snapshot compare) |
 | AC-17 | In "Clear" mode, applied rows have `categoryId = null`, `subcategoryId = null`, `categorizationStatus = 'uncategorized'`. | ✅ Backend integration test |
-| AC-18 | In "Apply" mode, applied rows have `categoryId = chosen`, `subcategoryId = chosen or null`, `categorizationStatus = 'categorized'`. | ✅ Backend integration test |
-| AC-19 | On partial failure, the snackbar shows the split counts, the failed rows remain selected, and successfully updated rows are refreshed and deselected. | ✅ E2E with mocked partial failure |
+| AC-18 | In "Apply" mode, applied rows have `categoryId = chosen`, `subcategoryId = chosen or null`, `categorizationStatus = 'manually_categorized'`. | ✅ Backend integration test |
+| AC-19 | On partial failure, the snackbar shows the split counts, and the UI reflects the partial outcome per AC-25. | ✅ E2E with mocked partial failure |
 | AC-20 | On total failure, the dialog remains open with an error banner and no row is modified. | ✅ E2E with mocked 500 |
 | AC-21 | Viewer role cannot trigger the bulk action via URL / API even if forged; backend returns 403. | ✅ Backend integration test |
 | AC-22 | All new strings render in both EN and ES based on the active locale. | ✅ E2E per locale |
 | AC-23 | The bulk dialog handles selections ≥ 100 rows without UI jank (no per-row rendering in the dialog; only counts). | ✅ Manual / perf test |
+| AC-24 | The bulk endpoint rejects any item whose target transaction is a split parent, returning it as a per-row failure with stable error code `SPLIT_PARENT_NOT_BULK_UPDATABLE`. Non-parent items in the same request still succeed. | ✅ Backend integration test |
+| AC-25 | On partial failure, successfully updated rows are refreshed inline and **deselected**; rows that failed remain in the selection set so the admin can retry without re-picking them. | ✅ E2E with mocked partial failure |
 
 ---
 
@@ -452,7 +474,7 @@ Label interpolation follows the existing `{n}` pattern used elsewhere in the app
 | EC-9 | Mixed transactionType selection (income + expense) | Allowed. The same category can span types at the data level (the category model is not type-bound in v1 of the app). No warning. |
 | EC-10 | Admin selects only child split lines (no parents) | Works normally. Each child is categorized independently. The split parent's derived category will recompute per the split spec. |
 | EC-11 | Selection includes a row currently open in another dialog (e.g., Quick categorize) | The other dialog takes precedence; bulk apply runs independently. If conflicting, last-writer-wins (existing concurrency posture). |
-| EC-12 | User attempts to bulk-update more rows than a server-enforced max (if one exists, e.g., 500) | Frontend pre-validates against a server-provided limit (if Morpheus introduces one). If missing, backend returns an error; surfaced as total failure with a readable message. Out of scope here, see §15. |
+| EC-12 | User attempts to bulk-update more rows than the server-enforced max (**200**, see §15 / A-3) | Frontend pre-validates against the limit and disables the action bar's Change category button with the `bulkBatchLimit` tooltip when the selection exceeds it. If the frontend check is bypassed, backend returns HTTP 422 with code `BATCH_TOO_LARGE`, surfaced as a total failure. |
 | EC-13 | Locale changes mid-dialog | Dialog labels re-render via the existing `settings.labels()` signal pattern. No special handling. |
 | EC-14 | Admin has pending edits in a row's inline editor (not currently in the app) | N/A — transactions list is not inline-editable. |
 | EC-15 | Keyboard accessibility | The table already supports keyboard navigation. Checkboxes are focusable with Tab; Space toggles; the bulk action bar is reachable via Tab order. The dialog is a standard Material dialog with focus trap. |
@@ -465,27 +487,89 @@ Label interpolation follows the existing `{n}` pattern used elsewhere in the app
 - A "select all matching the current filter" (server-side selection) mechanism. V1 only selects loaded rows.
 - Changing `categoryId` through import / rules engine — this spec is specifically the interactive bulk-update workflow.
 - Any change to the split transactions feature (parents remain excluded from bulk category updates by design).
-- Undo of a bulk update. No "undo" action is offered; the admin re-selects and re-applies if needed. (Can be reconsidered if Pedro wants it — see §15.)
+- Undo of a bulk update. No "undo" action is offered; the admin re-selects and re-applies if needed. Deferred per §15 / A-5.
 - Bulk categorization from the Reports or Dashboard pages. This spec is transactions page only.
 - API contract, data model changes, or backend concurrency/performance tuning — Morpheus/Neo territory.
 
 ---
 
-## 15. Open Questions
+## 15. Resolved Decisions (formerly Open Questions)
 
-Questions flagged for Pedro / Morpheus / Trinity before implementation starts.
+The v1.0 draft left nine open questions. Neo's Lead review (`.squad/decisions/inbox/neo-bulk-categorize-spec-review.md`, 2026-04-18) resolved all of them. Recorded here as the authoritative answers for Morpheus, Trinity and Cypher.
 
-| # | For | Question |
-|---|-----|----------|
-| Q-1 | Pedro | Should the action bar show more context than count + net (e.g., date range covered, number of distinct accounts)? Minimal is proposed; can expand later. |
-| Q-2 | Pedro | Do we want to keep the "select all visible" scope as described, or add a server-side "select all matching the filter" in v1? The former is safer; the latter is faster for power users. |
-| Q-3 | Pedro | Is **Undo** (a 10-second "Undo" snackbar action after bulk apply) worth the complexity? Would require backend support. Proposed: defer. |
-| Q-4 | Morpheus | Max rows per bulk request? Suggested cap at 500 to keep latency predictable and bound Cosmos cost. Surfaced in the UI as "You can bulk-update up to 500 transactions at a time." |
-| Q-5 | Morpheus | Preferred API shape: one endpoint `POST /transactions/bulk-categorize` with an array of `{id, year, month}` + the target category/subcategory, OR fan-out on the backend from N `PATCH /transactions/{id}/categorize` calls wrapped in a bulk handler? Recommend the former. |
-| Q-6 | Morpheus | On partial failure, is per-row error surfacing feasible (HTTP 207-style response body with `{succeeded: [...], failed: [{id, reason}]}`)? The UX depends on it. |
-| Q-7 | Morpheus | Audit trail: one entry per transaction, or a single batch entry with N references? This spec assumes per-transaction entries for consistency with single-row edits. |
-| Q-8 | Trinity | Is the existing `AppSettingsService.labels()` pattern acceptable for the `{n}` / `{x}` / `{y}` interpolation used in the new labels, or do we need a small interpolation helper? |
-| Q-9 | Trinity | Where should the bulk action bar live in the DOM — inside the existing `.sticky-header` (below the filter bar) or as its own sticky section just above the table? Proposed: a separate sticky section, to avoid over-growing the already-tall header on narrow screens. |
+### A-1 — API shape (was Q-5, Morpheus)
+
+**Single endpoint:** `POST /api/transactions/bulk-categorize` (admin-only, guarded by `get_current_admin`).
+
+Request body:
+
+```jsonc
+{
+  "items": [
+    { "id": "txid-1", "year": 2026, "month": 3 },
+    { "id": "txid-2", "year": 2026, "month": 2 }
+  ],
+  "action": "apply",                // or "clear"
+  "categoryId": "cat-123",          // required when action == "apply"; null/omitted when "clear"
+  "subcategoryId": "sub-456"        // optional when "apply"; ignored when "clear"
+}
+```
+
+Rationale: matches the existing per-row `categorize` contract's partition-hint pattern, atomic from the client's perspective, single retry policy, single audit boundary. Client-side fan-out over N PATCH calls rejected — it pushes partial-failure complexity to the frontend and fragments the audit trail.
+
+### A-2 — Partial-failure response (was Q-6, Morpheus)
+
+**Per-row results, HTTP 200.** The bulk endpoint returns HTTP 200 whenever the request itself is well-formed (including the case where every per-row attempt fails). 4xx is reserved for whole-request errors (auth, schema validation, unknown category, `BATCH_TOO_LARGE`).
+
+Response body:
+
+```jsonc
+{
+  "batchCorrelationId": "a1b2c3d4-…",
+  "succeeded": ["txid-1"],
+  "failed": [
+    { "id": "txid-2", "code": "SPLIT_PARENT_NOT_BULK_UPDATABLE", "message": "…" },
+    { "id": "txid-3", "code": "NOT_FOUND", "message": "…" }
+  ]
+}
+```
+
+**Initial stable error codes:** `NOT_FOUND`, `SPLIT_PARENT_NOT_BULK_UPDATABLE`, `INVALID_SUBCATEGORY`, `INACTIVE_CATEGORY`, `CONCURRENCY_CONFLICT`. Morpheus may add codes; they must be documented in OpenAPI. HTTP 207 explicitly rejected — keep the contract idiomatic JSON.
+
+### A-3 — Max batch size (was Q-4, Morpheus)
+
+**Cap the `items` array at 200 per request.** Matches the existing `pageSize` cap on `GET /api/transactions` — one consistent server-side bound.
+
+- Worst-case latency at ~50 ms / row stays under ~10 s.
+- 200 covers >99% of realistic NGO bulk operations.
+- Frontend pre-validates against the cap and surfaces it via the new `bulkBatchLimit` i18n label (see §11). Over-limit selections disable the **Change category** button with the tooltip; see EC-12.
+- Backend enforces independently: over-limit returns HTTP 422, code `BATCH_TOO_LARGE`.
+
+### A-4 — Audit trail (was Q-7, Morpheus)
+
+**Per-transaction audit entries** (one per affected row), reusing `AuditAction.UPDATE`. Do **not** introduce a new action value — the field-level diff is identical to a single-row edit.
+
+Add a new optional `batchCorrelationId` (UUID v4, server-generated once per bulk request) on each audit entry. This lets the team reconstruct "what changed in this bulk op" post-hoc without a parallel batch-level audit document. The same `batchCorrelationId` is returned in the response body (see A-2) so the frontend can reference it in error reports.
+
+### A-5 — Undo (was Q-3, Pedro) — **deferred**
+
+No Undo snackbar action in v1. Requires per-row prior-state snapshots and a restoration endpoint. The audit trail (A-4) provides post-hoc reconstruction when needed. Reconsider once we see real usage pain.
+
+### A-6 — Server-side "select all matching filter" (was Q-2, Pedro) — **deferred**
+
+v1 selects currently-loaded rows only, as specified in §5.2. Server-side selection is a separate feature with its own RBAC, count-confirmation UX, and a filter-based endpoint shape. Don't conflate.
+
+### A-7 — Action bar DOM placement (was Q-9, Trinity)
+
+**Separate sticky section** between the existing `.sticky-header` (page header + filter bar) and the table content area — *not* nested inside the existing header. Use `position: sticky; top: var(--sticky-header-height);` with a CSS variable so the bar survives future header changes. Keeps each sticky band single-purpose and bounded on narrow screens.
+
+### A-8 — Action bar context (was Q-1, Pedro)
+
+**Minimal as proposed in §6** — count + signed net only. Date range, account counts, etc. are already visible in the filter bar above; don't duplicate.
+
+### A-9 — i18n interpolation (was Q-8, Trinity)
+
+**Use the existing `AppSettingsService.labels()` pattern** with `{n}` / `{x}` / `{y}` / `{max}` / `{s}` / `{f}` placeholders as defined in §11. Trinity introduces a small interpolation helper only if templates become unwieldy — implementation judgment, not a spec concern.
 
 ---
 
@@ -498,5 +582,6 @@ Questions flagged for Pedro / Morpheus / Trinity before implementation starts.
 - `frontend/src/app/features/transactions/bulk-categorize-dialog.component.ts` (new): mirrors `quick-categorize-dialog.component.ts` but operates on a selection.
 - `frontend/src/app/core/services/transaction.service.ts`: add `bulkCategorize(ids, mode, categoryId, subcategoryId)` method.
 - `frontend/src/app/core/i18n/{en,es}.ts`: add new labels per §11.
-- `api/app/routers/transactions.py`: add bulk endpoint per Q-5.
+- `api/app/routers/transactions.py`: add `POST /api/transactions/bulk-categorize` per §15 / A-1, guarded by `get_current_admin`.
+- `api/app/services/transaction_service.py`: add `bulk_categorize(items, action, category_id, subcategoryId, user_id, user_name) -> BulkCategorizeResult` with per-row validation (split-parent rejection, category/subcategory validation, batch-size cap) producing one `AuditAction.UPDATE` entry per row, all sharing the request's `batchCorrelationId` (A-4).
 - No changes expected in data models, categories, or reports.

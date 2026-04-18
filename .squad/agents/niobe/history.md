@@ -4,6 +4,18 @@
 
 <!-- Fresh start for opentreasury public repo. Append learnings below. -->
 
+### 2026-04-18: Bulk category update spec v1.1 — amendments from Neo's review
+- Amended `docs/specs/bulk-category-update-spec.md` from v1.0 → v1.1 after Neo's Lead review. Status: Draft → Amended, ready for implementation.
+- **Caught-by-Neo mistake I should avoid next time:** I used the enum value `'categorized'` for `categorizationStatus` in §9.1, §7.2, and AC-18 without cross-checking the actual enum in `api/app/models/domain.py`. The real value is `manually_categorized`. **Lesson: whenever a spec pins a string literal to an enum/domain value, open the source file and copy the literal verbatim.** Writing from memory is how silent backend/spec drift happens.
+- **Prerequisite discipline:** Added a top-of-spec "Prerequisite: Phase 3 merged" block. Specs with cross-feature dependencies (split parents, in this case) must declare them explicitly; otherwise the implementer either ships dead code or rediscovers the dependency mid-PR.
+- **UI carve-outs are not security:** Promoted "backend rejects split parents" from prose into its own testable AC-24 with a stable error code `SPLIT_PARENT_NOT_BULK_UPDATABLE`. Good reminder: anything a forged API request could bypass needs an AC, not just UX guidance.
+- **Folded §15 from Open Questions → Resolved Decisions (A-1…A-9).** Neo's answers are now the authoritative spec text: single `POST /bulk-categorize` endpoint, per-row `{succeeded, failed}` HTTP 200 body with stable error codes, batch cap 200, per-transaction audit entries + `batchCorrelationId`, Undo and server-side select-all deferred, sticky placement separate from header, minimal action-bar context, `AppSettingsService.labels()` for i18n. Keeping "was Q-X" history tags in place so the PR review shows what was unresolved and what got decided.
+- **New AC-25 (selection update on partial failure).** Neo's NB-1: the "failed rows remain selected, succeeded rows are deselected" behavior was previously only hinted at inside AC-19's prose. Promoted to its own testable AC. Lesson: if a line of prose would need its own E2E test, it should already be its own AC.
+- **New `bulkBatchLimit` i18n label + EC-12 rewrite:** tied the frontend pre-validation to the actual 200 cap and added the HTTP 422 `BATCH_TOO_LARGE` fallback. Previously EC-12 punted the limit "out of scope" — now it's concrete.
+- **Build-time en/es parity (NB-4):** added a note that Trinity must assert (unit test or type-level) that both locale files expose the same keys for this feature. Cheap protection against half-translated releases.
+- **NB-3 — no third bucket for no-ops in §7.1:** rejected adding a "will be unchanged" count to the selection breakdown. A bulk apply is defined by the intended target state, not by a per-row diff. Less UI noise, less code.
+- **Kept v1.0 labels.** Only *added* one new label (`bulkBatchLimit`). No existing key renamed or removed — Trinity's future implementation won't hit churn from the amendment.
+
 ### 2026-04-14: Deploy template spec — adopter experience review
 - Reviewed Neo's deploy-template-spec.md from an adopter UX perspective. The spec is technically solid (2-file template, DRY architecture) but written by engineers for engineers.
 - Defined the realistic adopter persona: "Ana" — NGO IT contact, Windows user, can follow instructions but doesn't know Bicep/GitHub Actions/service principals.
