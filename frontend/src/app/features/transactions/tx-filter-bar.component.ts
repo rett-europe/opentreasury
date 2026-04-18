@@ -127,6 +127,11 @@ export interface TransactionFilters {
             {{ settings.labels().clearDateRange }}
           </button>
         }
+
+        <button mat-flat-button color="accent" class="uncat-preset-btn" (click)="showUncategorized.emit()">
+          <mat-icon>label_off</mat-icon>
+          {{ settings.labels().showAllUncategorized }}
+        </button>
       </div>
 
       <!-- ROW 1: Primary filters (date range replaces year/month) -->
@@ -291,6 +296,12 @@ export interface TransactionFilters {
       color: var(--clr-text-muted);
       border-color: var(--clr-border);
     }
+    .uncat-preset-btn {
+      margin-left: auto;
+      white-space: nowrap;
+      font-size: var(--font-sm);
+      font-weight: var(--fw-semibold);
+    }
     .filter-row {
       display: flex;
       flex-wrap: wrap;
@@ -322,6 +333,7 @@ export class TransactionFilterBarComponent implements OnInit {
   readonly refData = inject(ReferenceDataService);
 
   readonly filtersChanged = output<TransactionFilters>();
+  readonly showUncategorized = output<void>();
 
   readonly activePreset = signal<string | null>(null);
 

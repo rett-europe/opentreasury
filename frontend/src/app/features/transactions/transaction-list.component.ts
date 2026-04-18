@@ -58,7 +58,7 @@ import { AccountLabelComponent } from '@shared/components/account-label/account-
           }
         </app-page-header>
 
-        <app-tx-filter-bar #filterBar (filtersChanged)="onFiltersChanged($event)" />
+        <app-tx-filter-bar #filterBar (filtersChanged)="onFiltersChanged($event)" (showUncategorized)="showAllUncategorized()" />
       </div>
 
       <div class="scroll-area" #scrollContainer>
