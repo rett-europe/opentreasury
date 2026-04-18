@@ -21,7 +21,7 @@ Deliver a desktop deployment mode that:
 2. Reuses current Router → Service → Repository boundaries.
 3. Uses SQLite as the persistence engine for desktop mode.
 4. Supports collaborative operation through a OneDrive-synced SQLite file with explicit safety controls.
-5. Keeps Entra ID authentication and role-based authorization consistent with current behavior.
+5. Keeps identity tracking consistent for audit purposes across local and shared modes.
 
 ## 3. Scope
 
@@ -31,7 +31,8 @@ Deliver a desktop deployment mode that:
 - Desktop API runtime using existing FastAPI routers/services.
 - New SQLite repository implementations behind current repository protocols.
 - Configuration-driven repository provider selection (Cosmos vs SQLite).
-- Entra ID login in desktop mode and Admin/Viewer enforcement.
+- Desktop identity: OS username (local) or silent MSAL Microsoft account (OneDrive shared).
+- No RBAC in desktop mode — all users are Admin. OneDrive folder permissions serve as coarse access control.
 - Audit logging parity in SQLite.
 - OneDrive shared-file collaboration mode with lock/conflict protections.
 
@@ -99,22 +100,31 @@ No feature may regress due to storage backend switch.
 
 ## 6. Authentication & Authorization
 
-### 6.1 Identity Source
+### 6.1 Desktop Auth Model (Different from Cloud)
 
-- Keep Microsoft Entra ID as identity provider.
-- Desktop app authenticates users with OAuth2 Authorization Code + PKCE.
-- Access token and ID token validated by local FastAPI auth dependencies (same claim semantics as cloud).
+Desktop mode does NOT replicate the cloud Entra ID app-registration model.
+No tenant setup, no app roles, no OAuth consent screens.
 
-### 6.2 Session Handling
+| Mode | Identity source | How it works |
+|------|----------------|-------------|
+| **Local file** | OS username | App reads the current Windows/macOS username. No login prompt. |
+| **OneDrive shared** | Microsoft account (via silent MSAL) | User is already signed into OneDrive. App reads identity silently — no popup, no separate login. |
+| **Cloud (existing, unchanged)** | Entra ID with app roles | Full OAuth2 + RBAC. Not affected by this spec. |
 
-- Tokens stored only in OS secure credential storage (Keychain/Credential Manager/libsecret).
-- No plaintext refresh tokens in SQLite.
-- Session renewal follows existing token expiry logic.
+### 6.2 RBAC — Not Implemented in Desktop Mode
 
-### 6.3 RBAC
+- All desktop users are implicit Admin.
+- Audit log still captures who did what (OS username or Microsoft account identity).
+- NGOs wanting access control can use **OneDrive folder permissions** as a coarse RBAC layer:
+  - Read+Write folder access → user can modify data.
+  - Read-only folder access → SQLite blocks writes at OS level. No app code needed.
+- Future enhancement (not in scope): in-app role table stored in SQLite.
 
-- Admin/Viewer role extraction must remain claim-driven.
-- All write endpoints stay protected by existing admin dependency checks.
+### 6.3 Session Handling
+
+- No tokens stored by the app in local mode.
+- In OneDrive shared mode, MSAL acquires identity silently from the OS credential cache.
+- No plaintext secrets in SQLite.
 
 ## 7. OneDrive Shared SQLite Mode
 
@@ -129,7 +139,13 @@ OneDrive-shared SQLite is supported with strict constraints:
 5. Conflict detector using row version fields (`updated_at`, `version`) for optimistic concurrency in update paths.
 6. Scheduled SQLite backup snapshots before schema migrations.
 
-### 7.2 Operational Limits
+### 7.2 Identity in Shared Mode
+
+- User identity resolved via silent MSAL (Microsoft account already signed into OneDrive).
+- Audit entries stamped with Microsoft account name + email.
+- No separate login flow — the app reads identity from the OS, not from a custom auth flow.
+
+### 7.3 Operational Limits
 
 - Supported for small teams with low simultaneous write volume.
 - Not suitable for heavy concurrent editing.
@@ -151,8 +167,9 @@ OneDrive-shared SQLite is supported with strict constraints:
 2. **Phase B — Functional parity**
    - Complete repository implementations and parity tests.
    - Wire Electron shell and local API startup.
-3. **Phase C — Auth + security**
-   - Entra desktop auth flow, secure token storage, localhost hardening.
+3. **Phase C — Identity + security**
+   - OS username identity for local mode, silent MSAL for OneDrive shared mode.
+   - Localhost-only FastAPI hardening, SQLite file encryption decision.
 4. **Phase D — OneDrive collaboration**
    - Advisory lock, conflict handling, stress tests, operational docs.
 5. **Phase E — Packaging**
@@ -183,5 +200,5 @@ Desktop mode is accepted only if:
 
 1. Do we mandate SQLite file encryption or allow OS-disk encryption as minimum baseline?
 2. What is the explicit supported user concurrency ceiling for OneDrive shared mode?
-3. Should desktop mode include offline-only operation when Entra is temporarily unavailable after prior sign-in?
+3. Should desktop mode support offline work when OneDrive sync is paused but the file is locally cached?
 4. Is OneDrive shared mode GA or marked beta initially?
