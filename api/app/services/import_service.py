@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass, field
 from datetime import date, datetime
 from decimal import Decimal
@@ -26,6 +27,8 @@ if TYPE_CHECKING:
     from app.services.account_service import AccountService
     from app.services.category_service import CategoryService
     from app.services.transaction_service import TransactionService
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -79,7 +82,7 @@ class ImportService:
 
         # 2. Open workbook
         try:
-            workbook = load_workbook(BytesIO(workbook_bytes), data_only=True)
+            workbook = self._load_workbook(workbook_bytes)
         except Exception:
             return self._preview_result(
                 valid=False,
@@ -495,7 +498,7 @@ class ImportService:
         user_name: str,
         sheet: str | None = None,
     ) -> dict:
-        workbook = load_workbook(BytesIO(workbook_bytes), data_only=True)
+        workbook = self._load_workbook(workbook_bytes)
 
         candidates, _ = self._enumerate_sheets(workbook)
         if sheet is not None:
@@ -683,6 +686,26 @@ class ImportService:
         if amount >= 0:
             return TransactionType.INCOME
         return TransactionType.EXPENSE
+
+    # ------------------------------------------------------------------
+    # Workbook loading
+    # ------------------------------------------------------------------
+
+    @staticmethod
+    def _load_workbook(workbook_bytes: bytes):
+        """Open workbook with openpyxl, falling back to read-only mode.
+
+        Some bank-exported workbooks contain pivot tables that trigger a bug
+        in openpyxl <= 3.1.x (``Nested.from_tree()`` missing argument).  When
+        the standard load fails we retry with ``read_only=True`` which skips
+        pivot-cache parsing.  A warning is logged so we notice if this path is
+        hit frequently.
+        """
+        try:
+            return load_workbook(BytesIO(workbook_bytes), data_only=True)
+        except Exception:
+            logger.warning("Standard workbook load failed; retrying with read_only=True")
+            return load_workbook(BytesIO(workbook_bytes), data_only=True, read_only=True)
 
     # ------------------------------------------------------------------
     # Sheet / header detection (multilingual)

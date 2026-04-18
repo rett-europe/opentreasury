@@ -1,5 +1,5 @@
 from io import BytesIO
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, patch
 
 import pytest
 from openpyxl import Workbook
@@ -1252,3 +1252,40 @@ class TestMultiSheetSelection:
         assert result["requiresSheetSelection"] is True
         names = {c["name"] for c in result["candidateSheets"]}
         assert names == {"UNICAJA 2026", "Categorias"}
+
+
+# ---------------------------------------------------------------------------
+# Workbook loading fallback (pivot table bug in openpyxl <= 3.1.x)
+# ---------------------------------------------------------------------------
+
+
+class TestLoadWorkbookFallback:
+    async def test_fallback_to_read_only_on_pivot_table_error(self):
+        """When normal load_workbook fails (e.g. pivot tables), the service retries in read_only mode."""
+        service, _, _, txn_svc = await build_service()
+        txn_svc.get_transactions_for_export.return_value = []
+        wb_bytes = make_bank_workbook_bytes()
+
+        original_load = __import__("openpyxl").load_workbook
+        call_count = {"n": 0}
+
+        def patched_load(*args, **kwargs):
+            call_count["n"] += 1
+            if not kwargs.get("read_only"):
+                raise TypeError("Nested.from_tree() missing 1 required positional argument: 'node'")
+            return original_load(*args, **kwargs)
+
+        with patch("app.services.import_service.load_workbook", side_effect=patched_load):
+            result = await service.preview_workbook(wb_bytes, account_id="acc-1")
+
+        assert result["valid"] is True
+        assert call_count["n"] == 2  # first attempt failed, second (read_only) succeeded
+
+    async def test_fully_invalid_file_still_returns_error(self):
+        """When both normal and read-only loads fail, the user gets a clear error."""
+        service, _, _, _ = await build_service()
+
+        result = await service.preview_workbook(b"not-an-excel-file", account_id="acc-1")
+
+        assert result["valid"] is False
+        assert "Could not open file" in result["errors"][0]
