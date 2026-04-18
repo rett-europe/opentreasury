@@ -296,6 +296,49 @@
 
 **Why:** Locks the shell architecture before Trinity/Tank touch it, so PR B.8 reviews are about correctness, not architecture. Switch's HTTP-loopback-only call is the most important constraint and it's non-negotiable.
 
+### 2026-04-18: Phase B.8 + B.9 work distribution
+**By:** Neo (Lead/Architect)
+**What:** B.0–B.7 are merged (PRs #15, #18). The remaining Phase B slices are B.8 (Electron shell + local FastAPI sidecar) and B.9 (desktop dev runbook). B.8 is multi-owner and is therefore sub-sliced; each sub-slice has exactly one owner, an explicit deliverable, machine-checkable acceptance criteria, and a reviewer gate. The architecture is already locked by decision B-4 (2026-04-18) — these packets implement that decision, they do not redesign it.
+
+#### B.8 sub-slices
+
+| ID | Owner | Deliverable | Acceptance criteria | Depends on |
+|----|-------|-------------|---------------------|------------|
+| **B.8a** | Morpheus | `api/desktop_main.py` — sidecar entrypoint that imports `app.main:app`, sets `DATA_BACKEND=sqlite`, resolves `SQLITE_DB_PATH` from CLI arg or env, binds `127.0.0.1` on an ephemeral port via `uvicorn.Config(host="127.0.0.1", port=0)`, and prints exactly one parseable line `OT_API_PORT=<port>\n` to stdout once the bind succeeds. | (1) `python -m app.desktop_main --db /tmp/x.sqlite` boots, prints the port line within 5s, serves `/health` 200; (2) binds `127.0.0.1` only — `0.0.0.0` bind is rejected by a unit test that inspects the `Config`; (3) no router/service edits in this PR; (4) lint + black + pytest green per the 2026-04-12 enforcement decision. | B-4 (locked) |
+| **B.8b** | Trinity | `desktop/` workspace skeleton: `package.json` (electron + electron-builder dev deps only — no installer config), `main.js`, `preload.js`. `BrowserWindow` with `nodeIntegration: false`, `contextIsolation: true`, `sandbox: true`. Loads `http://localhost:4200` when `NODE_ENV=development`, else `file://` of the packaged Angular `dist/`. | (1) `cd desktop && npm install && npm run start:shell` opens an Electron window pointed at `http://localhost:4200` (assumes `ng serve` already running — orchestration is B.8e); (2) DevTools shows the three security flags above as `true` in `process.argv` / window prefs; (3) no Python or sidecar logic in this PR. | B-4 (locked) |
+| **B.8c** | Trinity, **Switch security gate** | Sidecar lifecycle in `desktop/main.js`: `child_process.spawn` of B.8a, parse `OT_API_PORT=<port>` from stdout (regex anchored line-start), pipe stdout/stderr to `app.getPath('logs')/sidecar.log`, on `app.on('before-quit')` send `SIGTERM` then `SIGKILL` after 5s grace. Inject the resolved base URL `http://127.0.0.1:<port>` into the renderer via `preload.js` as `window.__OT_API_BASE__` (frozen string). | (1) Killing Electron leaves no orphan Python process (verified by ps grep in a CI smoke job on Linux runner); (2) port is read from the spawned process — no hardcoded port anywhere; (3) preload exposes only the base-URL string via `contextBridge.exposeInMainWorld`, nothing else; (4) Switch checklist (B.8f) signed off before merge. | B.8a, B.8b |
+| **B.8d** | Trinity | Angular bootstrap reads `window.__OT_API_BASE__` once in `app.config.ts` (or equivalent provider) before the HTTP client is constructed, and uses it as the API base. Web build falls back to `environment.apiBase` unchanged. | (1) Web `ng build --configuration=production` output is byte-identical for unrelated chunks (no behavior change for cloud build); (2) when `window.__OT_API_BASE__` is set, every outbound request in DevTools goes to that origin; (3) no HTTP interceptor — base URL is set at construction time. | B.8c |
+| **B.8e** | Tank | Top-level `npm run desktop:dev` script that orchestrates: `ng serve` → wait until `http://localhost:4200` responds → launch Electron (which spawns the sidecar). Cross-platform (Windows / macOS / Linux). May add at most one new dev dependency for the wait step (e.g. `wait-on`); justify in the PR. | (1) Single command bring-up on a clean clone after `npm install` in both `frontend/` and `desktop/` and `pip install -r api/requirements.txt`; (2) Ctrl-C tears down all three processes cleanly; (3) documented preconditions match B.9 runbook exactly. | B.8a, B.8b, B.8c, B.8d |
+| **B.8f** | Switch | One-page security checklist `docs/security/desktop-shell-checklist.md` asserting and signing off: bind `127.0.0.1` only; no `nodeIntegration`; `contextIsolation: true`; `sandbox: true`; preload exposes only `__OT_API_BASE__` (no DB handles, no fs, no shell); CSP for the `file://` prod load; no `--remote-debugging-port` in prod; sidecar stderr does not leak secrets. | Checklist file merged with Switch as the commit author or reviewer-of-record. **Blocks B.8c merge.** | B.8b, B.8c |
+| **B.8g** | Cypher | `tests/desktop/test_sidecar_smoke.py` — pytest that subprocess-launches `api/desktop_main.py` against a temp SQLite path, parses the port line, hits `/health`, creates one transaction, lists it, soft-deletes it, asserts list excludes it. No Electron required — exercises the contract that B.8c depends on. | (1) Test passes against the merged B.8a sidecar; (2) test fails loudly (not flakily) if the port-line contract changes; (3) added to the existing `pytest tests/` invocation, not a new test runner. | B.8a |
+
+#### B.9
+
+| ID | Owner | Deliverable | Acceptance criteria | Depends on |
+|----|-------|-------------|---------------------|------------|
+| **B.9** | Oracle | `docs/guides/desktop-dev.md` — developer runbook covering: prerequisites (Node 20.x LTS, Python 3.12, the two `npm install` + one `pip install`), the single `npm run desktop:dev` command, log file locations (Electron logs path + `sidecar.log`), and a troubleshooting table (port collision, sidecar crash, stale SQLite, "I see the cloud UI not the desktop UI"). Cross-references spec §9 (Phase B), B-4 decision, and the B.8 PR. | (1) A teammate who has not touched the codebase can go from `git clone` to a working desktop window using only this guide; (2) no commands in the guide differ from what `npm run desktop:dev` actually runs; (3) Oracle adds a one-line entry to `docs/features.md` deferring the user-facing desktop feature note to Phase C (per spec §11). | B.8e merged |
+
+#### Recommended PR slicing for the Coordinator
+
+1. **PR B.8.1** — B.8a (Morpheus) + B.8g (Cypher). Mergeable independently; unblocks every other slice.
+2. **PR B.8.2** — B.8b + B.8c + B.8d (Trinity) + B.8e (Tank). Single PR because the four slices are tightly coupled and a partial merge ships a non-bootable shell. Switch reviews B.8f as a blocking review on this PR; if Switch requires changes, those land in the same PR — do not split into a separate "hardening" PR.
+3. **PR B.9** — Oracle. Strictly follows PR B.8.2.
+
+**Reviewer gates (every PR):**
+- **Neo:** architectural drift from B-4 only. If a reviewer comment from Neo is "this is fine but I'd do it differently," it is not a change request.
+- **Switch:** mandatory blocking review on PR B.8.2.
+- **Tank:** cross-platform CI gate on PR B.8.2 (must run on at least one Linux runner; Windows/macOS deferred to Phase E).
+- **Cypher:** smoke test must remain green; any new desktop-only test must not be skipped on the cloud CI matrix.
+
+**Out of scope, do not let scope-creep in:**
+- Installer / code-signing / auto-update — Phase E.
+- MSAL, Graph, OneDrive picker, mode-selection screen, identity chip — Phase C, blocked on Niobe's NGO UX validation (spec §12 Q3–Q8).
+- Advisory locks, conflict UX, encryption-at-rest decision — Phase D, blocked on Switch (§12 Q1) and the concurrency target (§12 Q2).
+
+**Neo reopens when:** (a) any owner raises an architectural question not answered by B-4 or this distribution; (b) Switch's checklist surfaces a posture conflict the spec doesn't already resolve; (c) all of B.8 + B.9 is merged — Neo then opens Phase C kickoff after Niobe's UX validation lands. Otherwise Phase B routes through the named owners directly, not through Neo.
+
+**Why:** Phase B's architectural decisions (B-1, B-2, B-4) and the spec amendment (§4.3.1, §4.3.2) are merged. The remaining work is implementation against a frozen contract. Neo's charter (`I don't handle: direct implementation of UI components / API endpoint coding / test writing`) routes that work to Trinity, Morpheus, Tank, Cypher, Switch, and Oracle. Distributing it explicitly — with one owner per packet, machine-checkable acceptance criteria, and a fixed reviewer matrix — is the Lead-shaped action and prevents the failure mode where "the Lead said proceed" gets read as "the Lead will write it."
+
 ## Governance
 
 - All meaningful changes require team consensus
