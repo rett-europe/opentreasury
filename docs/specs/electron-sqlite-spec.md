@@ -99,6 +99,50 @@ Mapping must preserve current invariants:
 - referential integrity checks used by services
 - audit immutability
 
+#### 4.3.1 SQLite ↔ Cosmos Document Mapping (Phase B, decision 2026-04-18)
+
+The SQLite schema uses `snake_case` column names; the existing service layer
+and Cosmos repositories speak `camelCase` document keys. The mapping is the
+sole responsibility of each SQLite repository and is encapsulated in two
+private helpers per repo:
+
+- `_to_doc(row) -> dict` — convert a SQL row into a Cosmos-shaped document
+  (camelCase keys, `Decimal` for money, parsed JSON for embedded
+  collections, `bool` for `isDeleted`).
+- `_from_doc(doc) -> dict` — convert a Cosmos-shaped document into a row
+  parameter dict for an `INSERT`/`UPDATE` statement (snake_case keys,
+  serialized JSON for embedded collections, normalized `Decimal` for money).
+
+The Cosmos document shape is the **canonical contract**. Services and
+routers are not modified to accommodate SQLite. If a parity test fails
+because a service reads a particular camelCase key, the fix lives in the
+SQLite repo's mapping helpers, not in the service.
+
+#### 4.3.2 Phase B Schema-Gap Inventory (`0002_phase_b_schema_parity`)
+
+The Phase A migration (`0001_phase_a_initial`) intentionally shipped a
+minimal schema. Phase B adds the following columns so that the existing
+service-layer queries reach functional parity with the Cosmos backend:
+
+| Table | Add column | Type | Why |
+|-------|------------|------|-----|
+| `transactions` | `is_split` | `Integer NOT NULL DEFAULT 0` | Read by `query_for_report` and `aggregate_filtered`; differentiates split parents from leaf transactions when counting "uncategorized." |
+| `transactions` | `split_lines` | `JSON NULL` | Embedded split-line array (Phase 3 split-transactions decision, 2026-04-14). Without it `query_for_report` cannot unroll splits and reports diverge from Cosmos. |
+| `transactions` | `bank_description` | `Text NULL` | Half of the `search` filter target in `_build_filter_conditions`. Phase A schema only had `description` (which maps to Cosmos `detail`). |
+| `transactions` | `detail` | `Text NULL` | Other half of the `search` filter. Distinct from `description` in the Cosmos document. |
+| `transactions` | `reviewed_by_email` | `String NULL` | Stamped by the review service alongside `reviewed_by` and `reviewed_by_name`. Missing in v1. |
+| `transactions` | `tag_ids` | `JSON NULL` | Renamed from Phase A's `tags` column for explicit parity with the Cosmos `tagIds` field. The `count_by_tag` query uses `ARRAY_CONTAINS(c.tagIds, …)`; the SQLite equivalent uses `json_each(tag_ids)`. Phase A had no production data so the rename is safe. |
+| `audit_log` | `metadata` | `JSON NULL` | Free-form context bag stamped by the audit service in some flows; present in Cosmos documents. |
+
+**Out of scope for `0002_phase_b_schema_parity`** (deferred):
+
+- Optimistic-concurrency `version` *behavior* — the column already exists
+  from Phase A; the wiring is Phase D.
+- Foreign-key constraints between `transactions` and reference tables —
+  Cosmos does not enforce referential integrity, parity says SQLite must
+  not either; integrity stays at the service tier.
+- `app_identity` / `users` evolution — Phase C.
+
 ## 5. Feature Parity Requirements
 
 Desktop mode must match current behavior for:

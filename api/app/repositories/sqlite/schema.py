@@ -140,7 +140,12 @@ transactions = Table(
     Column("original_amount", Numeric(18, 2), nullable=True),
     Column("original_date", String, nullable=True),
     Column("notes", JSON, nullable=True),  # list[note]
-    Column("tags", JSON, nullable=True),  # list[tag_id]
+    Column("tag_ids", JSON, nullable=True),  # list[tag_id] — Cosmos `tagIds`
+    Column("is_split", Integer, nullable=False, server_default="0"),
+    Column("split_lines", JSON, nullable=True),  # Cosmos `splitLines`
+    Column("bank_description", Text, nullable=True),  # Cosmos `bankDescription`
+    Column("detail", Text, nullable=True),  # Cosmos `detail`
+    Column("reviewed_by_email", String, nullable=True),
     Column("created_by", String, nullable=False),
     Column("created_at", DateTime, nullable=False),
     Column("updated_by", String, nullable=True),
@@ -180,6 +185,7 @@ audit_log = Table(
     Column("changed_at", DateTime, nullable=False),
     Column("old_values", JSON, nullable=True),
     Column("new_values", JSON, nullable=True),
+    Column("metadata", JSON, nullable=True),  # free-form context bag (Cosmos parity)
     CheckConstraint(
         "actor_source IN ('os_username', 'app_prompt', 'microsoft_account', 'entra_id')",
         name="actor_source_valid",
