@@ -16,9 +16,14 @@ import { AccountSummary } from '@shared/models/report.model';
     @if (accounts().length > 0) {
       <div class="account-grid">
         @for (acc of accounts(); track acc.accountId) {
-          <mat-card class="account-card" (click)="accountClick.emit(acc.accountId)">
+          <mat-card class="account-card"
+                    [style.border-left-color]="refData.getAccountColor(acc.accountId) || null"
+                    [class.has-color]="!!refData.getAccountColor(acc.accountId)"
+                    (click)="accountClick.emit(acc.accountId)">
             <mat-card-header>
-              <div class="card-icon-wrap" mat-card-avatar>
+              <div class="card-icon-wrap" mat-card-avatar
+                   [style.background-color]="refData.getAccountColor(acc.accountId) || null"
+                   [style.color]="refData.getAccountColor(acc.accountId) ? '#1f2937' : null">
                 <mat-icon>account_balance</mat-icon>
               </div>
               <mat-card-title>{{ refData.getAccountLabel(acc.accountId) }}</mat-card-title>
@@ -47,6 +52,10 @@ import { AccountSummary } from '@shared/models/report.model';
     }
     .account-card {
       cursor: pointer;
+    }
+    .account-card.has-color {
+      border-left-width: 4px;
+      border-left-style: solid;
     }
     .card-icon-wrap {
       display: flex;

@@ -5,6 +5,7 @@ from typing import Optional
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 from pydantic.alias_generators import to_camel
 
+from app.constants.account_colors import ALLOWED_ACCOUNT_COLORS
 from app.models.domain import AuditAction, CategoryType, ReviewStatus, TransactionType
 
 
@@ -244,6 +245,18 @@ class CategoryResponse(CamelModel):
 # --- Accounts ---
 
 
+def _validate_account_color(v):
+    """Normalize and validate an account color against the allowed palette."""
+    if v is None or v == "":
+        return None
+    if not isinstance(v, str):
+        raise ValueError("color must be a string")
+    normalized = v.upper()
+    if normalized not in ALLOWED_ACCOUNT_COLORS:
+        raise ValueError(f"color must be one of the allowed palette values: {sorted(ALLOWED_ACCOUNT_COLORS)}")
+    return normalized
+
+
 class AccountCreate(CamelModel):
     bank_name: str = Field(max_length=100)
     bank_name_short: Optional[str] = Field(default=None, max_length=50)
@@ -252,7 +265,13 @@ class AccountCreate(CamelModel):
     account_label: str = Field(max_length=200)
     is_paypal: bool = False
     currency: str = Field(default="EUR", max_length=3)
+    color: Optional[str] = Field(default=None, max_length=7)
     sort_order: int = 0
+
+    @field_validator("color", mode="before")
+    @classmethod
+    def _check_color(cls, v):
+        return _validate_account_color(v)
 
 
 class AccountUpdate(CamelModel):
@@ -263,8 +282,14 @@ class AccountUpdate(CamelModel):
     account_label: Optional[str] = Field(default=None, max_length=200)
     is_paypal: Optional[bool] = None
     currency: Optional[str] = Field(default=None, max_length=3)
+    color: Optional[str] = Field(default=None, max_length=7)
     sort_order: Optional[int] = None
     is_active: Optional[bool] = None
+
+    @field_validator("color", mode="before")
+    @classmethod
+    def _check_color(cls, v):
+        return _validate_account_color(v)
 
 
 class AccountResponse(CamelModel):
@@ -276,6 +301,7 @@ class AccountResponse(CamelModel):
     account_label: str
     is_paypal: bool = False
     currency: str = "EUR"
+    color: Optional[str] = None
     sort_order: int = 0
     is_active: bool = True
     created_at: datetime

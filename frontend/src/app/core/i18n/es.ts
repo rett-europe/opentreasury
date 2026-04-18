@@ -126,6 +126,7 @@ export const ES_LABELS: AppLabels = {
   bankType: 'Banco',
   paypalType: 'PayPal',
   ibanLabel: 'IBAN',
+  colorLabel: 'Color',
   activateAccount: (label: string) => `¿Activar la cuenta "${label}"?`,
   deactivateAccount: (label: string, count: number) =>
     `¿Desactivar la cuenta "${label}"?\nHay ${count} movimiento(s) asociados a esta cuenta.`,
