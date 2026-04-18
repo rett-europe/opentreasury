@@ -792,6 +792,7 @@ class ImportService:
                     return False
 
         return max_row <= row_limit and max_col <= col_limit
+
     def _collect_known_headers(self, sheet) -> set[str]:
         """Return the set of canonical header keys found in the first 12 rows.
 
