@@ -4,6 +4,20 @@
 
 <!-- Fresh start for opentreasury public repo. Append learnings below. -->
 
+### 2026-04-18: Bulk category update spec review (issue #22)
+- Reviewed Niobe's `docs/specs/bulk-category-update-spec.md` v1.0. Spec is structurally sound and scope-bounded; approved-with-revisions.
+- **Caught spec/code mismatch (R-1):** Spec said `categorizationStatus = 'categorized'`, but the actual enum is `MANUALLY_CATEGORIZED = "manually_categorized"`. User-initiated bulk apply must set `manually_categorized`. Lesson: always cross-check spec values against the actual enum/domain layer — Niobe's specs are excellent on UX but enum literals need a second pass against `api/app/models/domain.py`.
+- **Sequencing decision (R-2):** Spec's split-parent carve-out depends on Phase 3 (`splits`) data. Required Niobe to declare a prerequisite — either ship after Phase 3 merge, or explicitly drop the carve-out from v1. Don't ship ambiguity.
+- **Made backend split-parent rejection a testable AC (R-3):** UI carve-outs aren't security; the API must enforce too. Added AC-24.
+- **Architecture decisions filed in `.squad/decisions/inbox/neo-bulk-categorize-spec-review.md`:**
+  - API: single `POST /api/transactions/bulk-categorize` endpoint with `{items: [{id,year,month}], action, categoryId, subcategoryId}`. Reuses existing partition-hint pattern.
+  - Partial failure: per-row `{succeeded, failed: [{id, code, message}]}` body, HTTP 200. Stable error codes (`SPLIT_PARENT_NOT_BULK_UPDATABLE`, `NOT_FOUND`, `INVALID_SUBCATEGORY`, `CONCURRENCY_CONFLICT`, `INACTIVE_CATEGORY`). Avoided HTTP 207 — keep idiomatic JSON.
+  - Batch cap: 200 (matches existing `pageSize` cap → one consistent server bound).
+  - Audit: per-transaction entries reusing `AuditAction.UPDATE`, plus a new optional `batchCorrelationId` UUID for traceability. No batch-level audit document.
+  - Deferred: Undo, server-side select-all-matching-filter. v1 stays small.
+- **Cross-partition writes on Cosmos:** Up to 200 rows across N (year, month) partitions, no transactional guarantee. Accepted by design — the per-row partial-failure contract is the explicit handling. No saga / 2PC needed at NGO scale.
+- **Lesson:** Niobe's spec format (Open Questions §15) is doing real work — it surfaces every architectural decision that needs a Lead call before code starts. Answering them in a single decision doc keeps the spec stable and gives Morpheus/Trinity an unblocked starting point.
+
 ### 2026-04-14: Deploy template spec — codebase audit findings
 - **Secrets count:** Reference draft listed 12 secrets. Audit of actual codebase shows only 7 needed — Key Vault references handle COSMOS_ENDPOINT, AZURE_TENANT_ID, AZURE_CLIENT_ID at runtime; COSMOS_KEY is unused in prod (Managed Identity); AZURE_SUBSCRIPTION_ID and AZURE_TENANT_ID are derivable from AZURE_CREDENTIALS JSON.
 - **No separate infra workflow needed:** `setup-azure.sh` is comprehensive and idempotent — creates RG, Entra apps (API + SPA with roles/scopes), SP, deploys Bicep, retrieves SWA token, prints all secrets. A deploy-infra.yml would duplicate this for minimal value.
