@@ -210,6 +210,104 @@ class TestAppIdentityTable:
 
 
 # ---------------------------------------------------------------------------
+# Phase B schema-parity gap-fill (migration 0002_phase_b_schema_parity).
+# Spec §4.3.2 — see decision "Phase B schema-gap inventory" (2026-04-18).
+# ---------------------------------------------------------------------------
+
+
+class TestPhaseBSchemaParityColumns:
+    """Migration 0002 closes the schema gap with the existing Cosmos repo."""
+
+    def test_transactions_has_is_split_with_default_zero(self, fresh_db_path):
+        upgrade_to_head(f"sqlite:///{fresh_db_path}")
+        cols = _columns(fresh_db_path, "transactions")
+        assert "is_split" in cols
+        assert cols["is_split"]["notnull"] == 1
+        assert cols["is_split"]["default"] in ("0", "'0'")
+
+    @pytest.mark.parametrize(
+        "column",
+        ["split_lines", "bank_description", "detail", "reviewed_by_email"],
+    )
+    def test_transactions_has_added_nullable_columns(self, fresh_db_path, column):
+        upgrade_to_head(f"sqlite:///{fresh_db_path}")
+        cols = _columns(fresh_db_path, "transactions")
+        assert column in cols, f"transactions missing {column}"
+        assert cols[column]["notnull"] == 0, f"{column} should be nullable"
+
+    def test_transactions_renames_tags_to_tag_ids(self, fresh_db_path):
+        upgrade_to_head(f"sqlite:///{fresh_db_path}")
+        cols = _columns(fresh_db_path, "transactions")
+        assert "tag_ids" in cols, "Cosmos `tagIds` parity column must exist"
+        assert "tags" not in cols, "old `tags` column must be gone after 0002"
+
+    def test_audit_log_has_metadata_column(self, fresh_db_path):
+        upgrade_to_head(f"sqlite:///{fresh_db_path}")
+        cols = _columns(fresh_db_path, "audit_log")
+        assert "metadata" in cols
+        assert cols["metadata"]["notnull"] == 0
+
+    def test_phase_b_columns_are_writable(self, fresh_db_path):
+        """A row using every new column round-trips through the schema."""
+        upgrade_to_head(f"sqlite:///{fresh_db_path}")
+        conn = sqlite3.connect(fresh_db_path)
+        ts = "2026-04-18T12:00:00"
+        try:
+            conn.execute(
+                "INSERT INTO transactions "
+                "(id, partition_key, date, year, month, amount, "
+                " transaction_type, created_by, created_at, "
+                " is_split, split_lines, bank_description, detail, "
+                " reviewed_by_email, tag_ids) "
+                "VALUES ('tx-b1', 'tx-acc-1', '2026-04-18', 2026, 4, 12.50, "
+                "        'income', 'u1', ?, "
+                "        1, '[{\"id\": \"sl1\"}]', 'WIRE FROM X', 'Long detail',"
+                "        'reviewer@example.org', '[\"tag-a\", \"tag-b\"]')",
+                (ts,),
+            )
+            conn.execute(
+                "INSERT INTO audit_log "
+                "(id, entity_type, entity_id, action, changed_by, "
+                " actor_source, changed_at, metadata) "
+                "VALUES ('au-b1', 'Transaction', 'tx-b1', 'Update', 'u1', "
+                "        'os_username', ?, '{\"reason\": \"manual fix\"}')",
+                (ts,),
+            )
+            conn.commit()
+            row = conn.execute(
+                "SELECT is_split, split_lines, bank_description, detail, "
+                "reviewed_by_email, tag_ids FROM transactions WHERE id='tx-b1'"
+            ).fetchone()
+            assert row[0] == 1
+            assert row[1] == '[{"id": "sl1"}]'
+            assert row[2] == "WIRE FROM X"
+            assert row[3] == "Long detail"
+            assert row[4] == "reviewer@example.org"
+            assert row[5] == '["tag-a", "tag-b"]'
+        finally:
+            conn.close()
+
+    def test_downgrade_restores_phase_a_shape(self, fresh_db_path):
+        """0002 downgrade must roll back to the Phase A column set."""
+        from app.repositories.sqlite.migrations.runner import build_alembic_config
+        from alembic import command
+
+        url = f"sqlite:///{fresh_db_path}"
+        upgrade_to_head(url)
+        cfg = build_alembic_config(url)
+        command.downgrade(cfg, "0001_phase_a_initial")
+
+        cols = _columns(fresh_db_path, "transactions")
+        assert "tags" in cols, "downgrade must restore the `tags` column"
+        assert "tag_ids" not in cols
+        for added in ("is_split", "split_lines", "bank_description", "detail", "reviewed_by_email"):
+            assert added not in cols, f"downgrade left {added} behind"
+
+        audit_cols = _columns(fresh_db_path, "audit_log")
+        assert "metadata" not in audit_cols
+
+
+# ---------------------------------------------------------------------------
 # Engine factory
 # ---------------------------------------------------------------------------
 

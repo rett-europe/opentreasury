@@ -217,6 +217,37 @@ def malformed_auth_header() -> dict[str, str]:
 
 
 # ---------------------------------------------------------------------------
+# Phase B SQLite fixtures (shared parity-test infrastructure).
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture
+async def sqlite_engine_factory(tmp_path):
+    """Migrated, isolated SQLite database wrapped in a fresh engine factory.
+
+    Used by every Phase B SQLite parity-test module. Each call:
+
+    1. Allocates a tempfile-backed SQLite database in the test's tmp_path.
+    2. Runs the full Alembic migration chain (0001 + 0002).
+    3. Builds a fresh ``SqliteEngineFactory`` bound to that file.
+    4. Disposes the engine on teardown.
+
+    See ``docs/specs/electron-sqlite-spec.md`` §4.3.1 / §10 — this fixture
+    is the "parity gate" referenced by the Phase B plan.
+    """
+    from app.repositories.sqlite.engine import SqliteEngineFactory
+    from app.repositories.sqlite.migrations.runner import upgrade_to_head
+
+    db_path = tmp_path / "phase_b_parity.db"
+    upgrade_to_head(f"sqlite:///{db_path}")
+    factory = SqliteEngineFactory(db_path=str(db_path))
+    try:
+        yield factory
+    finally:
+        await factory.dispose()
+
+
+# ---------------------------------------------------------------------------
 # Mock Cosmos DB fixtures
 # ---------------------------------------------------------------------------
 

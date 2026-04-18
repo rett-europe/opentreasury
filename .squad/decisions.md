@@ -247,6 +247,55 @@
 **Why:** Adopter UX — script output is the single source of truth during provisioning. Mismatch causes confusion.
 **Action needed:** Update Step 9 output in both scripts to print two separate tables (Secrets and Variables), matching the exact names documented in the README.
 
+### 2026-04-18: Phase B kickoff — data-mapping contract (B-1)
+**By:** Neo (Lead/Architect)
+**What:** SQLite repositories own the bidirectional mapping between SQL row-tuples (snake_case columns per `app/repositories/sqlite/schema.py`) and the Cosmos-shaped `dict` documents that services already consume (camelCase: `partitionKey`, `accountId`, `categoryId`, `subcategoryId`, `transactionType`, `tagIds`, `splitLines`, `isSplit`, `isDeleted`, `bankDescription`, `detail`, etc.). Each SQLite repo gets exactly one private `_to_doc(row) -> dict` and one `_from_doc(doc) -> dict` helper — no mapping logic scattered through methods. Service and router files are not touched.
+**Why:** Option (b) — "move services to a canonical shape" — would touch every service and router, breaking layering for a backend-swap concern. Option (a) keeps the swap surface inside the repository tier where it belongs (spec §4.1, §4.3). The Cosmos-document shape becomes the de facto canonical contract because (1) every service already speaks it, (2) every API response already serializes it, (3) the existing service test suite asserts against it, and (4) it's what the Cosmos repo emits unchanged. SQLite is the new adapter; it adapts to the existing contract, not the other way round.
+**Implications:**
+- Mapping is the *only* place column-name divergence is allowed. If a parity test fails because a service reads `doc["isSplit"]`, the fix is in `_to_doc`, never in the service.
+- `Decimal` discipline preserved at the mapping boundary: `aiosqlite` returns `NUMERIC` as strings; `_to_doc` wraps in `Decimal`, `_from_doc` accepts `Decimal | str | int | float` and stores canonically.
+- Soft-delete invariant: `_to_doc` always emits `isDeleted: bool`; read paths filter `is_deleted = 0` in SQL unless `include_deleted=True`.
+- JSON columns (`tags`, `notes`, `subcategories`, `attributes`, `split_lines`) round-trip through `json.loads`/`json.dumps` in the mapping helpers; services never see raw JSON strings.
+**Scope:** Applies to all five SQLite repos (transactions, categories, reference_item, audit, user_preferences) for PRs B.4–B.7.
+
+### 2026-04-18: Phase B schema-gap list — migration `0002_phase_b_schema_parity` (B-2)
+**By:** Neo (Lead/Architect), with Morpheus gap analysis against Cosmos repo + service layer
+**What:** Migration `0002_phase_b_schema_parity` (Morpheus owns in PR B.2) closes the gaps between `schema.py` v1 (Phase A) and the fields that existing services and the Cosmos repo actually read/write. The exact gap inventory:
+
+| # | Add to `transactions` | Type | Why |
+|---|---|---|---|
+| 1 | `is_split` | `Integer NOT NULL DEFAULT 0` | Read by `query_for_report` and `aggregate_filtered`; differentiates split parents from leaf transactions when counting "uncategorized." |
+| 2 | `split_lines` | `JSON NULL` | Embedded split-line array (Phase 3 decision, 2026-04-14). Without it `query_for_report` cannot unroll splits and reports diverge from Cosmos. |
+| 3 | `bank_description` | `Text NULL` | Half of the `search` filter target in `_build_filter_conditions`. Currently the schema has only `description` (which maps to `detail`). Both fields must exist for parity. |
+| 4 | `detail` | `Text NULL` | Other half of the `search` filter. Distinct from `description` in the Cosmos document. |
+| 5 | `reviewed_by_email` | `String NULL` | Stamped by the review service alongside `reviewed_by` and `reviewed_by_name`. Missing in v1. |
+| 6 | `tag_ids` | `JSON NULL` | Renamed from v1's `tags` for explicit parity with Cosmos `tagIds`. The `count_by_tag` query uses `ARRAY_CONTAINS(c.tagIds, …)`; the SQLite equivalent uses `json_each(tag_ids)`. v1's `tags` column is dropped (Phase A had no production data). |
+
+| # | Other tables | Change | Why |
+|---|---|---|---|
+| 7 | `categories` | Confirm `subcategories` JSON shape matches `[{id, name, sortOrder?}]` documented by Cosmos repo | No structural change; assertion-only test |
+| 8 | `audit_log` | Add nullable `metadata` JSON column | Used by audit service for free-form context; present in Cosmos documents |
+
+**Out of scope for B.2** (deferred to Phase D per plan §4):
+- `version` column wiring for optimistic concurrency (column exists from Phase A; the *behavior* lands in Phase D).
+- Any FK constraints between `transactions` and `categories`/`reference_data` — Cosmos doesn't enforce them, parity says SQLite shouldn't either; integrity stays at the service tier.
+- `app_identity` / `users` changes — Phase C surface.
+
+**Why:** Defining the gap list as a decision (not just a Morpheus PR) means parity tests in B.3 can assert against a fixed contract. Without this fixed list, scope-creep on B.2 is guaranteed.
+
+### 2026-04-18: Phase B Electron shell technology choices (B-4)
+**By:** Neo (Lead/Architect), with Trinity (shell), Tank (packaging), Switch (security gate)
+**What:**
+1. **Builder:** `electron-builder` (not `electron-forge`). Reasons: (a) first-class Windows/macOS installer support needed in Phase E with one config; (b) Tank's existing GitHub Actions experience with build/sign pipelines maps directly; (c) `electron-forge` adds a templating layer we don't need around a single Angular app.
+2. **Dev workflow:** Electron main loads `http://localhost:4200` in dev (Angular `ng serve`), and the packaged `file://dist/...` URL in prod. No webpack-dev-server middleware in Electron itself — keeps the shell dumb.
+3. **FastAPI sidecar supervision:** Electron main process spawns the Python sidecar as a child process via `child_process.spawn`, with: ephemeral port allocation (probe-and-bind starting at 8765), stdout/stderr piped to Electron's log file (`app.getPath('logs')`), `SIGTERM` on Electron `before-quit` with a 5s grace period before `SIGKILL`. The sidecar entrypoint is a new `api/desktop_main.py` (PR B.8) that reuses `app.main:app` — no router/service changes.
+4. **Renderer ↔ API transport:** **HTTP-only over `127.0.0.1:<port>`.** No Electron IPC for data, no `contextBridge` exposure of database handles, no `nodeIntegration`. The renderer is treated as untrusted code talking to a localhost service — same posture as the cloud build. Switch sign-off: this is the only acceptable posture (spec §8.5; Switch authority team policy 2026-04-14).
+5. **Port discovery:** Main process writes the bound port to a tiny preload-injected global (`window.__OT_API_BASE__`) read once at Angular bootstrap. No port hardcoding in Angular environment files for desktop builds.
+6. **Workspace location:** New top-level `desktop/` directory (sibling of `frontend/`, `api/`), not nested under `frontend/`. Reason: it's a deployment shell, not a frontend artifact; nesting confuses build paths and `npm` workspace boundaries.
+7. **What B.8 ships:** `desktop/package.json`, `desktop/main.js` (or `.ts`), `desktop/preload.js`, `npm run desktop:dev` script that launches sidecar + `ng serve` + Electron in the right order. **No installer config** (that's Phase E). **No MSAL/Graph/identity code** (that's Phase C).
+
+**Why:** Locks the shell architecture before Trinity/Tank touch it, so PR B.8 reviews are about correctness, not architecture. Switch's HTTP-loopback-only call is the most important constraint and it's non-negotiable.
+
 ## Governance
 
 - All meaningful changes require team consensus
