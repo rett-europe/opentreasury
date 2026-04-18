@@ -35,6 +35,14 @@
 - **Open questions for Pedro:** Split line cap (recommended 20), unsplit behavior (recommended → uncategorized), transfers/refunds splittable.
 - **Open questions for Niobe:** Split dialog UX, list view indicator, re-categorization frequency (determines if PATCH endpoint needed).
 
+### 2026-04-18: System Settings (Issue #12) — implementers spawned
+- Pedro asked me to spawn the implementers for the approved System Settings spec.
+- Honest constraint: this Copilot session has no `create_issue` tool, so I prepared three copy-paste-ready issue briefs (Morpheus / Trinity / Cypher) for Pedro to file. Same pattern that spawned Niobe on #12 — open issue with `squad:{member}` label, automation comments, agent picks up next session.
+- Held the **Design Review ceremony** inline (multi-agent task per `ceremonies.md`). Contracts were already pinned by the spec; only flagged item was the `GET /api/settings` auth path needing to not deadlock the A2 bootstrap gate.
+- Recommendation to Pedro: route Morpheus' backend issue and Cypher's test issue to `squad:copilot` (🟢 well-defined, follows existing patterns); keep Trinity's frontend issue with Trinity (🟡 — format-audit refactor benefits from human judgement on which literals to migrate).
+- Cypher works in parallel, not after — AC-1…AC-15 are in spec §10.
+- Switch is on the courtesy-review hook for the admin-only `PUT /api/settings` once Morpheus' PR lands.
+
 ### 2026-04-18: System Settings spec (Issue #12) approved
 - Niobe's `docs/specs/system-settings-spec.md` cleared architectural review. Reuses existing `reference_data` Cosmos container (pk `/type`) with a singleton `id="system"` doc — no new container, no Bicep change, no `CosmosService` edits.
 - Two binding amendments folded into §13: **A1** server-authoritative `updatedAt`/`updatedBy` on `PUT /api/settings` (keeps door open for ETag later); **A2** `SystemSettingsService.load()` must complete before the first format-sensitive render to avoid flash-of-wrong-currency.
