@@ -121,17 +121,19 @@ export interface TransactionFilters {
           <mat-button-toggle value="this-year">{{ settings.labels().presetThisYear }}</mat-button-toggle>
           <mat-button-toggle value="last-year">{{ settings.labels().presetLastYear }}</mat-button-toggle>
         </mat-button-toggle-group>
-        @if (dateFrom || dateTo) {
-          <button mat-stroked-button class="clear-btn" (click)="clearDateRange()">
-            <mat-icon>close</mat-icon>
-            {{ settings.labels().clearDateRange }}
-          </button>
-        }
+        <div class="preset-strip-actions">
+          @if (dateFrom || dateTo) {
+            <button mat-stroked-button class="clear-btn" (click)="clearDateRange()">
+              <mat-icon>close</mat-icon>
+              {{ settings.labels().clearDateRange }}
+            </button>
+          }
 
-        <button mat-stroked-button class="uncat-preset-btn" (click)="showUncategorized.emit()">
-          <mat-icon>label_off</mat-icon>
-          {{ settings.labels().showAllUncategorized }}
-        </button>
+          <button mat-stroked-button class="uncat-preset-btn" (click)="onShowUncategorized()">
+            <mat-icon>label_off</mat-icon>
+            {{ settings.labels().showAllUncategorized }}
+          </button>
+        </div>
       </div>
 
       <!-- ROW 1: Primary filters (date range replaces year/month) -->
@@ -291,13 +293,17 @@ export interface TransactionFilters {
       background: var(--brand-primary);
       color: var(--brand-on-primary);
     }
-    .clear-btn {
+    .preset-strip-actions {
       margin-left: auto;
+      display: flex;
+      gap: var(--spc-8);
+      align-items: center;
+    }
+    .clear-btn {
       color: var(--clr-text-muted);
       border-color: var(--clr-border);
     }
     .uncat-preset-btn {
-      margin-left: auto;
       white-space: nowrap;
       font-size: var(--font-sm);
       font-weight: var(--fw-medium);
@@ -383,6 +389,14 @@ export class TransactionFilterBarComponent implements OnInit {
   /** Apply a preset by key — called from inline shortcut chips in the empty state */
   applyPreset(key: string): void {
     this.onPresetChange(key);
+  }
+
+  /** Clear date filters and enter uncategorized mode */
+  onShowUncategorized(): void {
+    this.dateFrom = null;
+    this.dateTo = null;
+    this.activePreset.set(null);
+    this.showUncategorized.emit();
   }
 
   onManualDateChange(value: Date | null, field: 'from' | 'to'): void {
