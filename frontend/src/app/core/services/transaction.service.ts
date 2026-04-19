@@ -11,6 +11,8 @@ import {
   CategorizeRequest,
   NoteCreate,
   SplitRequest,
+  BulkCategorizeRequest,
+  BulkCategorizeResponse,
 } from '@shared/models/transaction.model';
 
 @Injectable({ providedIn: 'root' })
@@ -59,6 +61,17 @@ export class TransactionService {
 
   categorize(id: string, data: CategorizeRequest, year: number, month: number): Observable<Transaction> {
     return this.api.patch<Transaction>(`/transactions/${id}/categorize`, data, { year, month });
+  }
+
+  /**
+   * Bulk categorize — spec `docs/specs/bulk-category-update-spec.md` v1.1 §15 / A-1.
+   * Always returns HTTP 200 when the request is well-formed; per-row failures come
+   * back in `response.failed[]` with stable codes (A-2). Whole-request errors
+   * (auth, schema validation, unknown category, batch-too-large) are raised as
+   * the usual HTTP error observables by `ApiService`.
+   */
+  bulkCategorize(data: BulkCategorizeRequest): Observable<BulkCategorizeResponse> {
+    return this.api.post<BulkCategorizeResponse>('/transactions/bulk-categorize', data);
   }
 
   addNote(id: string, data: NoteCreate, year: number, month: number): Observable<Transaction> {

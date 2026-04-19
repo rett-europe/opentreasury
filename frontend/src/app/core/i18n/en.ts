@@ -289,4 +289,35 @@ export const EN_LABELS: AppLabels = {
   clearDateRange: 'Clear',
   selectDateRange: 'Select a date range to view transactions',
   noTransactionsInRange: 'No transactions found in this range',
+  // --- Bulk categorize (spec §11) ---
+  bulkSelectedCount: (n: number) => `${n} selected`,
+  bulkNetLabel: 'Net',
+  bulkChangeCategory: 'Change category',
+  bulkClearSelection: 'Clear selection',
+  bulkDialogTitle: (n: number) => `Change category for ${n} transactions`,
+  bulkSelectionSummary: (n: number) => `${n} transactions selected`,
+  bulkSelectionBreakdown: (x: number, y: number) =>
+    `${x} currently uncategorized · ${y} will be overwritten`,
+  bulkModeApply: (n: number) => `Apply category and subcategory to all ${n}`,
+  bulkModeClear: (n: number) => `Clear category on all ${n} (set to uncategorized)`,
+  bulkSubcategoryNone: '— (none)',
+  bulkSplitParentWarning: (n: number) =>
+    `${n} split transaction(s) are in your selection and will be skipped.`,
+  bulkSplitParentDeselect: 'Deselect',
+  bulkTransferInfo: (n: number) =>
+    `${n} transfer(s) are in your selection. Categorizing transfers affects category reports.`,
+  bulkApplyButton: 'Apply',
+  bulkSuccessToast: (n: number) => `${n} transactions updated`,
+  bulkPartialFailureToast: (s: number, f: number) =>
+    `${s} updated · ${f} failed. Tap for details.`,
+  bulkFailureBanner: 'Something went wrong. No transactions were changed.',
+  bulkSplitParentDisabledTooltip: "Split transactions can't be bulk re-categorized",
+  bulkBatchLimit: (max: number) => `You can bulk-update up to ${max} transactions at once.`,
+  bulkPartialResultsTitle: 'Bulk update results',
+  bulkFailureCodeNotFound: 'Transaction not found',
+  bulkFailureCodeSplitParent: 'Split transactions cannot be bulk re-categorized',
+  bulkFailureCodeInvalidSubcategory: 'Invalid subcategory',
+  bulkFailureCodeInactiveCategory: 'Inactive category',
+  bulkFailureCodeConcurrency: 'The transaction changed while the bulk update was running',
+  bulkFailureCodeUnknown: 'Update failed',
 };

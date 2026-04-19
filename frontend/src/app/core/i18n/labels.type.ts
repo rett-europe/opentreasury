@@ -289,4 +289,31 @@ export interface AppLabels {
   clearDateRange: string;
   selectDateRange: string;
   noTransactionsInRange: string;
+  // --- Bulk categorize (spec docs/specs/bulk-category-update-spec.md v1.1 §11) ---
+  bulkSelectedCount: (n: number) => string;
+  bulkNetLabel: string;
+  bulkChangeCategory: string;
+  bulkClearSelection: string;
+  bulkDialogTitle: (n: number) => string;
+  bulkSelectionSummary: (n: number) => string;
+  bulkSelectionBreakdown: (x: number, y: number) => string;
+  bulkModeApply: (n: number) => string;
+  bulkModeClear: (n: number) => string;
+  bulkSubcategoryNone: string;
+  bulkSplitParentWarning: (n: number) => string;
+  bulkSplitParentDeselect: string;
+  bulkTransferInfo: (n: number) => string;
+  bulkApplyButton: string;
+  bulkSuccessToast: (n: number) => string;
+  bulkPartialFailureToast: (s: number, f: number) => string;
+  bulkFailureBanner: string;
+  bulkSplitParentDisabledTooltip: string;
+  bulkBatchLimit: (max: number) => string;
+  bulkPartialResultsTitle: string;
+  bulkFailureCodeNotFound: string;
+  bulkFailureCodeSplitParent: string;
+  bulkFailureCodeInvalidSubcategory: string;
+  bulkFailureCodeInactiveCategory: string;
+  bulkFailureCodeConcurrency: string;
+  bulkFailureCodeUnknown: string;
 }

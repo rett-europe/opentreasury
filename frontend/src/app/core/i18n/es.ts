@@ -289,4 +289,37 @@ export const ES_LABELS: AppLabels = {
   clearDateRange: 'Limpiar',
   selectDateRange: 'Selecciona un rango de fechas para ver transacciones',
   noTransactionsInRange: 'No se encontraron transacciones en este rango',
+  // --- Bulk categorize (spec §11) ---
+  bulkSelectedCount: (n: number) => `${n} seleccionadas`,
+  bulkNetLabel: 'Neto',
+  bulkChangeCategory: 'Cambiar categoría',
+  bulkClearSelection: 'Limpiar selección',
+  bulkDialogTitle: (n: number) => `Cambiar categoría de ${n} transacciones`,
+  bulkSelectionSummary: (n: number) => `${n} transacciones seleccionadas`,
+  bulkSelectionBreakdown: (x: number, y: number) =>
+    `${x} sin categorizar · ${y} se sobrescribirán`,
+  bulkModeApply: (n: number) => `Aplicar categoría y subcategoría a las ${n}`,
+  bulkModeClear: (n: number) => `Quitar la categoría de las ${n} (dejar sin categorizar)`,
+  bulkSubcategoryNone: '— (ninguna)',
+  bulkSplitParentWarning: (n: number) =>
+    `${n} transacciones divididas están en tu selección y se omitirán.`,
+  bulkSplitParentDeselect: 'Deseleccionar',
+  bulkTransferInfo: (n: number) =>
+    `${n} transferencia(s) están en tu selección. Categorizarlas afecta a los informes por categoría.`,
+  bulkApplyButton: 'Aplicar',
+  bulkSuccessToast: (n: number) => `${n} transacciones actualizadas`,
+  bulkPartialFailureToast: (s: number, f: number) =>
+    `${s} actualizadas · ${f} con error. Toca para ver detalles.`,
+  bulkFailureBanner: 'Algo falló. No se modificó ninguna transacción.',
+  bulkSplitParentDisabledTooltip:
+    'Las transacciones divididas no se pueden re-categorizar en bloque',
+  bulkBatchLimit: (max: number) =>
+    `Puedes actualizar en bloque hasta ${max} transacciones a la vez.`,
+  bulkPartialResultsTitle: 'Resultado de la actualización en bloque',
+  bulkFailureCodeNotFound: 'Transacción no encontrada',
+  bulkFailureCodeSplitParent: 'Las transacciones divididas no pueden re-categorizarse en bloque',
+  bulkFailureCodeInvalidSubcategory: 'Subcategoría no válida',
+  bulkFailureCodeInactiveCategory: 'Categoría inactiva',
+  bulkFailureCodeConcurrency: 'La transacción cambió mientras se ejecutaba la operación en bloque',
+  bulkFailureCodeUnknown: 'No se pudo actualizar',
 };

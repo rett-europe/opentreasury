@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, ElementRef, inject, OnDestroy, OnInit, signal, ViewChild } from '@angular/core';
+import { ChangeDetectionStrategy, Component, ElementRef, computed, inject, OnDestroy, OnInit, signal, ViewChild } from '@angular/core';
 import { Router } from '@angular/router';
 import { fromEvent, Subject } from 'rxjs';
 import { filter, takeUntil } from 'rxjs/operators';
@@ -6,13 +6,15 @@ import { MatTableModule } from '@angular/material/table';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatTooltipModule } from '@angular/material/tooltip';
+import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatDialog, MatDialogModule } from '@angular/material/dialog';
+import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { CurrencyPipe, DatePipe } from '@angular/common';
 import { AuthService } from '@core/auth/auth.service';
 import { AppSettingsService } from '@core/services/app-settings.service';
 import { TransactionService } from '@core/services/transaction.service';
 import { ReferenceDataService } from '@core/services/reference-data.service';
-import { Transaction, TransactionType, TransactionQueryParams, ReviewStatus, CategorizationStatus } from '@shared/models/transaction.model';
+import { BULK_CATEGORIZE_MAX, BulkCategorizeResponse, Transaction, TransactionType, TransactionQueryParams, ReviewStatus, CategorizationStatus } from '@shared/models/transaction.model';
 import { PageHeaderComponent } from '@shared/components/page-header/page-header.component';
 import { LoadingContainerComponent } from '@shared/components/loading-container/loading-container.component';
 import { EmptyStateComponent } from '@shared/components/empty-state/empty-state.component';
@@ -22,6 +24,16 @@ import { TypeColorPipe } from '@shared/pipes/type-color.pipe';
 import { TransactionFilterBarComponent, TransactionFilters } from './tx-filter-bar.component';
 import { QuickCategorizeDialogComponent } from './quick-categorize-dialog.component';
 import { SplitDialogComponent, SplitDialogData } from './split-dialog.component';
+import { BulkActionBarComponent } from './bulk-action-bar.component';
+import {
+  BulkCategorizeDialogComponent,
+  BulkCategorizeDialogData,
+  BulkCategorizeDialogResult,
+} from './bulk-categorize-dialog.component';
+import {
+  BulkResultsDialogComponent,
+  BulkResultsDialogData,
+} from './bulk-results-dialog.component';
 
 @Component({
   selector: 'app-transaction-list',
@@ -32,7 +44,9 @@ import { SplitDialogComponent, SplitDialogData } from './split-dialog.component'
     MatButtonModule,
     MatIconModule,
     MatTooltipModule,
+    MatCheckboxModule,
     MatDialogModule,
+    MatSnackBarModule,
     CurrencyPipe,
     DatePipe,
     PageHeaderComponent,
@@ -42,6 +56,7 @@ import { SplitDialogComponent, SplitDialogData } from './split-dialog.component'
     TypeIconPipe,
     TypeColorPipe,
     TransactionFilterBarComponent,
+    BulkActionBarComponent,
   ],
   template: `
     <div class="page-container">
@@ -58,6 +73,16 @@ import { SplitDialogComponent, SplitDialogData } from './split-dialog.component'
 
         <app-tx-filter-bar #filterBar (filtersChanged)="onFiltersChanged($event)" />
       </div>
+
+      @if (authService.isAdmin() && selectedCount() > 0 && transactions().length > 0) {
+        <app-bulk-action-bar
+          class="bulk-bar-wrapper"
+          [selectedCount]="selectedCount()"
+          [net]="selectedNet()"
+          (changeCategory)="openBulkCategorize()"
+          (clearSelection)="clearSelection()"
+        />
+      }
 
       <div class="scroll-area" #scrollContainer>
 
@@ -77,6 +102,27 @@ import { SplitDialogComponent, SplitDialogData } from './split-dialog.component'
           @if (transactions().length > 0) {
             <div class="table-wrapper">
               <table mat-table [dataSource]="transactions()" class="full-width" multiTemplateDataRows>
+                @if (authService.isAdmin()) {
+                  <ng-container matColumnDef="select">
+                    <th mat-header-cell *matHeaderCellDef class="col-select">
+                      <mat-checkbox
+                        [checked]="allSelected()"
+                        [indeterminate]="someSelected()"
+                        (change)="toggleAll($event.checked)"
+                        [aria-label]="settings.labels().bulkChangeCategory"
+                      />
+                    </th>
+                    <td mat-cell *matCellDef="let tx" class="col-select">
+                      <mat-checkbox
+                        [checked]="isSelected(tx.id)"
+                        [disabled]="tx.isSplit"
+                        [matTooltip]="tx.isSplit ? settings.labels().bulkSplitParentDisabledTooltip : ''"
+                        (change)="toggleRow(tx, $event.checked)"
+                        (click)="$event.stopPropagation()"
+                      />
+                    </td>
+                  </ng-container>
+                }
                 <!-- Type column -->
                 <ng-container matColumnDef="type">
                   <th mat-header-cell *matHeaderCellDef class="col-type">{{ settings.labels().type }}</th>
@@ -210,7 +256,7 @@ import { SplitDialogComponent, SplitDialogData } from './split-dialog.component'
 
                 <!-- Expansion row for split details (spans all columns) -->
                 <ng-container matColumnDef="splitDetail">
-                  <td mat-cell *matCellDef="let tx" [attr.colspan]="displayedColumns.length">
+                  <td mat-cell *matCellDef="let tx" [attr.colspan]="displayedColumns().length">
                     @if (tx.isSplit && expandedSplitIds().has(tx.id)) {
                       <div class="split-detail-panel">
                         <div class="split-detail-header">
@@ -243,8 +289,9 @@ import { SplitDialogComponent, SplitDialogData } from './split-dialog.component'
                   </td>
                 </ng-container>
 
-                <tr mat-header-row *matHeaderRowDef="displayedColumns; sticky: true"></tr>
-                <tr mat-row *matRowDef="let row; columns: displayedColumns"
+                <tr mat-header-row *matHeaderRowDef="displayedColumns(); sticky: true"></tr>
+                <tr mat-row *matRowDef="let row; columns: displayedColumns()"
+                    [class.selected-row]="isSelected(row.id)"
                     (click)="onRowClick(row)"></tr>
                 <tr mat-row *matRowDef="let row; columns: ['splitDetail']"
                     class="split-detail-row"
@@ -321,7 +368,10 @@ import { SplitDialogComponent, SplitDialogData } from './split-dialog.component'
       white-space: nowrap;
     }
     .col-type { width: 40px; text-align: center; }
+    .col-select { width: 40px; text-align: center; padding-left: 8px; padding-right: 0; }
     .col-status { width: 80px; }
+    .selected-row { background: rgba(25, 118, 210, 0.06); }
+    .bulk-bar-wrapper { flex-shrink: 0; }
     .type-icon {
       font-size: var(--font-lg);
       width: var(--font-lg);
@@ -457,6 +507,7 @@ export class TransactionListComponent implements OnInit, OnDestroy {
   private readonly transactionService = inject(TransactionService);
   readonly refData = inject(ReferenceDataService);
   private readonly dialog = inject(MatDialog);
+  private readonly snackBar = inject(MatSnackBar);
   private readonly destroy$ = new Subject<void>();
 
   readonly loading = signal(false);
@@ -467,6 +518,26 @@ export class TransactionListComponent implements OnInit, OnDestroy {
   private allTransactions: Transaction[] = [];
   readonly transactions = signal<Transaction[]>([]);
 
+  // --- Bulk selection state (spec §5) ---
+  /** Ids of currently-selected rows. Preserved across scroll + month-walk; cleared on filter change / nav / successful bulk. */
+  readonly selectedIds = signal<Set<string>>(new Set());
+  readonly selectedCount = computed(() => this.selectedIds().size);
+  readonly allSelected = computed(() => {
+    const selectable = this.transactions().filter((t) => !t.isSplit);
+    return selectable.length > 0 && selectable.every((t) => this.selectedIds().has(t.id));
+  });
+  readonly someSelected = computed(() => {
+    const count = this.selectedCount();
+    if (count === 0) return false;
+    return !this.allSelected();
+  });
+  readonly selectedNet = computed(() => {
+    const ids = this.selectedIds();
+    return this.allTransactions
+      .filter((t) => ids.has(t.id))
+      .reduce((acc, t) => acc + Number(t.amount || 0), 0);
+  });
+
   // Partition walk state
   private partitionList: { year: number; month: number }[] = [];
   private partitionIndex = 0;
@@ -476,10 +547,13 @@ export class TransactionListComponent implements OnInit, OnDestroy {
 
   private static readonly PAGE_SIZE = 100;
 
-  readonly displayedColumns = [
-    'type', 'date', 'account', 'bankDescription', 'category',
-    'subcategory', 'tags', 'amount', 'status', 'actions',
-  ];
+  readonly displayedColumns = computed(() => {
+    const cols = [
+      'type', 'date', 'account', 'bankDescription', 'category',
+      'subcategory', 'tags', 'amount', 'status', 'actions',
+    ];
+    return this.authService.isAdmin() ? ['select', ...cols] : cols;
+  });
 
   private currentFilters: TransactionFilters | null = null;
 
@@ -507,6 +581,10 @@ export class TransactionListComponent implements OnInit, OnDestroy {
 
   onFiltersChanged(filters: TransactionFilters): void {
     this.currentFilters = filters;
+
+    // Spec §5.3: filter change clears the selection — the set of visible rows changes,
+    // so "what I have selected" would lose its mental-model grounding.
+    this.clearSelection();
 
     // If no date range set, show empty state — no API call
     if (!filters.dateFrom || !filters.dateTo) {
@@ -616,6 +694,149 @@ export class TransactionListComponent implements OnInit, OnDestroy {
       });
     }
   }
+
+  // --- Bulk selection + bulk categorize (spec §5..§8) ---
+
+  isSelected(id: string): boolean {
+    return this.selectedIds().has(id);
+  }
+
+  toggleRow(tx: Transaction, checked: boolean): void {
+    if (tx.isSplit) return; // §5.4: parents are un-selectable
+    const next = new Set(this.selectedIds());
+    if (checked) {
+      next.add(tx.id);
+    } else {
+      next.delete(tx.id);
+    }
+    this.selectedIds.set(next);
+  }
+
+  toggleAll(checked: boolean): void {
+    const next = new Set(this.selectedIds());
+    const selectable = this.transactions().filter((t) => !t.isSplit);
+    if (checked) {
+      for (const t of selectable) next.add(t.id);
+    } else {
+      for (const t of selectable) next.delete(t.id);
+    }
+    this.selectedIds.set(next);
+  }
+
+  clearSelection(): void {
+    if (this.selectedIds().size === 0) return;
+    this.selectedIds.set(new Set());
+  }
+
+  openBulkCategorize(): void {
+    const ids = this.selectedIds();
+    if (ids.size === 0) return;
+    // Build snapshot from the full cache, not the filtered-visible list, so
+    // that month-walked selections remain intact (AC-4).
+    const snapshot = this.allTransactions.filter((t) => ids.has(t.id));
+    if (snapshot.length === 0) return;
+
+    const data: BulkCategorizeDialogData = {
+      transactions: snapshot,
+      initialCategoryId: null,
+      initialSubcategoryId: null,
+    };
+
+    const ref = this.dialog.open<
+      BulkCategorizeDialogComponent,
+      BulkCategorizeDialogData,
+      BulkCategorizeDialogResult
+    >(BulkCategorizeDialogComponent, { width: '480px', maxWidth: '95vw', data });
+
+    // Keep the page-level selection in sync if the user clicks "Deselect" on the
+    // split-parent warning inside the dialog.
+    ref.componentInstance.deselected.subscribe((removedIds: string[]) => {
+      const next = new Set(this.selectedIds());
+      for (const id of removedIds) next.delete(id);
+      this.selectedIds.set(next);
+    });
+
+    ref.afterClosed().subscribe((result) => {
+      if (!result) return; // cancelled or total failure dismissed
+      this.onBulkCategorizeResult(result);
+    });
+  }
+
+  private onBulkCategorizeResult(result: BulkCategorizeDialogResult): void {
+    const labels = this.settings.labels();
+    const { response, action, categoryId, subcategoryId } = result;
+    const succeededCount = response.succeeded.length;
+    const failedCount = response.failed.length;
+
+    // Refresh successfully-updated rows inline so the UI reflects the new state
+    // without a full re-fetch (§8.2).
+    if (succeededCount > 0) {
+      this.applyBulkResultToRows(response.succeeded, action, categoryId, subcategoryId);
+    }
+
+    // AC-25: succeeded rows get deselected, failed rows stay selected so the
+    // admin can retry without re-picking them.
+    this.deselectSucceeded(response.succeeded);
+
+    if (failedCount === 0) {
+      this.snackBar.open(labels.bulkSuccessToast(succeededCount), labels.close, { duration: 4000 });
+    } else {
+      // Partial failure snackbar is clickable and opens a details dialog (§8.3).
+      const snackRef = this.snackBar.open(
+        labels.bulkPartialFailureToast(succeededCount, failedCount),
+        labels.close,
+        { duration: 8000, panelClass: 'bulk-partial-failure-snack' },
+      );
+      snackRef.onAction().subscribe(() => {
+        this.openBulkResultsDialog(response.succeeded, response.failed);
+      });
+    }
+  }
+
+  private applyBulkResultToRows(
+    ids: string[],
+    action: 'apply' | 'clear',
+    categoryId: string | null,
+    subcategoryId: string | null,
+  ): void {
+    const idSet = new Set(ids);
+    const now = new Date().toISOString();
+    this.allTransactions = this.allTransactions.map((t) => {
+      if (!idSet.has(t.id)) return t;
+      if (action === 'apply') {
+        return {
+          ...t,
+          categoryId,
+          subcategoryId,
+          categorizationStatus: 'manually_categorized',
+          updatedAt: now,
+        };
+      }
+      return {
+        ...t,
+        categoryId: null,
+        subcategoryId: null,
+        categorizationStatus: 'uncategorized',
+        updatedAt: now,
+      };
+    });
+    this.applyClientFilters();
+  }
+
+  private deselectSucceeded(ids: string[]): void {
+    if (ids.length === 0) return;
+    const next = new Set(this.selectedIds());
+    for (const id of ids) next.delete(id);
+    this.selectedIds.set(next);
+  }
+
+  private openBulkResultsDialog(succeeded: string[], failed: BulkCategorizeResponse['failed']): void {
+    const data: BulkResultsDialogData = { succeeded, failed };
+    this.dialog.open(BulkResultsDialogComponent, { width: '420px', maxWidth: '95vw', data });
+  }
+
+  /** Max allowed per-batch, forwarded to the bulk action bar tooltip. */
+  readonly bulkBatchLimit = BULK_CATEGORIZE_MAX;
 
   /** Compute overlapping YYYY-MM partitions from a date range, newest first. */
   private computePartitions(dateFrom: string, dateTo: string): { year: number; month: number }[] {

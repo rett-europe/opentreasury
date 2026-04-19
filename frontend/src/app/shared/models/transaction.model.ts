@@ -158,6 +158,52 @@ export interface CategorizeRequest {
   subcategoryId: string | null;
 }
 
+// --- Bulk categorize (see docs/specs/bulk-category-update-spec.md v1.1 §15 / A-1..A-4) ---
+
+export interface BulkCategorizeItem {
+  id: string;
+  year: number;
+  month: number;
+}
+
+export type BulkCategorizeAction = 'apply' | 'clear';
+
+export interface BulkCategorizeRequest {
+  items: BulkCategorizeItem[];
+  action: BulkCategorizeAction;
+  categoryId?: string | null;
+  subcategoryId?: string | null;
+}
+
+/**
+ * Stable per-row error codes returned by POST /api/transactions/bulk-categorize.
+ * Keep this union in sync with `api/app/services/transaction_service.py::bulk_categorize`
+ * and spec §15 / A-2. Unknown codes received from the server are tolerated and
+ * rendered via the `message` field — the union is not used as a runtime type guard.
+ */
+export type BulkCategorizeFailureCode =
+  | 'NOT_FOUND'
+  | 'SPLIT_PARENT_NOT_BULK_UPDATABLE'
+  | 'INVALID_SUBCATEGORY'
+  | 'INACTIVE_CATEGORY'
+  | 'CONCURRENCY_CONFLICT'
+  | string;
+
+export interface BulkCategorizeFailure {
+  id: string;
+  code: BulkCategorizeFailureCode;
+  message: string;
+}
+
+export interface BulkCategorizeResponse {
+  batchCorrelationId: string;
+  succeeded: string[];
+  failed: BulkCategorizeFailure[];
+}
+
+/** Frontend cap mirrors the server-side cap in spec §15 / A-3. */
+export const BULK_CATEGORIZE_MAX = 200;
+
 export interface NoteCreate {
   text: string;
 }
