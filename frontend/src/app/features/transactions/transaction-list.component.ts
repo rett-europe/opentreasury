@@ -23,6 +23,7 @@ import { TransactionFilterBarComponent, TransactionFilters } from './tx-filter-b
 import { QuickCategorizeDialogComponent } from './quick-categorize-dialog.component';
 import { SplitDialogComponent, SplitDialogData } from './split-dialog.component';
 import { AccountLabelComponent } from '@shared/components/account-label/account-label.component';
+import { TransactionSummaryFooterComponent, TransactionSummaryData } from './tx-summary-footer.component';
 
 @Component({
   selector: 'app-transaction-list',
@@ -44,6 +45,7 @@ import { AccountLabelComponent } from '@shared/components/account-label/account-
     TypeColorPipe,
     TransactionFilterBarComponent,
     AccountLabelComponent,
+    TransactionSummaryFooterComponent,
   ],
   template: `
     <div class="page-container">
@@ -59,6 +61,12 @@ import { AccountLabelComponent } from '@shared/components/account-label/account-
         </app-page-header>
 
         <app-tx-filter-bar #filterBar (filtersChanged)="onFiltersChanged($event)" (showUncategorized)="showAllUncategorized()" />
+
+        @if (rangeSelected() && !uncategorizedMode()) {
+          <app-tx-summary-footer
+            [summary]="summaryData() ?? zeroSummary"
+            [loading]="summaryLoading()" />
+        }
       </div>
 
       <div class="scroll-area" #scrollContainer>
@@ -512,6 +520,8 @@ export class TransactionListComponent implements OnInit, OnDestroy {
   readonly rangeSelected = signal(false);
   readonly uncategorizedMode = signal(false);
   readonly allPartitionsLoading = signal(false);
+  readonly summaryData = signal<TransactionSummaryData | null>(null);
+  readonly summaryLoading = signal(false);
   private allTransactions: Transaction[] = [];
   readonly transactions = signal<Transaction[]>([]);
 
@@ -521,6 +531,9 @@ export class TransactionListComponent implements OnInit, OnDestroy {
   private nextContinuationToken: string | null = null;
   private currentBaseParams: Record<string, unknown> | null = null;
   private hasMore = false;
+  private accSummary: TransactionSummaryData = this.buildZeroSummary();
+
+  readonly zeroSummary: TransactionSummaryData = this.buildZeroSummary();
 
   private static readonly PAGE_SIZE = 100;
 
@@ -553,6 +566,10 @@ export class TransactionListComponent implements OnInit, OnDestroy {
     this.destroy$.complete();
   }
 
+  private buildZeroSummary(): TransactionSummaryData {
+    return { totalIncome: 0, totalExpenses: 0, net: 0, transactionCount: 0, uncategorizedCount: 0, transfersTotal: 0 };
+  }
+
   onFiltersChanged(filters: TransactionFilters): void {
     this.currentFilters = filters;
 
@@ -567,6 +584,8 @@ export class TransactionListComponent implements OnInit, OnDestroy {
       this.allTransactions = [];
       this.transactions.set([]);
       this.loading.set(false);
+      this.summaryData.set(null);
+      this.summaryLoading.set(false);
       // Reset paging state to prevent stale scroll-triggered fetches
       this.hasMore = false;
       this.partitionList = [];
@@ -782,6 +801,9 @@ export class TransactionListComponent implements OnInit, OnDestroy {
     this.allPartitionsLoading.set(true);
     this.allTransactions = [];
     this.nextContinuationToken = null;
+    this.accSummary = this.buildZeroSummary();
+    this.summaryData.set(null);
+    this.summaryLoading.set(true);
 
     const baseParams = {
       accountId: filters.accountId || undefined,
@@ -805,6 +827,7 @@ export class TransactionListComponent implements OnInit, OnDestroy {
     if (!this.currentBaseParams || this.partitionIndex >= this.partitionList.length) {
       this.hasMore = false;
       this.allPartitionsLoading.set(false);
+      this.summaryLoading.set(false);
       if (!append) {
         this.applyResults([]);
       }
@@ -826,6 +849,17 @@ export class TransactionListComponent implements OnInit, OnDestroy {
 
     this.transactionService.list(params).pipe(takeUntil(this.destroy$)).subscribe({
       next: (res) => {
+        // Accumulate aggregates from first page of each partition (when backend provides them)
+        if (res.totalIncome != null) {
+          this.accSummary.totalIncome += res.totalIncome;
+          this.accSummary.totalExpenses += res.totalExpenses ?? 0;
+          this.accSummary.net += res.net ?? 0;
+          this.accSummary.transfersTotal += res.transfersTotal ?? 0;
+          this.accSummary.transactionCount += res.transactionCount ?? 0;
+          this.accSummary.uncategorizedCount += res.uncategorizedCount ?? 0;
+          this.summaryData.set({ ...this.accSummary });
+        }
+
         if (res.continuationToken) {
           // More pages in this partition
           this.nextContinuationToken = res.continuationToken;
@@ -840,6 +874,7 @@ export class TransactionListComponent implements OnInit, OnDestroy {
           this.nextContinuationToken = null;
           this.hasMore = false;
           this.allPartitionsLoading.set(false);
+          this.summaryLoading.set(false);
         }
 
         // If empty result and more partitions remain, skip to next partition automatically
@@ -857,6 +892,7 @@ export class TransactionListComponent implements OnInit, OnDestroy {
       error: () => {
         this.hasMore = false;
         this.allPartitionsLoading.set(false);
+        this.summaryLoading.set(false);
         if (append) {
           this.loadingMore.set(false);
         } else {

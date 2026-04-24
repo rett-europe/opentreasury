@@ -71,6 +71,7 @@ async def list_transactions(
         response.total_income = aggregates["total_income"]
         response.total_expenses = aggregates["total_expenses"]
         response.net = aggregates["net"]
+        response.transfers_total = aggregates["transfers_total"]
         response.transaction_count = aggregates["transaction_count"]
         response.uncategorized_count = aggregates["uncategorized_count"]
     return response

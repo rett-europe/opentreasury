@@ -164,10 +164,11 @@ class TransactionListResponse(CamelModel):
     total_income: Optional[Decimal] = None
     total_expenses: Optional[Decimal] = None
     net: Optional[Decimal] = None
+    transfers_total: Optional[Decimal] = None
     transaction_count: Optional[int] = None
     uncategorized_count: Optional[int] = None
 
-    @field_validator("total_income", "total_expenses", "net", mode="before")
+    @field_validator("total_income", "total_expenses", "net", "transfers_total", mode="before")
     @classmethod
     def round_aggregate(cls, v):
         return _round_decimal(v)

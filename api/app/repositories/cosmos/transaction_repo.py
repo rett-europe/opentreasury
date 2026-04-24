@@ -300,6 +300,7 @@ class CosmosTransactionRepository:
 
         total_income = Decimal("0")
         total_expenses = Decimal("0")
+        transfers_total = Decimal("0")
         transaction_count = 0
         uncategorized_count = 0
 
@@ -310,12 +311,13 @@ class CosmosTransactionRepository:
         ):
             transaction_count += 1
             txn_type = item.get("transactionType")
-            amount = abs(Decimal(str(item["amount"])))
+            amount = Decimal(str(item["amount"]))
             if txn_type == TransactionType.INCOME.value:
-                total_income += amount
+                total_income += abs(amount)
             elif txn_type == TransactionType.EXPENSE.value:
-                total_expenses += amount
-            # transfer and refund: excluded from totals
+                total_expenses += abs(amount)
+            elif txn_type == TransactionType.TRANSFER.value:
+                transfers_total += amount
             if not item.get("categoryId") and not item.get("isSplit"):
                 uncategorized_count += 1
 
@@ -323,6 +325,7 @@ class CosmosTransactionRepository:
             "total_income": total_income,
             "total_expenses": total_expenses,
             "net": total_income - total_expenses,
+            "transfers_total": transfers_total,
             "transaction_count": transaction_count,
             "uncategorized_count": uncategorized_count,
         }

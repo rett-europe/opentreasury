@@ -165,9 +165,10 @@ export interface NoteCreate {
 export interface PaginatedResponse<T> {
   items: T[];
   continuationToken: string | null;
-  totalIncome: number;
-  totalExpenses: number;
-  net: number;
-  transactionCount: number;
-  uncategorizedCount: number;
+  totalIncome: number | null;
+  totalExpenses: number | null;
+  net: number | null;
+  transfersTotal: number | null;
+  transactionCount: number | null;
+  uncategorizedCount: number | null;
 }

@@ -100,8 +100,9 @@ export const mockApiInterceptor: HttpInterceptorFn = (req, next) => {
     const reviewStatusFilter = params.get('reviewStatus');
     if (reviewStatusFilter) items = items.filter((t) => t.reviewStatus === reviewStatusFilter);
 
-    const income = items.filter((t) => t.amount > 0).reduce((s, t) => s + t.amount, 0);
-    const expenses = items.filter((t) => t.amount < 0).reduce((s, t) => s + Math.abs(t.amount), 0);
+    const income = items.filter((t) => t.transactionType === 'income').reduce((s, t) => s + Math.abs(t.amount), 0);
+    const expenses = items.filter((t) => t.transactionType === 'expense').reduce((s, t) => s + Math.abs(t.amount), 0);
+    const transfers = items.filter((t) => t.transactionType === 'transfer').reduce((s, t) => s + t.amount, 0);
 
     const body: PaginatedResponse<Transaction> = {
       items,
@@ -109,8 +110,9 @@ export const mockApiInterceptor: HttpInterceptorFn = (req, next) => {
       totalIncome: income,
       totalExpenses: expenses,
       net: income - expenses,
+      transfersTotal: transfers,
       transactionCount: items.length,
-      uncategorizedCount: items.filter((t) => !t.categoryId).length,
+      uncategorizedCount: items.filter((t) => !t.categoryId && !t.isSplit).length,
     };
     log(method, path, 200, `${items.length} items`);
     return of(json(body)).pipe(delay(randomDelay()));

@@ -24,6 +24,7 @@ def mock_repo():
         "total_income": Decimal("0"),
         "total_expenses": Decimal("0"),
         "net": Decimal("0"),
+        "transfers_total": Decimal("0"),
         "transaction_count": 0,
         "uncategorized_count": 0,
     }
@@ -142,6 +143,7 @@ class TestListTransactions:
             "total_income": Decimal("500.00"),
             "total_expenses": Decimal("200.00"),
             "net": Decimal("300.00"),
+            "transfers_total": Decimal("-50.00"),
             "transaction_count": 10,
             "uncategorized_count": 2,
         }
@@ -151,6 +153,7 @@ class TestListTransactions:
         assert aggregates["total_income"] == Decimal("500.00")
         assert aggregates["total_expenses"] == Decimal("200.00")
         assert aggregates["net"] == Decimal("300.00")
+        assert aggregates["transfers_total"] == Decimal("-50.00")
         assert aggregates["transaction_count"] == 10
         assert aggregates["uncategorized_count"] == 2
 
