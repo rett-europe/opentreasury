@@ -311,13 +311,13 @@ class CosmosTransactionRepository:
         ):
             transaction_count += 1
             txn_type = item.get("transactionType")
-            amount = Decimal(str(item["amount"]))
+            signed_amount = Decimal(str(item["amount"]))
             if txn_type == TransactionType.INCOME.value:
-                total_income += abs(amount)
+                total_income += abs(signed_amount)
             elif txn_type == TransactionType.EXPENSE.value:
-                total_expenses += abs(amount)
+                total_expenses += abs(signed_amount)
             elif txn_type == TransactionType.TRANSFER.value:
-                transfers_total += amount
+                transfers_total += signed_amount
             if not item.get("categoryId") and not item.get("isSplit"):
                 uncategorized_count += 1
 
